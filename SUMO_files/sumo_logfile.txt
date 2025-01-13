@@ -1,0 +1,29 @@
+***Starting server on port 40411 ***
+Loading net-file from './SUMO_files/network_iterations/network_iteration_1.net.xml' ... done (21ms).
+Warning: Unused states in tlLogic 'iter1_3_mid', program '0' in phase 0 after tl-index 1
+Warning: Unused states in tlLogic 'iter1_5_mid', program '0' in phase 0 after tl-index 1
+Warning: Unused states in tlLogic 'iter1_6_mid', program '0' in phase 0 after tl-index 1
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_0.xml'
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_0.xml'
+Loading done.
+Simulation started with time: 0.00.
+Simulation ended at time: 131.00.
+Performance:
+ Duration: 25.37s
+ TraCI-Duration: 0.24s
+ Real time factor: 5.16399
+ UPS: 37.527594
+ UPS-Persons: 471.538947
+Vehicles:
+ Inserted: 17 (Loaded: 23)
+ Running: 16
+ Waiting: 0
+Persons:
+ Inserted: 307
+ Running: 181
+DijkstraRouter answered 1186 queries and explored 5.42 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.00ms on average).
+DijkstraRouter answered 191 queries and explored 602.51 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.06ms on average).
+DijkstraRouter answered 17 queries and explored 68.06 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.00ms on average).

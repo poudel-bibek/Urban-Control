@@ -1,0 +1,9 @@
+<configuration>
+    <input>
+        <net-file value="original_craver_road.net.xml"/>
+    </input>
+    <output>
+        <log value="sumo_logfile.txt"/>
+        <error-log value="sumo_errorlog.txt"/>
+    </output>
+</configuration>
