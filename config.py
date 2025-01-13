@@ -105,7 +105,6 @@ def classify_and_return_args(train_config, worker_device):
         'vf_coef': train_config['vf_coef'],
         'batch_size': train_config['batch_size'],
         'gae_lambda': train_config['gae_lambda'],
-        'agent_type': "lower",
         'model_kwargs': model_kwargs
     }
 

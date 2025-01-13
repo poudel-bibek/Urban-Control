@@ -947,7 +947,7 @@ class ControlEnv(gym.Env):
                         "--verbose",
                         "--start" , 
                         "--quit-on-end", 
-                        "-c", "./SUMO_files/iterative_craver.sumocfg  ", 
+                        "-c", "./SUMO_files/Craver_traffic_lights.sumocfg", 
                         "--step-length", str(self.step_length),
                         "--route-files", f"{self.vehicle_output_trips},{self.pedestrian_output_trips}"
                         ]
@@ -956,7 +956,7 @@ class ControlEnv(gym.Env):
             sumo_cmd = ["sumo-gui" if self.use_gui else "sumo", 
                         "--verbose",
                         "--quit-on-end", 
-                        "-c", "./SUMO_files/iterative_craver.sumocfg  ", 
+                        "-c", "./SUMO_files/Craver_traffic_lights.sumocfg", 
                         "--step-length", str(self.step_length),
                         "--route-files", f"{self.vehicle_output_trips},{self.pedestrian_output_trips}"
                         ]

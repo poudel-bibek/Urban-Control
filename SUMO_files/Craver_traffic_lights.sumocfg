@@ -1,6 +1,6 @@
 <configuration>
     <input>
-        <net-file value="original_craver_road.net.xml"/>
+        <net-file value="Craver_traffic_lights.net.xml"/>
     </input>
     <output>
         <log value="sumo_logfile.txt"/>

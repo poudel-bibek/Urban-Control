@@ -1,5 +1,0 @@
-Warning: Unused states in tlLogic 'iter1_3_mid', program '0' in phase 0 after tl-index 1
-Warning: Unused states in tlLogic 'iter1_5_mid', program '0' in phase 0 after tl-index 1
-Warning: Unused states in tlLogic 'iter1_6_mid', program '0' in phase 0 after tl-index 1
-Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
-Quitting (on error).

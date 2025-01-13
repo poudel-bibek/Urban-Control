@@ -4,6 +4,7 @@ import wandb
 wandb.require("core")
 import torch
 import random
+import queue
 import numpy as np
 from datetime import datetime
 from ppo import PPO, Memory
@@ -151,6 +152,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
     # Instead of using total_episodes, we will use total_iterations. 
     # Every iteration, num_process control agents interact with the environment for total_action_timesteps_per_episode steps (which further internally contains action_duration steps)
     total_iterations = train_config['total_timesteps'] // (train_config['max_timesteps'] * train_config['num_processes'])
+    control_ppo.total_iterations = total_iterations
     global_step = 0
     action_timesteps = 0
 
@@ -203,8 +205,8 @@ def train(train_config, is_sweep=False, sweep_config=None):
                         loss = control_ppo.update(all_memories, agent_type='lower')
 
                         total_lower_reward = sum(sum(memory.rewards) for memory in all_memories)
-                        avg_lower_reward = total_lower_reward / control_args['num_processes'] # Average reward per process in this iteration
-                        print(f"\nAverage Reward per process: {avg_lower_reward:.2f}\n")
+                        avg_reward = total_lower_reward / control_args['num_processes'] # Average reward per process in this iteration
+                        print(f"\nAverage Reward per process: {avg_reward:.2f}\n")
                         
                         # clear memory to prevent memory growth (after the reward calculation)
                         for memory in all_memories:
@@ -218,7 +220,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                         if loss is not None:
                             if is_sweep: # Wandb for hyperparameter tuning
                                 wandb.log({     "iteration": iteration,
-                                                "lower_avg_reward": avg_lower_reward, # Set as maximize in the sweep config
+                                                "lower_avg_reward": avg_reward, # Set as maximize in the sweep config
                                                 "lower_policy_loss": loss['policy_loss'],
                                                 "lower_value_loss": loss['value_loss'], 
                                                 "lower_entropy_loss": loss['entropy_loss'],
@@ -228,7 +230,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                                 
                             else: # Tensorboard for regular training
                                 total_updates = int(action_timesteps / control_args['update_freq'])
-                                writer.add_scalar('Lower/Average_Reward', avg_lower_reward, global_step)
+                                writer.add_scalar('Lower/Average_Reward', avg_reward, global_step)
                                 writer.add_scalar('Lower/Total_Policy_Updates', total_updates, global_step)
                                 writer.add_scalar('Lower/Policy_Loss', loss['policy_loss'], global_step)
                                 writer.add_scalar('Lower/Value_Loss', loss['value_loss'], global_step)
@@ -242,9 +244,9 @@ def train(train_config, is_sweep=False, sweep_config=None):
                                     torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'control_model_iteration_{iteration+1}.pth'))
 
                                 # Save best model so far
-                                if avg_lower_reward > best_reward_lower:
+                                if avg_reward > best_reward:
                                     torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], 'best_control_model.pth'))
-                                    best_reward_lower = avg_lower_reward
+                                    best_reward = avg_reward
                         
                         else: # For some reason..
                             print("Warning: loss is None")

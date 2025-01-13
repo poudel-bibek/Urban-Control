@@ -34,47 +34,6 @@ class Memory:
         del self.rewards[:]
         del self.is_terminals[:]
 
-class GraphDataset(torch.utils.data.Dataset):
-    """
-    To handle the batching of graph data for the higher-level agent
-    """
-    def __init__(self, states, actions, logprobs, advantages, returns):
-        self.states = states  # List of Data objects
-        self.actions = actions
-        self.logprobs = logprobs
-        self.advantages = advantages
-        self.returns = returns
-
-    def __len__(self):
-        return len(self.states)
-
-    def __getitem__(self, idx):
-        return (
-            self.states[idx],
-            self.actions[idx],
-            self.logprobs[idx],
-            self.advantages[idx],
-            self.returns[idx]
-        )
-
-
-def collate_fn(data):
-    states_batch, actions_batch, old_logprobs_batch, advantages_batch, returns_batch = zip(*data)
-    states_batch = Batch.from_data_list(states_batch)  
-
-    # Concatenate actions_batch tensors along the first dimension
-    actions_batch = torch.cat([a for a in actions_batch], dim=0)  # Now shape is (batch_size, max_proposals, 2)
-
-    # Concatenate old_logprobs_batch tensors along the first dimension
-    old_logprobs_batch = torch.cat([l for l in old_logprobs_batch], dim=0)  # Shape is (batch_size,)
-
-    # Stack advantages and returns (already scalar tensors)
-    advantages_batch = torch.stack(advantages_batch)  # Shape is (batch_size,)
-    returns_batch = torch.stack(returns_batch)        # Shape is (batch_size,)
-
-    return states_batch, actions_batch, old_logprobs_batch, advantages_batch, returns_batch
-
-
 class PPO:
     """
     This implementation is parallelized using Multiprocessing i.e. multiple CPU cores each running a separate process.
@@ -99,7 +58,6 @@ class PPO:
                  vf_coef, 
                  batch_size, 
                  gae_lambda, 
-                 agent_type,
                  model_kwargs):
         
         self.model_dim = model_dim
@@ -112,18 +70,10 @@ class PPO:
         self.vf_coef = vf_coef
         self.batch_size = batch_size
         self.gae_lambda = gae_lambda
-        self.agent_type = agent_type
-
-        if self.agent_type == 'lower':  
-            self.policy = CNNActorCritic(self.model_dim, self.action_dim, **model_kwargs).to(self.device)
-            self.policy_old = CNNActorCritic(self.model_dim, self.action_dim, **model_kwargs).to(self.device) # old policy network (used for importance sampling)
-
-        else: # Higher level agent
-            self.policy = GATv2ActorCritic(self.model_dim, self.action_dim, **model_kwargs).to(self.device)
-            self.policy_old = GATv2ActorCritic(self.model_dim, self.action_dim, **model_kwargs).to(self.device) # old policy network (used for importance sampling)
+        self.policy = CNNActorCritic(self.model_dim, self.action_dim, **model_kwargs).to(self.device)
+        self.policy_old = CNNActorCritic(self.model_dim, self.action_dim, **model_kwargs).to(self.device) # old policy network (used for importance sampling)
 
         param_counts = self.policy.param_count()
-        print(f"\nTotal number of parameters in {self.agent_type}-level policy: {param_counts['total']}")
         print(f"\tActor parameters: {param_counts['actor_total']}")
         print(f"\tCritic parameters: {param_counts['critic_total']}")
         print(f"\tShared parameters: {param_counts['shared']}\n")
@@ -181,7 +131,7 @@ class PPO:
 
         return torch.tensor(advantages, dtype=torch.float32).to(self.device)
 
-    def update(self, memories, agent_type='higher'):
+    def update(self, memories):
         """
         Update the policy and value networks using the collected experiences.
         For lower level agent, memories = combined memories from all processes. 
@@ -193,31 +143,18 @@ class PPO:
         Therefore, we need to convert the graph to a tensor.
         """
 
-        if agent_type == 'lower':
-            print(f"\nUpdating {self.agent_type}-level policy")
-            combined_memory = Memory()
-            for memory in memories:
-                combined_memory.actions.extend(memory.actions)
-                combined_memory.states.extend(memory.states)
-                combined_memory.logprobs.extend(memory.logprobs)
-                combined_memory.rewards.extend(memory.rewards)
-                combined_memory.is_terminals.extend(memory.is_terminals)
+        print(f"\nUpdating policy")
+        combined_memory = Memory()
+        for memory in memories:
+            combined_memory.actions.extend(memory.actions)
+            combined_memory.states.extend(memory.states)
+            combined_memory.logprobs.extend(memory.logprobs)
+            combined_memory.rewards.extend(memory.rewards)
+            combined_memory.is_terminals.extend(memory.is_terminals)
 
-            old_states = torch.stack(combined_memory.states).to(self.device)
-            with torch.no_grad():
-                values = self.policy.critic(old_states).squeeze()
-        else: 
-            
-            # For the higher level agent, Each state is a dict with keys: 'x', 'edge_index', 'edge_attr', 'batch_size'
-            print(f"\nUpdating {self.agent_type}-level policy")
-            combined_memory = memories
-
-            old_states = combined_memory.states 
-            # Create batch from states
-            states_batch = Batch.from_data_list(old_states).to(self.device)
-            
-            with torch.no_grad():
-                values = self.policy.critic(states_batch).squeeze()
+        old_states = torch.stack(combined_memory.states).to(self.device)
+        with torch.no_grad():
+            values = self.policy.critic(old_states).squeeze()
 
         print(f"\nStates: {combined_memory.states}")
         print(f"\nActions: {combined_memory.actions}")
@@ -240,12 +177,8 @@ class PPO:
         old_logprobs = torch.stack(combined_memory.logprobs).detach().to(self.device)
 
         # Create a dataloader for mini-batching 
-        if agent_type == 'lower':
-            dataset = TensorDataset(old_states, old_actions, old_logprobs, advantages, returns)
-            dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
-        else:
-            dataset = GraphDataset(old_states, old_actions, old_logprobs, advantages, returns)
-            dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True, collate_fn=collate_fn)
+        dataset = TensorDataset(old_states, old_actions, old_logprobs, advantages, returns)
+        dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
 
         avg_policy_loss = 0
         avg_value_loss = 0
@@ -302,9 +235,3 @@ class PPO:
             'entropy_loss': avg_entropy_loss,
             'total_loss': avg_policy_loss + self.vf_coef * avg_value_loss - self.ent_coef * avg_entropy_loss
         }
-
-    
-
-
-        
-
