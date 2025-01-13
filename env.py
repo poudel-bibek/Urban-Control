@@ -5,7 +5,7 @@ import torch
 import random
 import gymnasium as gym
 import numpy as np
-from utils import convert_demand_to_scale_factor, scale_demand, create_new_sumocfg
+from utils import convert_demand_to_scale_factor, scale_demand
 from sim_config import (PHASES, DIRECTIONS_AND_EDGES, CONTROLLED_CROSSWALKS_DICT, initialize_lanes, get_tl_phase_groups, get_crosswalk_phase_groups)
 
 class ControlEnv(gym.Env):
@@ -17,11 +17,9 @@ class ControlEnv(gym.Env):
     - Tracking and occupancy map.
     """
 
-    def __init__(self, control_args, worker_id=None, network_iteration=None):
+    def __init__(self, control_args, worker_id=None):
         super().__init__()
         self.worker_id = worker_id
-        self.network_iteration = network_iteration
-        
         # Use dictionary access instead of attribute access
         self.vehicle_input_trips = control_args['vehicle_input_trips']
         self.vehicle_output_trips = control_args['vehicle_output_trips']
@@ -788,136 +786,7 @@ class ControlEnv(gym.Env):
         """
         return self.step_count >= self.max_timesteps
 
-    def _disallow_pedestrians(self, walking_edges_to_reroute_from, related_junction_edges_to_lookup_from):
-        """ 
-        Disallow pedestrians means reroute pedestrians from the nearest possible crosswalk.
-        This is called once per action i.e., after 10 actual simulation steps. 
-        This means some pedestrians which have spawned and reached the crosswalks in the last 10 steps will not be rerouted. Which is unlikely.
-
-        One important consideration is: 
-        1. When to check if pedestrians need a re-route: whereever they may be at the action time step (because we go through all pedestrians) 
-        2. When to actually perform the re-route: If they are present in the vicinity of the crosswalk. i.e., only if they are nearby, they will be able to see that a crosswalk is disabled. (closer to real-world scenario) 
-
-        # We cannot check if a pedestrian far away has a crosswalk in their route (which they reach sometime in the future) and then re-route them immediately.
-        # If the pedestrian in already in the crosswalk itself at the time of action, they dont need to be re-routed.
-
-        Pedestrian current edge can be the crosswalk id itself.. or the walking areas associated. Both begin with :, Both will be invisible in the route but can be obtained by current edge.  
-        Pedestrian can be in the internal edge (related to the junction) which will be _w0 or _w1 attached to the junction name. This can also be obtained using current edge.
-        # Done.
-         10. Only route if they have already not been re-routed or something like that?
-         3. Why are the re-routed pedestrians actually not going to the other side of crosswalk?
-         4. Measure the efficacy of the re-routing.
-         5. Convert to shortest path method.
-         8. Track the edges from which pedestrians are being missed.
-         3. Since the re-routing happens every 10 timesteps, that can be too late. Because pedestrians keep moving beween the two decision times. Switched to enforecement of disabling crosswalks every step.
-         2. Pedestrians who are just passing by, not too close, should not be re-routed.
-         6. One step forward lookup is necessary because we can only get the last step pedestrian info from the simulation. For forward lookup, we have their remaining route, and we have the related junction edges, make use of that.
-         7. Make the second route where they go to the other side of the crosswalk. The third one to the destination.
-         1. After assigning the new route, move the pedestrian to the first edge/ lane of the new route. (teleport)? The teleportation from simulation seems to work fine. And my own teleport does not
-        """
-
-        for ped_id in traci.person.getIDList():
-            if ped_id not in self.currently_rerouted: # If they are already re-routed, no need to re-route them again. Until the next action where this list gets reset.
-                current_edge = traci.person.getRoadID(ped_id) # This may contain an internal edge.
-                
-                # Get the remaining edges in the person's route
-                remaining_stages_count = traci.person.getRemainingStages(ped_id)
-                remaining_edges = []
-                for i in range(remaining_stages_count):  
-                    stage = traci.person.getStage(ped_id, i)
-                    remaining_edges.extend(stage.edges)
-                
-                # For all pedestrians, print their route
-                # print(f"\nPedestrian {ped_id} remaining route: {remaining_edges}\n current edge: {current_edge}\n")
-                # print(f"\nWalking edges to reroute from: {walking_edges_to_reroute_from}\n")
-                # print(f"\nRelated junction edges to lookup from: {related_junction_edges_to_lookup_from}\n")
-
-                # If the person is in the vicinity of the crosswalk we want to disable or the look forward in the current edge by 1.
-                # If the person is directly on the edge that we want to disable, then they are continued to walk
-                # Disabling the forward lookup. Works without problems.
-                # If forward lookup is enabled, the auto-teleportation is too harsh. We need to do controlled teleportation 
-                if self._check_vicinity(current_edge, walking_edges_to_reroute_from, remaining_edges, related_junction_edges_to_lookup_from, forward_lookup= False): # If the route includes the ones we want to disable.
-                    
-                    # Get the destination (end) edge
-                    destination_edge = remaining_edges[-1] # Last edge of the last stage is the destination.
-
-                    # Based on whether current edge is upside or downside, select the new crosswalk's downside or upside.
-                    current_direction = self.edge_to_direction.get(current_edge) # This is the direction of the current edge.
-                    other_direction = 'upside' if current_direction == 'downside' else 'downside' # Just a simple way to get the other direction.
-
-                    # Choice of which alternate crosswalk to choose is based on shortest path. 
-                    # Among the alternate crosswalks, for each pedestrian, find the closest crosswalk.
-                    current_crosswalk_num = self.edge_to_numerical_crosswalk_id.get(current_edge)
-                    # make use of self.alternative_crosswalks_num to calculate smallest difference with current_crosswalk_num
-                    differences = [abs(current_crosswalk_num - crosswalk_num) for crosswalk_num in self.alternative_crosswalks_num]
-                    closest_crosswalk_index = differences.index(min(differences))
-                    new_crosswalk_num = self.alternative_crosswalks_num[closest_crosswalk_index]
-
-                    # This has to be gotten from the unmasked one because we need to include 1 and 2
-                    new_crosswalk_id = self.controlled_crosswalks_dict[new_crosswalk_num]['ids'][0] # Just get the first one.
-                    
-                    # print(f"\nPedestrian {ped_id} is being re-routed from crosswalk {current_crosswalk_num} to crosswalk {new_crosswalk_num} with ID: {new_crosswalk_id}")
-                    # print(f"Alternate crosswalk nums: {self.alternative_crosswalks_num}, differences: {differences}\n")
-
-                    # Get the re-route point related to this new crosswalk
-                    next_reroute_edge = self.crosswalk_to_reroute_edges[new_crosswalk_id].get(current_direction) # Understand the difference between teleport point and reroute point.
-
-                    # Append two new walking stages:
-                    # Althrough the routing can find a route from current edge directly to the destination edge, this is a problem because it can repeat the same route. 
-                    # Moreoever, we want to ensure that we pass through an enabled crosswalk. Hence, we do routing in two stages.
-                    # #    - One from the current edge to the new crosswalk 
-                    found_route = traci.simulation.findIntermodalRoute(current_edge, next_reroute_edge, modes='') # Walking is the default mode. This returns a Stage object.
-                    #print(f"\nFound route: {found_route}\n")
-
-                    other_side_of_crosswalk = self.crosswalk_to_reroute_edges[new_crosswalk_id].get(other_direction)
-                    found_route_2 = traci.simulation.findIntermodalRoute(next_reroute_edge, other_side_of_crosswalk, modes='') 
-                    #print(f"\nFound route 2: {found_route_2}\n")
-
-                    #   - Other from the new crosswalk to the destination edge
-                    found_route_3 = traci.simulation.findIntermodalRoute(other_side_of_crosswalk, destination_edge, modes='') # Walking is the default mode. This returns a Stage object.
-                    #print(f"\nFound route 3: {found_route_2}\n")
-
-                    # Clear all the remaining stages of the pedestrian
-                    # If a new stage is not immediately appended, this automatically removes the person in the next timestep.
-                    traci.person.removeStages(ped_id)
-                    
-                    # Since we are finding intermodal route, this route could potentially have had many stages. Just append the first one. which is walking to the destination.
-                    traci.person.appendStage(ped_id, found_route[0]) 
-                    traci.person.appendStage(ped_id, found_route_2[0]) 
-                    traci.person.appendStage(ped_id, found_route_3[0])
-
-                    # If they got re-routed, change color to red
-                    traci.person.setColor(ped_id, (255, 0, 0, 255))
-                    self.currently_rerouted.append(ped_id)
-
-    def _check_vicinity(self, current_edge, walking_edges_to_reroute_from, remaining_edges, related_junction_edges_to_lookup_from, forward_lookup=False):
-        """
-        If the current edge is already in the vicinity of the crosswalk to disable
-        Or the next edge in the forward lookup in the route is in the vicinity
-        For the fowrard step lookup, we need to know next edge. However, if cant even determine the current edge if they are internal.
-        """
-        # Basic conditon.
-        if current_edge in walking_edges_to_reroute_from:
-            #print(f"\nCurrent edge: {current_edge} is in the vicinity\n")
-            return True
-        else: 
-            return False 
-            # If foward lookup is disabled, comment this entire block for efficiency. 
-            # IMPORTANT: If they are currently in the junction, and the next edge is among the one we want to diasble.
-            # Forward lookup of one step does not work because, remaining_edges[0] does not give the exact remaining route but rather the first edge in entire route. 
-            # If that first edge happens to be an internal edge, then it wont be present in the walking_edges_to_reroute_from.
-            
-            # if forward_lookup: # Forward lookup of the entire remaining route. 
-            #     if current_edge in related_junction_edges_to_lookup_from and any(next_edge in walking_edges_to_reroute_from for next_edge in remaining_edges): # If any edge in the remaining route is in the vicinity.                         
-            #         #print(f"\nNext edge in the future is in the vicinity\n")
-            #         return True
-            #     else: 
-            #         print(f"\nCurrent edge: {current_edge} is not in the vicinity\n")
-            #         return False
-            # else:
-            #     return False
-
-    def reset(self, options=None):
+    def reset(self):
         """
         """
         super().reset()
@@ -938,9 +807,6 @@ class ControlEnv(gym.Env):
         
         # #Before sumo call 
         # self._modify_net_file(to_disable)
-
-        # create the new sumocfg file before the call
-        create_new_sumocfg(self.network_iteration)
 
         if self.auto_start:
             sumo_cmd = ["sumo-gui" if self.use_gui else "sumo", 

@@ -1,0 +1,20 @@
+Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
+Quitting (on error).
+_0', time=313.00.
+Warning: Vehicle '63' ends teleporting on edge '16666012#2', time=313.00.
+Warning: Person '1945' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=459.00.
+Warning: Teleporting vehicle '198'; waited too long (yield), lane='-16666012#2_0', time=469.00.
+Warning: Vehicle '198' ends teleporting on edge '452522817#1', time=469.00.
+Warning: Person '57' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=471.00.
+Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
+Quitting (on error).
+mmed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=671.00.
+Warning: Person '1463' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=731.00.
+Warning: Person '1941' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=738.00.
+Warning: Teleporting vehicle '142'; waited too long (yield), lane='-16666012#2_0', time=777.00.
+Warning: Vehicle '142' ends teleporting on edge '-1060131306#0', time=777.00.
+Warning: Teleporting vehicle '157'; waited too long (yield), lane='-16666012#3_0', time=802.00.
+Warning: Teleporting vehicle '140'; waited too long (jam), lane='-16666012#4_0', time=802.00.
+Warning: Vehicle '140' ends teleporting on edge '-16666012#3', time=802.00.
+Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
+Quitting (on error).

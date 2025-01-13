@@ -1,26 +1,71 @@
-***Starting server on port 52785 ***
-Loading net-file from './SUMO_files/Craver_traffic_lights.net.xml' ... done (16ms).
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_0.xml'
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_0.xml'
+***Starting server on port 50821 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights.net.xml' ... done (24ms).
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_4.xml'
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_4.xml'
 Loading done.
 Simulation started with time: 0.00.
-Simulation ended at time: 11.00.
+Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
+Quitting (on error).
+Simulation ended at time: 170.00.
 Performance:
- Duration: 22.62s
- TraCI-Duration: 0.19s
- Real time factor: 0.486295
- UPS: 0.928382
- UPS-Persons: 0.530504
+ Duration: 0.97s
+ TraCI-Duration: 0.35s
+ Real time factor: 175.077
+ UPS: 2690.010299
+ UPS-Persons: 25360.453141
 Vehicles:
- Inserted: 3 (Loaded: 46)
- Running: 3
- Waiting: 0
+ Inserted: 33 (Loaded: 37)
+ Running: 33
+ Waiting: 1
 Persons:
- Inserted: 105
- Running: 2
-DijkstraRouter answered 1 queries and explored 4.00 edges on average.
+ Inserted: 370
+ Running: 293
+DijkstraRouter answered 1680 queries and explored 4.84 edges on average.
 DijkstraRouter spent 0.00s answering queries (0.00ms on average).
-DijkstraRouter answered 2 queries and explored 369.00 edges on average.
-DijkstraRouter spent 0.00s answering queries (0.00ms on average).
-DijkstraRouter answered 5 queries and explored 57.00 edges on average.
+DijkstraRouter answered 323 queries and explored 488.72 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.03ms on average).
+DijkstraRouter answered 34 queries and explored 57.50 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.03ms on average).
+ctor: 243.539
+ UPS: 8793.737575
+ UPS-Persons: 91459.741551
+Vehicles:
+ Inserted: 71 (Loaded: 92)
+ Running: 56
+ Waiting: 7
+ Teleports: 2 (Yield: 2)
+Persons:
+ Inserted: 1270
+ Running: 589
+ Jammed: 2
+DijkstraRouter answered 16984 queries and explored 5.62 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.00ms on average).
+DijkstraRouter answered 1042 queries and explored 478.06 edges on average.
+DijkstraRouter spent 0.04s answering queries (0.04ms on average).
+DijkstraRouter answered 79 queries and explored 57.70 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.03ms on average).
+ds teleporting on edge '-16666012#3', time=802.00.
+Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
+Quitting (on error).
+Simulation ended at time: 810.00.
+Performance:
+ Duration: 2.24s
+ TraCI-Duration: 0.99s
+ Real time factor: 361.285
+ UPS: 19268.064228
+ UPS-Persons: 46265.388046
+Vehicles:
+ Inserted: 115 (Loaded: 162)
+ Running: 87
+ Waiting: 15
+ Teleports: 6 (Jam: 1, Yield: 5)
+Persons:
+ Inserted: 566
+ Running: 165
+ Jammed: 4
+DijkstraRouter answered 12038 queries and explored 5.91 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.00ms on average).
+DijkstraRouter answered 460 queries and explored 479.91 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.03ms on average).
+DijkstraRouter answered 133 queries and explored 57.71 edges on average.
 DijkstraRouter spent 0.00s answering queries (0.00ms on average).

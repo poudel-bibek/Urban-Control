@@ -183,25 +183,6 @@ def find_connecting_edges(net, start_edge_id, end_edge_id):
     
     return None  # No path found
 
-def create_new_sumocfg(network_iteration):
-    """
-    Need to iteratively load a new net file.
-    """
-    config_content = f"""<?xml version="1.0" encoding="UTF-8"?>
-                        <configuration>
-                            <input>
-                                <net-file value="network_iterations/network_iteration_{network_iteration}.net.xml"/>
-                            </input>
-                            <output>
-                                <log value="sumo_logfile.txt"/>
-                                <error-log value="sumo_errorlog.txt"/>
-                            </output>
-                        </configuration>"""
-    
-    temp_config_path = './SUMO_files/iterative_craver.sumocfg'
-    with open(temp_config_path, 'w') as f:
-        f.write(config_content)
-
 def modify_net_file(crosswalks_to_disable, net_file_path):
     """
     Change the appearence of disallowed crosswalks.

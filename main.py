@@ -18,7 +18,7 @@ from torch.utils.tensorboard import SummaryWriter
 from utils import *
 from models import CNNActorCritic
 
-def parallel_worker(rank, control_args, model_init_params, policy_old_dict, memory_queue, global_seed, worker_device, network_iteration):
+def parallel_worker(rank, control_args, model_init_params, policy_old_dict, memory_queue, global_seed, worker_device):
     """
     At every iteration, a number of workers will each parallelly carry out one episode in control environment.
     - Worker environment runs in CPU (SUMO runs in CPU).
@@ -36,7 +36,7 @@ def parallel_worker(rank, control_args, model_init_params, policy_old_dict, memo
     np.random.seed(worker_seed)
     torch.manual_seed(worker_seed)
 
-    lower_env = ControlEnv(control_args, worker_id=rank, network_iteration=network_iteration)
+    lower_env = ControlEnv(control_args, worker_id=rank)
     memory_transfer_freq = control_args['memory_transfer_freq']  # Get from config
 
     # The central memory is a collection of memories from all processes.
@@ -176,9 +176,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     control_ppo.policy_old.state_dict(),
                     memory_queue,
                     control_args['global_seed'],
-                    worker_device,
-                    iteration
-                )
+                    worker_device)
             )
             p.start()
             processes.append(p)
@@ -200,7 +198,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     print(f"Memory from worker {rank} received. Memory size: {len(memory.states)}")
 
                     action_timesteps += len(memory.states)
-                    # Update lower level PPO every n times action has been taken
+                    # Update PPO every n times action has been taken
                     if action_timesteps % control_args['update_freq'] == 0:
                         loss = control_ppo.update(all_memories, agent_type='lower')
 
@@ -219,7 +217,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                         # logging after update
                         if loss is not None:
                             if is_sweep: # Wandb for hyperparameter tuning
-                                wandb.log({     "iteration": iteration,
+                                wandb.log({ "iteration": iteration,
                                                 "lower_avg_reward": avg_reward, # Set as maximize in the sweep config
                                                 "lower_policy_loss": loss['policy_loss'],
                                                 "lower_value_loss": loss['value_loss'], 
@@ -254,24 +252,13 @@ def train(train_config, is_sweep=False, sweep_config=None):
             except queue.Empty:
                 print("Timeout waiting for worker. Continuing...")
         
-        # At the end of an iteration, wait for all processes to finish
+        # At the end of an iteration, wait fowandbr all processes to finish
         # The join() method is called on each process in the processes list. This ensures that the main program waits for all processes to complete before continuing.
+        manager.shutdown()
         for p in processes:
             p.join()
 
-        # Log higher level agent stuff.
-        if is_sweep:
-            wandb.log({
-                "control_avg_reward": reward,
-                "global_step": global_step
-            })
-        else:
-            writer.add_scalar('Average_Reward', reward, global_step)
-    
-    if is_sweep:
-        wandb.finish()
-    else:
-        writer.close()
+    wandb.finish() if is_sweep else writer.close()
 
 def evaluate(config, design_env):
     """
@@ -296,7 +283,6 @@ def main(config):
     # Set the start method for multiprocessing. It does not create a process itself but sets the method for creating a process.
     # Spawn means create a new process. There is a fork method as well which will create a copy of the current process.
     mp.set_start_method('spawn') 
-    mp.set_sharing_strategy('file_system')
 
     if config['evaluate']: 
         if config['manual_demand_veh'] is None or config['manual_demand_ped'] is None:
