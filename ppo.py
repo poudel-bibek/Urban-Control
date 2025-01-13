@@ -2,8 +2,7 @@ import torch
 import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader
 from torch_geometric.data import Batch
-from models import CNNActorCritic, GATv2ActorCritic
-
+from models import CNNActorCritic
 
 class Memory:
     """

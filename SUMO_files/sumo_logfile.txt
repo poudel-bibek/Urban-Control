@@ -1,5 +1,5 @@
-***Starting server on port 40411 ***
-Loading net-file from './SUMO_files/network_iterations/network_iteration_1.net.xml' ... done (21ms).
+***Starting server on port 39257 ***
+Loading net-file from './SUMO_files/network_iterations/network_iteration_1.net.xml' ... done (16ms).
 Warning: Unused states in tlLogic 'iter1_3_mid', program '0' in phase 0 after tl-index 1
 Warning: Unused states in tlLogic 'iter1_5_mid', program '0' in phase 0 after tl-index 1
 Warning: Unused states in tlLogic 'iter1_6_mid', program '0' in phase 0 after tl-index 1
@@ -7,23 +7,25 @@ Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrip
 Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_0.xml'
 Loading done.
 Simulation started with time: 0.00.
-Simulation ended at time: 131.00.
+Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
+Quitting (on error).
+Simulation ended at time: 170.00.
 Performance:
- Duration: 25.37s
- TraCI-Duration: 0.24s
- Real time factor: 5.16399
- UPS: 37.527594
- UPS-Persons: 471.538947
+ Duration: 0.72s
+ TraCI-Duration: 0.25s
+ Real time factor: 237.762
+ UPS: 5149.650350
+ UPS-Persons: 32381.818182
 Vehicles:
- Inserted: 17 (Loaded: 23)
- Running: 16
- Waiting: 0
+ Inserted: 38 (Loaded: 52)
+ Running: 38
+ Waiting: 3
 Persons:
- Inserted: 307
- Running: 181
-DijkstraRouter answered 1186 queries and explored 5.42 edges on average.
+ Inserted: 345
+ Running: 274
+DijkstraRouter answered 3326 queries and explored 6.04 edges on average.
 DijkstraRouter spent 0.00s answering queries (0.00ms on average).
-DijkstraRouter answered 191 queries and explored 602.51 edges on average.
-DijkstraRouter spent 0.01s answering queries (0.06ms on average).
-DijkstraRouter answered 17 queries and explored 68.06 edges on average.
+DijkstraRouter answered 290 queries and explored 584.96 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.02ms on average).
+DijkstraRouter answered 41 queries and explored 67.37 edges on average.
 DijkstraRouter spent 0.00s answering queries (0.00ms on average).
