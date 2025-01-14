@@ -131,11 +131,6 @@ class ControlEnv(gym.Env):
         self.single_obs_shape = len(self.tl_ids)*(2 + 2 + 12 + 12 + 4 + 4 + 4)
 
         # For crosswalk control 
-        self.walking_edges_to_reroute_from = []
-        self.related_junction_edges_to_lookup_from = []
-        self.alternative_crosswalks_flat = []
-        self.currently_rerouted = []
-        self.alternative_crosswalks_num = []
         self.crosswalks_to_disable = []
 
     def _get_vehicle_direction(self, signal_state):
@@ -497,7 +492,6 @@ class ControlEnv(gym.Env):
     def observation_space(self):
         """
         Each timestep (not action step) observation is the pressure in all outgoing directions.
-        For the lower level agent, observation does not need to include the uncontrolled crosswalks information.
         """
         # The observation is the entire observation buffer
         return gym.spaces.Box(
@@ -516,7 +510,7 @@ class ControlEnv(gym.Env):
         reward = 0
         done = False
         observation_buffer = []
-        print(f"\nAction: {action}")
+        #print(f"\nAction: {action}")
 
         # break down the actions into their components
         current_tl_action = action[0].item() # Convert tensor to int
@@ -535,12 +529,12 @@ class ControlEnv(gym.Env):
             self.current_action_step = (self.current_action_step + 1) % self.steps_per_action # Wrapped around some modulo arithmetic
 
             # TODO: For the time being. Modify it later.
-            # Collect observation at each substep
             obs = np.random.rand(40)
-            #obs = self._get_observation(print_map=False)
-            #print(f"\nObservation: {obs}")
             observation_buffer.append(obs)
 
+            #obs = self._get_observation(print_map=False)
+            #print(f"\nObservation: {obs}")
+            
             # TODO: For the time being. Modify it later.
             #self._update_pressure_dict(self.corrected_occupancy_map)
 
@@ -558,8 +552,8 @@ class ControlEnv(gym.Env):
         # print(f"\nCurrent Action: {action}")
         #print(f"\nAccumulated Reward: {reward}")
         self.previous_tl_action = current_tl_action
-        observation = np.asarray(observation_buffer) # shape (steps_per_action, 74); e.g. (10, 74) with 10 items each of size 74 
-        #print(f"\nAccumulated Observation:\n{observation}, shape: {observation.shape}")
+        observation = np.asarray(observation_buffer, dtype=np.float32) # shape (steps_per_action, 74); e.g. (10, 74) with 10 items each of size 74 
+        #print(f"\nObservation (in step): {observation.shape}")
         info = {}
 
         return observation, reward, done, False, info
@@ -801,13 +795,6 @@ class ControlEnv(gym.Env):
         scale_demand(self.vehicle_input_trips, self.vehicle_output_trips, scale_factor_vehicle, demand_type="vehicle")
         scale_demand(self.pedestrian_input_trips, self.pedestrian_output_trips, scale_factor_pedestrian, demand_type="pedestrian")
 
-        # # This should be done here before the SUMO call. This can disallow pedestrians before the simulation run.
-        # # Randomly select crosswalks to disable
-        # to_disable = random.sample(self.controlled_crosswalks, min(5, len(self.controlled_crosswalks)))
-        
-        # #Before sumo call 
-        # self._modify_net_file(to_disable)
-
         if self.auto_start:
             sumo_cmd = ["sumo-gui" if self.use_gui else "sumo", 
                         "--verbose",
@@ -866,13 +853,14 @@ class ControlEnv(gym.Env):
             traci.simulationStep()
 
             # TODO: For the time being. Modify it later.
-            #obs = self._get_observation()
             obs = np.random.rand(40)
             observation_buffer.append(obs)
 
+            #obs = self._get_observation()
+            
         observation = np.asarray(observation_buffer, dtype=np.float32)
-        info = {}
-        return observation, info
+        #print(f"\nObservation (in reset): {observation.shape}")
+        return observation, {} # {} is empty info
 
     def close(self):
         if self.sumo_running:

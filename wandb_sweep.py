@@ -42,26 +42,16 @@ class HyperParameterTuner:
         # We do not want to get weird weights such as 0.192 for various params. Hence not using random search.
         #  For grid
         'parameters': {
-            'lower_gae_lambda': {'values': [0.9, 0.95, 0.99]},
-            'lower_update_freq': {'values': [128, 256, 512, 1024]},
-            'lower_lr': {'values': [0.001, 0.002, 0.005, 0.01] },
-            'lower_gamma': {'values': [0.90, 0.95, 0.98, 0.999]},
-            'lower_K_epochs': {'values': [2, 8, 16, 32] },
-            'lower_eps_clip': {'values': [0.1, 0.2, 0.3]},
-            'lower_ent_coef': {'values': [0.01, 0.05, 0.1]},
-            'lower_vf_coef': {'values': [0.5, 0.75, 1.0]},
-            'lower_batch_size': {'values': [32, 64, 128, 256]},
-            'action_duration': {'values': [10, 16, 24, 32, 40]}, # only applicable for lower level agent.
-            
-            'higher_gae_lambda': {'values': [0.9, 0.95, 0.99]},
-            'higher_update_freq': {'values': [128, 256, 512, 1024]},
-            'higher_lr': {'values': [0.001, 0.002, 0.005, 0.01] },
-            'higher_gamma': {'values': [0.90, 0.95, 0.98, 0.999]},
-            'higher_K_epochs': {'values': [2, 8, 16, 32] },
-            'higher_eps_clip': {'values': [0.1, 0.2, 0.3]},
-            'higher_ent_coef': {'values': [0.01, 0.05, 0.1]},
-            'higher_vf_coef': {'values': [0.5, 0.75, 1.0]},
-            'higher_batch_size': {'values': [32, 64, 128, 256]},
+            'gae_lambda': {'values': [0.9, 0.95, 0.99]},
+            'update_freq': {'values': [128, 256, 512, 1024]},
+            'lr': {'values': [0.001, 0.002, 0.005, 0.01] },
+            'gamma': {'values': [0.90, 0.95, 0.98, 0.999]},
+            'K_epochs': {'values': [2, 8, 16, 32] },
+            'eps_clip': {'values': [0.1, 0.2, 0.3]},
+            'ent_coef': {'values': [0.01, 0.05, 0.1]},
+            'vf_coef': {'values': [0.5, 0.75, 1.0]},
+            'batch_size': {'values': [32, 64, 128, 256]},
+            'action_duration': {'values': [10, 16, 24, 32, 40]}, 
             
             # CNN specific parameters
             'size': {'values': ['small', 'medium']},

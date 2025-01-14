@@ -1,7 +1,6 @@
 import torch
 import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader
-from torch_geometric.data import Batch
 from models import CNNActorCritic
 
 class Memory:
@@ -17,22 +16,11 @@ class Memory:
         self.is_terminals = []
 
     def append(self, state, action, logprob, reward, done):
-        # clone creates a copy to ensure that subsequent operations on the copy do not affect the original tensor. 
-        # Detach removes a tensor from the computational graph, preventing gradients from flowing through it during backpropagation.
-        # store cpu tensors
-
-        self.states.append(state.cpu())
-        self.actions.append(action.clone().detach().cpu()) 
-        self.logprobs.append(logprob.cpu())
+        self.states.append(state)
+        self.actions.append(action) 
+        self.logprobs.append(logprob)
         self.rewards.append(reward) # these are scalars
         self.is_terminals.append(done) # these are scalars
-
-    def clear_memory(self):
-        del self.actions[:]
-        del self.states[:]
-        del self.logprobs[:]
-        del self.rewards[:]
-        del self.is_terminals[:]
 
 class PPO:
     """
@@ -128,14 +116,13 @@ class PPO:
             # Equation 11 in the paper. GAE(t) = δ(t) + (γλ)δ(t+1) + (γλ)²δ(t+2) + ...
             gae = delta + gamma * gae_lambda * (1 - is_terminals[step]) * gae # (1 - dones[step]) term ensures that the advantage calculation stops at episode boundaries.
             advantages.insert(0, gae) # Insert the advantage at the beginning of the list so that it is in the same order as the rewards.
-
+        #print(f"\nAdvantages: {advantages}, shape: {len(advantages)}")
         return torch.tensor(advantages, dtype=torch.float32).to(self.device)
 
     def update(self, memories):
         """
         Update the policy and value networks using the collected experiences.
-        For lower level agent, memories = combined memories from all processes. 
-        For higher level agent, memories = memories colelcted from a single process over multiple iterations.
+        memories = combined memories from all processes. 
         - Includes GAE
         - For the choice between KL divergence vs. clipping, we use clipping.
     
@@ -153,13 +140,16 @@ class PPO:
             combined_memory.is_terminals.extend(memory.is_terminals)
 
         old_states = torch.stack(combined_memory.states).to(self.device)
+        # From [128, 10, 40] to [128, 1, 10, 40]
+        old_states = old_states.unsqueeze(1) # Reshape states to have batch size first
+
         with torch.no_grad():
             values = self.policy.critic(old_states).squeeze()
 
-        print(f"\nStates: {combined_memory.states}")
-        print(f"\nActions: {combined_memory.actions}")
-        print(f"\nLogprobs: {combined_memory.logprobs}")
-        print(f"\nValues: {values}")
+        print(f"\nStates: {old_states.shape}")
+        print(f"\nActions: {len(combined_memory.actions)}")
+        print(f"\nLogprobs: {len(combined_memory.logprobs)}")
+        print(f"\nValues: {values.shape}")
 
         # Compute GAE
         advantages = self.compute_gae(combined_memory.rewards, values, combined_memory.is_terminals, self.gamma, self.gae_lambda)
@@ -190,7 +180,9 @@ class PPO:
 
                 # Evaluating old actions and values using current policy network
                 logprobs, state_values, dist_entropy = self.policy.evaluate(states_batch, actions_batch)
-                
+                logprobs = torch.FloatTensor(logprobs)
+                state_values = torch.FloatTensor(state_values)
+
                 # Finding the ratio (pi_theta / pi_theta_old) for importance sampling (we want to use the samples obtained from old policy to get the new policy)
                 ratios = torch.exp(logprobs - old_logprobs_batch.detach())
 

@@ -111,7 +111,7 @@ class CNNActorCritic(nn.Module):
     def actor(self, state,):
         shared_features = self.shared_cnn(state)
         action_logits = self.actor_layers(shared_features)
-        print(f"\n\nAction logits: {action_logits}\n\n")
+        #print(f"\n\nAction logits: {action_logits}\n\n")
         return action_logits
     
     def critic(self, state):
@@ -123,40 +123,41 @@ class CNNActorCritic(nn.Module):
         Select an action based on the current state:
         - First action: 4-class classification for traffic light
         - Second and third actions: binary choices for crosswalks
+
+        Sigmoid: For Bernoulli, we want to represent the single probability parameter p, hence we use the sigmoid (converts a single logit to a single probability).
+        Softmax:  For Categorical, we have several categories for our distribution. We want to represent the probability for each category in a logit vector (convert to a vector of probabilities that sum to 1).
         """
-        state_tensor = state.reshape(1, self.in_channels, self.action_duration, self.per_timestep_state_dim)
+        state_tensor = state.reshape(1, self.in_channels, self.action_duration, self.per_timestep_state_dim) # 1= batch size
         action_logits = self.actor(state_tensor)
-        print(f"\nAction logits: {action_logits}")
+        #print(f"\nAction logits: {action_logits}")
         
         # Split logits into traffic light and crosswalk decisions
         traffic_logits = action_logits[:, :4]  # First 4 logits for traffic light (4-class)
         crosswalk_logits = action_logits[:, 4:]  # Last 2 logits for crosswalks (binary)
-        print(f"\nTraffic logits: {traffic_logits}")
-        print(f"Crosswalk logits: {crosswalk_logits}")
+        # print(f"\nTraffic logits: {traffic_logits}")
+        # print(f"Crosswalk logits: {crosswalk_logits}")
         
-        # Multi-class classification for traffic light
-        traffic_probs = F.softmax(traffic_logits, dim=1)
+        traffic_probs = torch.softmax(traffic_logits, dim=1)
         traffic_dist = Categorical(traffic_probs)
         traffic_action = traffic_dist.sample() # This predicts 0, 1, 2, or 3
-        print(f"\nTraffic probabilities: {traffic_probs}")
-        print(f"Traffic action: {traffic_action}")
-        
-        # Binary choices for crosswalks
+        # print(f"Traffic action: {traffic_action}")
+
         crosswalk_probs = torch.sigmoid(crosswalk_logits)
         crosswalk_dist = Bernoulli(crosswalk_probs)
         crosswalk_actions = crosswalk_dist.sample() # This predicts 0 or 1
-        print(f"\nCrosswalk probabilities: {crosswalk_probs}")
-        print(f"Crosswalk actions: {crosswalk_actions}\n")
+        # print(f"Crosswalk actions: {crosswalk_actions}\n")
         
         # Combine actions
         combined_action = torch.cat([traffic_action, crosswalk_actions.squeeze(0)], dim=0)
-        print(f"\nCombined action: {combined_action}")
+        # print(f"\nCombined action: {combined_action}")
         
         # Calculate log probabilities
         log_prob = traffic_dist.log_prob(traffic_action) + crosswalk_dist.log_prob(crosswalk_actions).sum()
-        print(f"\nLog probability: {log_prob}")
-        
-        return combined_action.long(), log_prob
+
+        #  print(f"\nCombined action: {combined_action}, shape: {combined_action.shape}")
+        # print(f"\nLog probability: {log_prob}, shape: {log_prob.shape}")
+
+        return combined_action.int(), log_prob
 
     def evaluate(self, states, actions):
         """
@@ -165,6 +166,8 @@ class CNNActorCritic(nn.Module):
         Then using the sampled actions, we get the log probabilities and the entropy. 
         Finally, we pass the states to critic to get the state values. (used to compute the value function component of the PPO loss)
         The entropy is used as a regularization term to encourage exploration.
+
+        sum operation: 
         """
         action_logits = self.actor(states)
         
@@ -172,13 +175,10 @@ class CNNActorCritic(nn.Module):
         traffic_logits = action_logits[:, 0:2]
         crosswalk_logits = action_logits[:, 2:]
         traffic_actions = actions[:, 0:2].argmax(dim=1)  # Convert one-hot back to index
-        crosswalk_actions = actions[:, 2:]
+        crosswalk_actions = actions[:, 2:].float()
         
         # Evaluate traffic direction actions
-        traffic_probs = F.softmax(traffic_logits, dim=1)
-        #TODO:Visualize this?
-        print(f"\nTraffic probabilities: {traffic_probs}\n")
-
+        traffic_probs = torch.softmax(traffic_logits, dim=1)
         traffic_dist = Categorical(traffic_probs)
         traffic_log_probs = traffic_dist.log_prob(traffic_actions)
         
@@ -194,7 +194,10 @@ class CNNActorCritic(nn.Module):
         dist_entropy = traffic_dist.entropy() + crosswalk_dist.entropy().sum(dim=1)
         
         state_values = self.critic(states)
-        
+        # print(f"\nState values: {state_values}, shape: {state_values.shape}")
+        # print(f"\nAction log probabilities: {action_log_probs}, shape: {action_log_probs.shape}")
+        # print(f"\nEntropy: {dist_entropy}, shape: {dist_entropy.shape}")
+
         return action_log_probs, state_values, dist_entropy
 
     def param_count(self, ):

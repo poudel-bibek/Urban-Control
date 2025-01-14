@@ -1,24 +1,23 @@
 import os
 import json
 import wandb
-wandb.require("core")
 import torch
 import random
-import queue
 import numpy as np
 from datetime import datetime
 from ppo import PPO, Memory
 from config import get_config
-from env import ControlEnv
 import torch.multiprocessing as mp
+
 from wandb_sweep import HyperParameterTuner
 from config import classify_and_return_args
 from torch.utils.tensorboard import SummaryWriter
 
 from utils import *
+from env import ControlEnv
 from models import CNNActorCritic
 
-def parallel_worker(rank, control_args, model_init_params, policy_old_dict, memory_queue, global_seed, worker_device):
+def parallel_worker(rank, control_args, model_init_params, policy_old_dict, queue, global_seed, worker_device):
     """
     At every iteration, a number of workers will each parallelly carry out one episode in control environment.
     - Worker environment runs in CPU (SUMO runs in CPU).
@@ -36,7 +35,7 @@ def parallel_worker(rank, control_args, model_init_params, policy_old_dict, memo
     np.random.seed(worker_seed)
     torch.manual_seed(worker_seed)
 
-    lower_env = ControlEnv(control_args, worker_id=rank)
+    worker_env = ControlEnv(control_args, worker_id=rank)
     memory_transfer_freq = control_args['memory_transfer_freq']  # Get from config
 
     # The central memory is a collection of memories from all processes.
@@ -44,44 +43,42 @@ def parallel_worker(rank, control_args, model_init_params, policy_old_dict, memo
     local_memory = Memory()
     shared_policy_old = shared_policy_old.to(worker_device)
 
-    state, _ = lower_env.reset()
+    state, _ = worker_env.reset()
     ep_reward = 0
     steps_since_update = 0
     
     for _ in range(control_args['total_action_timesteps_per_episode']):
         state_tensor = torch.FloatTensor(state).to(worker_device)
-
         # Select action
         with torch.no_grad():
             action, logprob = shared_policy_old.act(state_tensor)
-            action = action.cpu()  # Explicitly Move to CPU, Incase they were on GPU
-            logprob = logprob.cpu() 
+            action = action.detach().cpu()
+            logprob = logprob.detach().cpu()
 
-        print(f"\nAction: in worker {rank}: {action}")
         # Perform action
         # These reward and next_state are for the action_duration timesteps.
-        next_state, reward, done, truncated, info = lower_env.step(action)
+        next_state, reward, done, truncated, _ = worker_env.step(action) # need the returned state to be 2D
         ep_reward += reward
 
         # Store data in memory
-        local_memory.append(torch.FloatTensor(state), action, logprob, reward, done)
+        local_memory.append(state_tensor, action, logprob, reward, done) # sim runs in CPU, state_tensor is in CPU.
         steps_since_update += 1
 
         if steps_since_update >= memory_transfer_freq or done or truncated:
             # Put local memory in the queue for the main process to collect
-            memory_queue.put((rank, local_memory))
+            queue.put((rank, local_memory))
             local_memory = Memory()  # Reset local memory
             steps_since_update = 0
+
+        state = next_state
 
         if done or truncated:
             break
 
-        state = next_state.flatten()
-
     # In PPO, we do not make use of the total reward. We only use the rewards collected in the memory.
     print(f"Worker {rank} finished. Total reward: {ep_reward}")
-    lower_env.close()
-    memory_queue.put((rank, None))  # Signal that this worker is done
+    worker_env.close()
+    queue.put((rank, None))  # Signal that this worker is done
 
 def save_config(config, SEED, save_path):
     """
@@ -155,6 +152,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
     control_ppo.total_iterations = total_iterations
     global_step = 0
     action_timesteps = 0
+    best_reward = float('-inf')
 
     for iteration in range(1, total_iterations + 1): # Starting from 1 to prevent policy update in the very first iteration.
         
@@ -162,10 +160,10 @@ def train(train_config, is_sweep=False, sweep_config=None):
         print(f"\nStarting iteration: {iteration}/{total_iterations} with {global_step} total steps so far\n")
 
         reward, done, info = 0, False, {}
-        manager = mp.Manager()
-        memory_queue = manager.Queue()
+        queue = mp.Queue()
+
         processes = []
-        
+        active_workers = []
         for rank in range(control_args['num_processes']):
             p = mp.Process(
                 target=parallel_worker,
@@ -174,87 +172,75 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     control_args_worker,
                     model_init_params_worker,
                     control_ppo.policy_old.state_dict(),
-                    memory_queue,
+                    queue,
                     control_args['global_seed'],
                     worker_device)
-            )
+                )
             p.start()
             processes.append(p)
+            active_workers.append(rank)
 
         if control_args['anneal_lr']:
             current_lr = control_ppo.update_learning_rate(iteration)
 
         all_memories = []
-        active_workers = set(range(control_args['num_processes']))
-
         while active_workers:
-            try:
-                rank, memory = memory_queue.get(timeout=60) # Add a timeout to prevent infinite waiting
+            print(f"Active workers: {active_workers}")
 
-                if memory is None:
-                    active_workers.remove(rank)
-                else:
-                    all_memories.append(memory)
-                    print(f"Memory from worker {rank} received. Memory size: {len(memory.states)}")
+            rank, memory = queue.get(timeout=60) # Add a timeout to prevent infinite waiting
+            if memory is None:
+                active_workers.remove(rank)
+            else:
+                all_memories.append(memory)
+                print(f"Memory from worker {rank} received. Memory size: {len(memory.states)}")
+                action_timesteps += len(memory.states)
+                del memory #https://pytorch.org/docs/stable/multiprocessing.html
 
-                    action_timesteps += len(memory.states)
-                    # Update PPO every n times action has been taken
-                    if action_timesteps % control_args['update_freq'] == 0:
-                        loss = control_ppo.update(all_memories, agent_type='lower')
+                # Update PPO every n times action has been taken
+                if action_timesteps % control_args['update_freq'] == 0:
+                    loss = control_ppo.update(all_memories)
+                    total_reward = sum(sum(mem.rewards) for mem in all_memories)
+                    avg_reward = total_reward / control_args['num_processes'] # Average reward per process in this iteration
+                    print(f"\nAverage Reward per process: {avg_reward:.2f}\n")
+                    
+                    all_memories = [] # reset memories
 
-                        total_lower_reward = sum(sum(memory.rewards) for memory in all_memories)
-                        avg_reward = total_lower_reward / control_args['num_processes'] # Average reward per process in this iteration
-                        print(f"\nAverage Reward per process: {avg_reward:.2f}\n")
-                        
-                        # clear memory to prevent memory growth (after the reward calculation)
-                        for memory in all_memories:
-                            memory.clear_memory()
+                    # logging after update
+                    if loss is not None:
+                        if is_sweep: # Wandb for hyperparameter tuning
+                            wandb.log({ "iteration": iteration,
+                                            "avg_reward": avg_reward, # Set as maximize in the sweep config
+                                            "policy_loss": loss['policy_loss'],
+                                            "value_loss": loss['value_loss'], 
+                                            "entropy_loss": loss['entropy_loss'],
+                                            "total_loss": loss['total_loss'],
+                                            "current_lr": current_lr if control_args['anneal_lr'] else control_args['lr'],
+                                            "global_step": global_step          })
+                            
+                        else: # Tensorboard for regular training
+                            total_updates = int(action_timesteps / control_args['update_freq'])
+                            writer.add_scalar('Average_Reward', avg_reward, global_step)
+                            writer.add_scalar('Total_Policy_Updates', total_updates, global_step)
+                            writer.add_scalar('Policy_Loss', loss['policy_loss'], global_step)
+                            writer.add_scalar('Value_Loss', loss['value_loss'], global_step)
+                            writer.add_scalar('Entropy_Loss', loss['entropy_loss'], global_step)
+                            writer.add_scalar('Total_Loss', loss['total_loss'], global_step)
+                            writer.add_scalar('Current_LR', current_lr, global_step)
+                            print(f"Logged agent data at step {global_step}")
 
-                        # reset all memories
-                        del all_memories #https://pytorch.org/docs/stable/multiprocessing.html
-                        all_memories = []
+                            # Save model every n times it has been updated (may not every iteration)
+                            if control_args['save_freq'] > 0 and total_updates % control_args['save_freq'] == 0:
+                                torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'control_model_iteration_{iteration+1}.pth'))
 
-                        # logging after update
-                        if loss is not None:
-                            if is_sweep: # Wandb for hyperparameter tuning
-                                wandb.log({ "iteration": iteration,
-                                                "lower_avg_reward": avg_reward, # Set as maximize in the sweep config
-                                                "lower_policy_loss": loss['policy_loss'],
-                                                "lower_value_loss": loss['value_loss'], 
-                                                "lower_entropy_loss": loss['entropy_loss'],
-                                                "lower_total_loss": loss['total_loss'],
-                                                "lower_current_lr": current_lr if control_args['anneal_lr'] else control_args['lr'],
-                                                "global_step": global_step          })
-                                
-                            else: # Tensorboard for regular training
-                                total_updates = int(action_timesteps / control_args['update_freq'])
-                                writer.add_scalar('Lower/Average_Reward', avg_reward, global_step)
-                                writer.add_scalar('Lower/Total_Policy_Updates', total_updates, global_step)
-                                writer.add_scalar('Lower/Policy_Loss', loss['policy_loss'], global_step)
-                                writer.add_scalar('Lower/Value_Loss', loss['value_loss'], global_step)
-                                writer.add_scalar('Lower/Entropy_Loss', loss['entropy_loss'], global_step)
-                                writer.add_scalar('Lower/Total_Loss', loss['total_loss'], global_step)
-                                writer.add_scalar('Lower/Current_LR', current_lr, global_step)
-                                print(f"Logged lower agent data at step {global_step}")
-
-                                # Save model every n times it has been updated (may not every iteration)
-                                if control_args['save_freq'] > 0 and total_updates % control_args['save_freq'] == 0:
-                                    torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'control_model_iteration_{iteration+1}.pth'))
-
-                                # Save best model so far
-                                if avg_reward > best_reward:
-                                    torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], 'best_control_model.pth'))
-                                    best_reward = avg_reward
-                        
-                        else: # For some reason..
-                            print("Warning: loss is None")
-
-            except queue.Empty:
-                print("Timeout waiting for worker. Continuing...")
-        
-        # At the end of an iteration, wait fowandbr all processes to finish
-        # The join() method is called on each process in the processes list. This ensures that the main program waits for all processes to complete before continuing.
-        manager.shutdown()
+                            # Save best model so far
+                            if avg_reward > best_reward:
+                                torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], 'best_control_model.pth'))
+                                best_reward = avg_reward
+                    
+                    else: # For some reason..
+                        print("Warning: loss is None")
+    
+        # Clean up. The join() method ensures that the main program waits for all processes to complete before continuing.
         for p in processes:
             p.join()
 
@@ -282,7 +268,8 @@ def main(config):
 
     # Set the start method for multiprocessing. It does not create a process itself but sets the method for creating a process.
     # Spawn means create a new process. There is a fork method as well which will create a copy of the current process.
-    mp.set_start_method('spawn') 
+    mp.set_start_method('spawn', force=True) 
+    #mp.set_sharing_strategy('file_system')
 
     if config['evaluate']: 
         if config['manual_demand_veh'] is None or config['manual_demand_ped'] is None:

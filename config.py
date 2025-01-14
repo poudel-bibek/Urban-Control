@@ -23,13 +23,13 @@ def get_config():
 
         # PPO (general params)
         "seed": None,  # Random seed (default: None)
-        "gpu": True,  # Use GPU if available (default: use CPU)
+        "gpu": False,  # Use GPU if available (default: use CPU)
         "total_timesteps": 1500000,  # Total number of timesteps the simulation will run
-        "max_timesteps": 1500,  # Maximum number of steps in one episode (for the lower level agent)
+        "max_timesteps": 1500,  # Maximum number of steps in one episode 
         "total_sweep_trials": 128,  # Total number of trials for the wandb sweep
-        "memory_transfer_freq": 16,  # Frequency of memory transfer from worker to main process (Only applicable for lower level agent)
+        "memory_transfer_freq": 16,  # Frequency of memory transfer from worker to main process 
 
-        # PPO (lower level agent)
+        # PPO
         "anneal_lr": True,  # Anneal learning rate
         "gae_lambda": 0.95,  # GAE lambda
         "update_freq": 128,  # Number of action timesteps between each policy update
@@ -41,7 +41,7 @@ def get_config():
         "ent_coef": 0.01,  # Entropy coefficient
         "vf_coef": 0.5,  # Value function coefficient
         "batch_size": 32,  # Batch size
-        "num_processes": 8,  # Number of parallel processes to use (Lower level agent has multiple workers)
+        "num_processes": 6,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.2,  # Dropout rate for CNN
