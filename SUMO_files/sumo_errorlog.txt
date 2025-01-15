@@ -1,0 +1,2 @@
+Warning: Teleporting vehicle '63'; waited too long (yield), lane='1060131306#0_0', time=313.00.
+Warning: Vehicle '63' ends teleporting on edge '16666012#2', time=313.00.

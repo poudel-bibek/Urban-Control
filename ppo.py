@@ -162,9 +162,9 @@ class PPO:
         # Normalize the advantages (only for use in policy loss calculation) after they have been added to get returns.
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8) # Small constant to prevent division by zero
         
-        # Process actions and logprobs (same for both agents)
-        old_actions = torch.stack(combined_memory.actions).detach().to(self.device)
-        old_logprobs = torch.stack(combined_memory.logprobs).detach().to(self.device)
+        # Process actions and logprobs
+        old_actions = torch.stack(combined_memory.actions).to(self.device)
+        old_logprobs = torch.stack(combined_memory.logprobs).to(self.device)
 
         # Create a dataloader for mini-batching 
         dataset = TensorDataset(old_states, old_actions, old_logprobs, advantages, returns)

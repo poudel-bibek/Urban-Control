@@ -209,8 +209,8 @@ def train(train_config, is_sweep=False, sweep_config=None):
                 del memory #https://pytorch.org/docs/stable/multiprocessing.html
 
                 # Update PPO every n times action has been taken
-                if action_timesteps >= control_args['update_freq']:
-                    action_timesteps = 0  # Reset counter after update
+                if action_timesteps % control_args['update_freq'] == 0:
+                    action_timesteps = 0 
 
                     loss = control_ppo.update(all_memories)
                     # Update shared policy with new weights after PPO update

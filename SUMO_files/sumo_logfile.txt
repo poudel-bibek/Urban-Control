@@ -1,27 +1,30 @@
-***Starting server on port 33631 ***
-Loading net-file from './SUMO_files/Craver_traffic_lights.net.xml' ... done (14ms).
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_0.xml'
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_0.xml'
+***Starting server on port 33609 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights.net.xml' ... done (24ms).
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_4.xml'
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_4.xml'
 Loading done.
 Simulation started with time: 0.00.
-Simulation ended at time: 260.00.
+Warning: Teleporting vehicle '63'; waited too long (yield), lane='1060131306#0_0', time=313.00.
+Warning: Vehicle '63' ends teleporting on edge '16666012#2', time=313.00.
+Simulation ended at time: 330.00.
 Reason: TraCI requested termination.
 Performance:
- Duration: 0.79s
- TraCI-Duration: 0.46s
- Real time factor: 329.531
- UPS: 7125.475285
- UPS-Persons: 73414.448669
+ Duration: 0.95s
+ TraCI-Duration: 0.38s
+ Real time factor: 349.206
+ UPS: 12996.825397
+ UPS-Persons: 100934.391534
 Vehicles:
- Inserted: 38 (Loaded: 69)
- Running: 34
- Waiting: 4
+ Inserted: 70 (Loaded: 91)
+ Running: 68
+ Waiting: 7
+ Teleports: 1 (Yield: 1)
 Persons:
- Inserted: 784
- Running: 396
-DijkstraRouter answered 5230 queries and explored 5.51 edges on average.
+ Inserted: 852
+ Running: 505
+DijkstraRouter answered 8680 queries and explored 5.60 edges on average.
 DijkstraRouter spent 0.00s answering queries (0.00ms on average).
-DijkstraRouter answered 502 queries and explored 477.86 edges on average.
-DijkstraRouter spent 0.02s answering queries (0.03ms on average).
-DijkstraRouter answered 42 queries and explored 57.50 edges on average.
-DijkstraRouter spent 0.00s answering queries (0.02ms on average).
+DijkstraRouter answered 689 queries and explored 477.47 edges on average.
+DijkstraRouter spent 0.02s answering queries (0.02ms on average).
+DijkstraRouter answered 78 queries and explored 57.65 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.03ms on average).
