@@ -50,10 +50,11 @@ def parallel_worker(rank, shared_policy_old, control_args, queue, global_seed, w
     steps_since_update = 0
     
     for _ in range(control_args['total_action_timesteps_per_episode']):
-        state_tensor = torch.FloatTensor(state).to(worker_device)
+        state = torch.FloatTensor(state)
         # Select action
         with torch.no_grad():
-            action, logprob = shared_policy_old.model.act(state_tensor)
+            action, logprob = shared_policy_old.model.act(state.to(worker_device)) # sim runs in CPU, state will initially always be in CPU.
+            state = state.detach().cpu()
             action = action.detach().cpu()
             logprob = logprob.detach().cpu()
 
@@ -63,7 +64,7 @@ def parallel_worker(rank, shared_policy_old, control_args, queue, global_seed, w
         ep_reward += reward
 
         # Store data in memory
-        local_memory.append(state_tensor, action, logprob, reward, done) # sim runs in CPU, state_tensor is in CPU.
+        local_memory.append(state, action, logprob, reward, done) 
         steps_since_update += 1
 
         if steps_since_update >= memory_transfer_freq or done or truncated:
@@ -208,7 +209,9 @@ def train(train_config, is_sweep=False, sweep_config=None):
                 del memory #https://pytorch.org/docs/stable/multiprocessing.html
 
                 # Update PPO every n times action has been taken
-                if action_timesteps % control_args['update_freq'] == 0:
+                if action_timesteps >= control_args['update_freq']:
+                    action_timesteps = 0  # Reset counter after update
+
                     loss = control_ppo.update(all_memories)
                     # Update shared policy with new weights after PPO update
                     shared_policy_old.model.load_state_dict(control_ppo.policy_old.state_dict())
@@ -253,7 +256,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     
                     else: # For some reason..
                         print("Warning: loss is None")
-
+        
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 

@@ -180,11 +180,9 @@ class PPO:
 
                 # Evaluating old actions and values using current policy network
                 logprobs, state_values, dist_entropy = self.policy.evaluate(states_batch, actions_batch)
-                logprobs = torch.FloatTensor(logprobs)
-                state_values = torch.FloatTensor(state_values)
 
                 # Finding the ratio (pi_theta / pi_theta_old) for importance sampling (we want to use the samples obtained from old policy to get the new policy)
-                ratios = torch.exp(logprobs - old_logprobs_batch.detach())
+                ratios = torch.exp(logprobs.detach() - old_logprobs_batch)
 
                 # Finding Surrogate Loss
                 surr1 = ratios * advantages_batch

@@ -1,28 +1,27 @@
-***Starting server on port 58141 ***
-Loading net-file from './SUMO_files/Craver_traffic_lights.net.xml' ... done (26ms).
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_3.xml'
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_3.xml'
+***Starting server on port 33631 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights.net.xml' ... done (14ms).
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_0.xml'
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_0.xml'
 Loading done.
 Simulation started with time: 0.00.
 Simulation ended at time: 260.00.
 Reason: TraCI requested termination.
 Performance:
- Duration: 0.87s
- TraCI-Duration: 0.50s
- Real time factor: 298.851
- UPS: 7002.298851
- UPS-Persons: 76054.022989
+ Duration: 0.79s
+ TraCI-Duration: 0.46s
+ Real time factor: 329.531
+ UPS: 7125.475285
+ UPS-Persons: 73414.448669
 Vehicles:
- Inserted: 42 (Loaded: 73)
- Running: 39
+ Inserted: 38 (Loaded: 69)
+ Running: 34
  Waiting: 4
 Persons:
- Inserted: 900
- Running: 465
-DijkstraRouter answered 5710 queries and explored 5.46 edges on average.
+ Inserted: 784
+ Running: 396
+DijkstraRouter answered 5230 queries and explored 5.51 edges on average.
 DijkstraRouter spent 0.00s answering queries (0.00ms on average).
-DijkstraRouter answered 586 queries and explored 478.29 edges on average.
-DijkstraRouter spent 0.02s answering queries (0.04ms on average).
-DijkstraRouter answered 46 queries and explored 57.54 edges on average.
+DijkstraRouter answered 502 queries and explored 477.86 edges on average.
+DijkstraRouter spent 0.02s answering queries (0.03ms on average).
+DijkstraRouter answered 42 queries and explored 57.50 edges on average.
 DijkstraRouter spent 0.00s answering queries (0.02ms on average).
-
