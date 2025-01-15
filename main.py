@@ -1,5 +1,7 @@
 import os
+import gc
 import json
+import time
 import wandb
 import torch
 import random
@@ -78,6 +80,7 @@ def parallel_worker(rank, control_args, model_init_params, policy_old_dict, queu
     # In PPO, we do not make use of the total reward. We only use the rewards collected in the memory.
     print(f"Worker {rank} finished. Total reward: {ep_reward}")
     worker_env.close()
+    time.sleep(5) # Essential
     queue.put((rank, None))  # Signal that this worker is done
 
 def save_config(config, SEED, save_path):
@@ -239,10 +242,13 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     
                     else: # For some reason..
                         print("Warning: loss is None")
-    
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
         # Clean up. The join() method ensures that the main program waits for all processes to complete before continuing.
         for p in processes:
-            p.join()
+            p.join() 
 
     wandb.finish() if is_sweep else writer.close()
 
@@ -268,8 +274,7 @@ def main(config):
 
     # Set the start method for multiprocessing. It does not create a process itself but sets the method for creating a process.
     # Spawn means create a new process. There is a fork method as well which will create a copy of the current process.
-    mp.set_start_method('spawn', force=True) 
-    #mp.set_sharing_strategy('file_system')
+    mp.set_start_method('spawn') 
 
     if config['evaluate']: 
         if config['manual_demand_veh'] is None or config['manual_demand_ped'] is None:

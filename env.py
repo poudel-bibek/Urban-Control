@@ -823,7 +823,7 @@ class ControlEnv(gym.Env):
                 except traci.exceptions.FatalTraCIError:
                     if attempt < max_retries - 1:
                         print(f"TraCI connection failed. Retrying... (Attempt {attempt + 1}/{max_retries})")
-                        time.sleep(10)
+                        time.sleep(5)
                     else:
                         print(f"Failed to start TraCI after {max_retries} attempts.")
                         raise
