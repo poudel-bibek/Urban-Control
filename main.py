@@ -19,7 +19,14 @@ from utils import *
 from env import ControlEnv
 from models import CNNActorCritic
 
-def parallel_worker(rank, control_args, model_init_params, policy_old_dict, queue, global_seed, worker_device):
+class SharedPolicy:
+    def __init__(self, model_class, model_args, device):
+        self.model = model_class(in_channels=model_args['model_dim'], 
+                                 action_dim=model_args['action_dim'], 
+                                 **model_args['kwargs']).to(device)
+        self.model.share_memory()  # Makes the model parameters shared across processes
+        
+def parallel_worker(rank, shared_policy_old, control_args, queue, global_seed, worker_device):
     """
     At every iteration, a number of workers will each parallelly carry out one episode in control environment.
     - Worker environment runs in CPU (SUMO runs in CPU).
@@ -27,9 +34,6 @@ def parallel_worker(rank, control_args, model_init_params, policy_old_dict, queu
     - memory_queue is used to store the memory of each worker and send it back to the main process.
     - A shared policy_old (dict copy passed here) is used for importance sampling.
     """
-
-    shared_policy_old = CNNActorCritic(model_init_params['model_dim'], model_init_params['action_dim'], **model_init_params['kwargs'])
-    shared_policy_old.load_state_dict(policy_old_dict)
 
     # Set seed for this worker
     worker_seed = global_seed + rank
@@ -39,11 +43,7 @@ def parallel_worker(rank, control_args, model_init_params, policy_old_dict, queu
 
     worker_env = ControlEnv(control_args, worker_id=rank)
     memory_transfer_freq = control_args['memory_transfer_freq']  # Get from config
-
-    # The central memory is a collection of memories from all processes.
-    # A worker instance must have their own memory 
-    local_memory = Memory()
-    shared_policy_old = shared_policy_old.to(worker_device)
+    local_memory = Memory() # A worker instance must have their own memory 
 
     state, _ = worker_env.reset()
     ep_reward = 0
@@ -53,7 +53,7 @@ def parallel_worker(rank, control_args, model_init_params, policy_old_dict, queu
         state_tensor = torch.FloatTensor(state).to(worker_device)
         # Select action
         with torch.no_grad():
-            action, logprob = shared_policy_old.act(state_tensor)
+            action, logprob = shared_policy_old.model.act(state_tensor)
             action = action.detach().cpu()
             logprob = logprob.detach().cpu()
 
@@ -73,7 +73,6 @@ def parallel_worker(rank, control_args, model_init_params, policy_old_dict, queu
             steps_since_update = 0
 
         state = next_state
-
         if done or truncated:
             break
 
@@ -124,6 +123,18 @@ def train(train_config, is_sweep=False, sweep_config=None):
     print(f"\nControl agent: \n\tState dimension: {dummy_env.observation_space.shape}, Action dimension: {train_config['action_dim']}")
     control_ppo = PPO(**ppo_args)
 
+    # Old policy is used for importance sampling.
+    shared_policy_old = SharedPolicy(
+        model_class=CNNActorCritic,
+        model_args={'model_dim': control_ppo.policy.in_channels,
+                    'action_dim': control_ppo.action_dim,
+                    'kwargs': ppo_args['model_kwargs']
+                    },
+        device=worker_device
+    )
+
+    shared_policy_old.model.load_state_dict(control_ppo.policy_old.state_dict())
+
     # TensorBoard setup
     current_time = datetime.now().strftime('%b%d_%H-%M-%S')
     log_dir = os.path.join('runs', current_time)
@@ -138,17 +149,15 @@ def train(train_config, is_sweep=False, sweep_config=None):
     # Model saving setup
     save_dir = os.path.join('saved_models', current_time)
     os.makedirs(save_dir, exist_ok=True)
-    control_args.update({'writer': writer})
-    control_args.update({'save_dir': save_dir})
-    control_args.update({'global_seed': SEED})
-    control_args.update({'total_action_timesteps_per_episode': train_config['max_timesteps'] // train_config['action_duration']})
-
+    control_args.update({
+        'writer': writer,
+        'save_dir': save_dir,
+        'global_seed': SEED,
+        'total_action_timesteps_per_episode': train_config['max_timesteps'] // train_config['action_duration']
+    })
     # worker related args
     control_args_worker = {k: v for k, v in control_args.items() if k != 'writer'} # bug fix. writer is unpicklable
-    model_init_params_worker = {'model_dim': control_ppo.policy.in_channels,
-                                    'action_dim': control_ppo.action_dim,
-                                    'kwargs': ppo_args['model_kwargs']}
-
+    
     # Instead of using total_episodes, we will use total_iterations. 
     # Every iteration, num_process control agents interact with the environment for total_action_timesteps_per_episode steps (which further internally contains action_duration steps)
     total_iterations = train_config['total_timesteps'] // (train_config['max_timesteps'] * train_config['num_processes'])
@@ -172,9 +181,8 @@ def train(train_config, is_sweep=False, sweep_config=None):
                 target=parallel_worker,
                 args=(
                     rank,
+                    shared_policy_old,
                     control_args_worker,
-                    model_init_params_worker,
-                    control_ppo.policy_old.state_dict(),
                     queue,
                     control_args['global_seed'],
                     worker_device)
@@ -202,6 +210,9 @@ def train(train_config, is_sweep=False, sweep_config=None):
                 # Update PPO every n times action has been taken
                 if action_timesteps % control_args['update_freq'] == 0:
                     loss = control_ppo.update(all_memories)
+                    # Update shared policy with new weights after PPO update
+                    shared_policy_old.model.load_state_dict(control_ppo.policy_old.state_dict())
+
                     total_reward = sum(sum(mem.rewards) for mem in all_memories)
                     avg_reward = total_reward / control_args['num_processes'] # Average reward per process in this iteration
                     print(f"\nAverage Reward per process: {avg_reward:.2f}\n")
