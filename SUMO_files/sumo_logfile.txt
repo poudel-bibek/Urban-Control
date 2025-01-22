@@ -1,30 +1,49 @@
-***Starting server on port 33609 ***
-Loading net-file from './SUMO_files/Craver_traffic_lights.net.xml' ... done (24ms).
+***Starting server on port 36353 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights.net.xml' ... done (27ms).
 Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_4.xml'
 Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_4.xml'
 Loading done.
 Simulation started with time: 0.00.
 Warning: Teleporting vehicle '63'; waited too long (yield), lane='1060131306#0_0', time=313.00.
 Warning: Vehicle '63' ends teleporting on edge '16666012#2', time=313.00.
-Simulation ended at time: 330.00.
+Warning: Person '2039' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=471.00.
+Warning: Teleporting vehicle '198'; waited too long (yield), lane='-16666012#2_0', time=474.00.
+Warning: Vehicle '198' ends teleporting on edge '452522817#1', time=474.00.
+Warning: Person '1941' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=481.00.
+Warning: Person '1948' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=490.00.
+Warning: Person '56' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=537.00.
+Warning: Person '13' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=615.00.
+Warning: Teleporting vehicle '5'; waited too long (yield), lane='1060131306#0_0', time=619.00.
+Warning: Vehicle '5' ends teleporting on edge '16666012#2', time=619.00.
+Simulation ended at time: 650.00.
 Reason: TraCI requested termination.
 Performance:
- Duration: 0.95s
- TraCI-Duration: 0.38s
- Real time factor: 349.206
- UPS: 12996.825397
- UPS-Persons: 100934.391534
+ Duration: 1.66s
+ TraCI-Duration: 0.75s
+ Real time factor: 391.802
+ UPS: 23730.560579
+ UPS-Persons: 185748.040989
 Vehicles:
- Inserted: 70 (Loaded: 91)
- Running: 68
- Waiting: 7
- Teleports: 1 (Yield: 1)
+ Inserted: 122 (Loaded: 174)
+ Running: 104
+ Waiting: 17
+ Teleports: 3 (Yield: 3)
 Persons:
- Inserted: 852
- Running: 505
-DijkstraRouter answered 8680 queries and explored 5.60 edges on average.
-DijkstraRouter spent 0.00s answering queries (0.00ms on average).
-DijkstraRouter answered 689 queries and explored 477.47 edges on average.
-DijkstraRouter spent 0.02s answering queries (0.02ms on average).
-DijkstraRouter answered 78 queries and explored 57.65 edges on average.
-DijkstraRouter spent 0.00s answering queries (0.03ms on average).
+ Inserted: 1858
+ Running: 681
+ Jammed: 5
+DijkstraRouter answered 30269 queries and explored 5.74 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.00ms on average).
+DijkstraRouter answered 1495 queries and explored 479.70 edges on average.
+DijkstraRouter spent 0.05s answering queries (0.03ms on average).
+DijkstraRouter answered 142 queries and explored 57.75 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.01ms on average).
+6
+ Running: 549
+ Jammed: 6
+DijkstraRouter answered 23632 queries and explored 5.70 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.00ms on average).
+DijkstraRouter answered 1190 queries and explored 471.84 edges on average.
+DijkstraRouter spent 0.04s answering queries (0.03ms on average).
+DijkstraRouter answered 75 queries and explored 57.67 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.04ms on average).

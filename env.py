@@ -51,7 +51,16 @@ class ControlEnv(gym.Env):
         self.max_timesteps = control_args['max_timesteps']
         self.sumo_running = False
         self.step_count = 0
-        self.tl_ids = ['cluster_172228464_482708521_9687148201_9687148202_#5more'] # Only control this one for now
+        self.tl_ids = ['cluster_172228464_482708521_9687148201_9687148202_#5more' # Intersection
+                        # Mid block crosswalks from left to right
+                       '9727816850',
+                       '9727816623',
+                       '9740157155',
+                       'cluster_9740157181_9740483933',
+                       '9740157194',
+                       '9740157209',
+                       '9740484527',
+                       ] 
         
         self.previous_tl_action = None
         # Number of simulation steps that should occur for each action. trying to ajuust for any given step length
@@ -128,7 +137,9 @@ class ControlEnv(gym.Env):
         self.turns = ['straight', 'right', 'left']
 
         # TL state, crosswalk state, vehicle incoming, vehicle inside, vehicle outgoing, pedestrian incoming, pedestrian outgoing
-        self.single_obs_shape = len(self.tl_ids)*(2 + 2 + 12 + 12 + 4 + 4 + 4)
+        intersection_obs_shape = 2 + 2 + 12 + 12 + 4 + 4 + 4
+        midblock_obs_shape = 12
+        self.single_obs_shape = intersection_obs_shape + midblock_obs_shape
 
         # For crosswalk control 
         self.crosswalks_to_disable = []
@@ -457,37 +468,29 @@ class ControlEnv(gym.Env):
     @property
     def action_space(self):
         """
-        The control part performs following actions as a 4-bit string (these are in total 3 actions not 4):
-        First and second bit: for traffic lights
-        - 00 = allow vehicular traffic through North-South direction, disallow all others
-        - 01 = allow vehicular traffic through East-West direction, disallow all others
-        - 10 = allow vehicular traffic through North-East and South-West direction (Dedicated left turns), disallow all others.
-        - 11 = Disallow vehicular traffic in all direction (Useful in situation where lets say the pedestrian demand is just too high)
-            - Traffic lights:
+        The control action is represented as a 9-bit string for each traffic light:
 
-        Third and fourth bit: for controlled crosswalks
-        - Third bit:
-            - 1 = allow pedestrians in the pair of crosswalks at North-South
-            - 0 = disallow pedestrians in the pair of crosswalks at North-South
-        - Fourth bit:
-            - 1 = allow pedestrians in the pair of crosswalks at East-West 
-            - 0 = disallow pedestrians in the pair of crosswalks at East-West
+        - First two bits: Intersection signal (4 mutually exclusive configurations)
+            00 = allow vehicular traffic through North-South only
+            01 = allow vehicular traffic through East-West only
+            10 = allow dedicated left turns through N-E and S-W only
+            11 = disallow vehicular traffic in all directions
+
+        - Next seven bits: Mid-block crosswalk signals (each bit is Bernoulli)
+            1  = allow pedestrians to cross at a given mid-block segment
+            0  = disallow pedestrians at that segment
         
-        Use MultiDiscrete action space.
+        Returns:
+            gym.spaces.MultiDiscrete: A 9-dimensional space of binary actions.
         """
-        
-        num_traffic_lights = len(self.tl_ids)
-        
         action_space = []
-        for _ in range(num_traffic_lights):
-            action_space.extend([
-                4,  # 4 options for traffic light phases (00, 01, 10, 11) # first action
-                2,  # 2 options for N-S crosswalk (0, 1) # second action
-                2   # 2 options for E-W crosswalk (0, 1) # third action
-            ])
-        
+        # First 2 bits: intersection signal (4 configurations)
+        action_space.extend([2, 2])
+        # Next 7 bits: each mid-block crosswalk (on/off)
+        action_space.extend([2] * 7)
+
         return gym.spaces.MultiDiscrete(action_space)
-    
+
     @property
     def observation_space(self):
         """
@@ -651,50 +654,59 @@ class ControlEnv(gym.Env):
                 break
 
         self.current_tl_state_index = index
-        return self.tl_phase_groups[current_tl_action][index]["state"]
+        return self.tl_phase_groups[current_tl_action][index]["state"]   
 
-    def _apply_action(self, action, current_action_step, previous_tl_action=None):
+    def _apply_action(self, action, current_action_step, previous_action=None):
         """
-        apply_action is the enforcement of the chosen action and will be called every step.
+        apply_action is the enforcement of the chosen action (9-bit string) to the traffic lights and crosswalks, and will be called every step.
         previous_action will be None in reset.
 
-        Use previous action to determine if there was a switch.
-        If there was a switch, then on certain switches (between N-S and E-W) there needs to be a yellow round first.
-
-        For TL, there are 4 mutually exclusive choices: 
-        0: Allow N-S disallow other directions
-        1: Allow E-W disallow other directions
-        2: Allow North-East and South-West direction (Dedicated left turns), disallow other directions
-        3: Disallow vehicular traffic in all direction (Useful in situation where lets say the pedestrian demand is just too high)
+        The function internally checks if a switch in vehicle directions that turn green.
+        If a switch is detected, a 4-second mandatory yellow phase is enforced to the direction/ light that is turning red, before starting the new phase in the other light.
         """
-        # First get the string together. 
-        # For the TL control. 
-        current_tl_action = action[0].item() # 0, 1, 2, 3
-        #print(f"\nCurrent Action: {action}, TL action: {current_tl_action} Previous TL Action: {previous_tl_action}")
+        # Use previous action to detect signal switching
+        if previous_action is None: # First action 
+            previous_action = action  # Assume that there was no switch
 
-        if previous_tl_action == None: # First action 
-            previous_tl_action = current_tl_action # Assume that there was no switch
+        # Intersection action: integer in [0..3]
+        current_intersection_action = action[0:2].item()
+        previous_intersection_action = previous_action[0:2].item()
 
-        # If these are true, then need yellow rounds in between.
-        east_to_north_switch = (current_tl_action == 1 and previous_tl_action == 0)
-        north_to_east_switch = (current_tl_action == 0 and previous_tl_action == 1)
+        # for crosswalk signals as an example
+        current_mid_block_action = action[2:]  
+        previous_mid_block_action = previous_action[2:]
+
+        # Detect a switch in all the components (the vehicle part at the intersection considered as one component) i.e., total 8 components
+        # For the intersection, other than switching from last phase (all red with bitstring 11), there is a switch
+        switches = [] # contains boolean values (0 = No switch, 1 = Switch)
+        if previous_intersection_action == 11: # All red
+            switch_in_intersection = [0]
+        else:
+            if current_intersection_action != previous_intersection_action:
+                switch_in_intersection = 1
+            else:
+                switch_in_intersection = 0
+
+        switches.append(switch_in_intersection)
+        # For midblock, there is a switch if the previous action is not the same as the current action
+        switch_in_midblock = (current_mid_block_action != previous_mid_block_action)
+        switches.append(switch_in_midblock)
+
+        # Mandatory yellow enforcement
+        # if any(switches):
+        #     # Insert a 4-second yellow transition between switching states
+        #     tl_state = self._get_tl_switch_state(east_to_north_switch, north_to_east_switch, current_action_step)
+
+        # # For the signalized crosswalk control. Append ArBCrD at the end of the tl state string.
+        # self.current_crosswalk_actions = str(action[1].item()) + str(action[2].item()) # two binary actions 0, 1
+        # crosswalk_state = self.crosswalk_phase_groups[self.current_crosswalk_actions]
         
-        if east_to_north_switch or north_to_east_switch:
-            tl_state = self._get_tl_switch_state(east_to_north_switch, north_to_east_switch, current_action_step)
-        else: # Normal conditions.
-            self.current_tl_state_index = 0
-            tl_state = self.tl_phase_groups[current_tl_action][self.current_tl_state_index]["state"] # The list corresponding to normal conditions does not have multiple items.
-            
-        # For the signalized crosswalk control. Append ArBCrD at the end of the tl state string.
-        self.current_crosswalk_actions = str(action[1].item()) + str(action[2].item()) # two binary actions 0, 1
-        crosswalk_state = self.crosswalk_phase_groups[self.current_crosswalk_actions]
+        # # Construct the crosswalk state string from the dict values
+        # crosswalk_state_str = (crosswalk_state['A'] + crosswalk_state['B'] + 'r' + crosswalk_state['C'] + 'r' + crosswalk_state['D'])
         
-        # Construct the crosswalk state string from the dict values
-        crosswalk_state_str = (crosswalk_state['A'] + crosswalk_state['B'] + 'r' + crosswalk_state['C'] + 'r' + crosswalk_state['D'])
-        
-        state = tl_state + crosswalk_state_str
-        #print(f"\nState: {state}\n")
-        traci.trafficlight.setRedYellowGreenState(self.tl_ids[0], state)
+        # state = tl_state + crosswalk_state_str
+        # #print(f"\nState: {state}\n")
+        # traci.trafficlight.setRedYellowGreenState(self.tl_ids[0], state)
 
     def _get_reward(self, current_tl_action):
         """ 
@@ -866,5 +878,3 @@ class ControlEnv(gym.Env):
         if self.sumo_running:
             traci.close(False) #https://sumo.dlr.de/docs/TraCI/Interfacing_TraCI_from_Python.html
             self.sumo_running = False
-
-    

@@ -2532,7 +2532,10 @@
     </edge>
 
     <tlLogic id="9727816623" type="static" programID="0" offset="0">
-        <phase duration="90" state="GGG"/>
+        <phase duration="77" state="GGG"/>
+        <phase duration="3"  state="yyr"/>
+        <phase duration="5"  state="rrG"/>
+        <phase duration="5"  state="rrr"/>
     </tlLogic>
     <tlLogic id="9727816850" type="static" programID="0" offset="0">
         <phase duration="77" state="GGr"/>
@@ -2564,6 +2567,12 @@
         <phase duration="5"  state="rrG"/>
         <phase duration="5"  state="rrr"/>
     </tlLogic>
+    <tlLogic id="cluster_9740157181_9740483933" type="static" programID="0" offset="0">
+        <phase duration="42" state="GgggggGr"/>
+        <phase duration="3"  state="ygggggyr"/>
+        <phase duration="37" state="rgggggrG"/>
+        <phase duration="5"  state="rgggggrr"/>
+    </tlLogic>
     <tlLogic id="cluster_172228464_482708521_9687148201_9687148202_#5more" type="static" programID="0" offset="0">
         <phase duration="32" state="rrrrgGggrrrrgGggrrGrrG"/>
         <phase duration="5"  state="rrrrgGggrrrrgGggrrrrrr"/>
@@ -2576,13 +2585,7 @@
         <phase duration="4"  state="yyyyrrrryyyyrrrrrrrrrr"/>
         <phase duration="1"  state="rrrrrrrrrrrrrrrrrrrrrr"/>
     </tlLogic>
-    <tlLogic id="cluster_9740157181_9740483933" type="static" programID="0" offset="0">
-        <phase duration="42" state="GgggggGr"/>
-        <phase duration="3"  state="ygggggyr"/>
-        <phase duration="37" state="rgggggrG"/>
-        <phase duration="5"  state="rgggggrr"/>
-    </tlLogic>
-
+    
     <junction id="10054309033" type="dead_end" x="2784.30" y="2656.16" incLanes="1050677005#16_0" intLanes="" shape="2787.93,2659.49 2788.96,2657.77 2789.17,2656.93 2789.07,2654.93 2782.45,2655.25 2782.55,2657.25 2784.68,2657.43 2785.39,2657.75 2786.07,2658.21 2786.87,2658.79"/>
     <junction id="10054309034" type="dead_end" x="2807.14" y="2669.76" incLanes="1098062395_0" intLanes="" shape="2806.77,2670.70 2807.76,2668.97 2807.53,2668.83 2806.50,2670.55"/>
     <junction id="10054309035" type="dead_end" x="2812.87" y="2673.06" incLanes="1098062396_0" intLanes="" shape="2812.51,2674.00 2813.48,2672.25 2813.24,2672.12 2812.25,2673.86"/>
