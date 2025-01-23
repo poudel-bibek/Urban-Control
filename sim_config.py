@@ -209,7 +209,7 @@ def get_tl_related_pedestrian_edges():
             }
         }
 
-def lookup_directions():
+def get_direction_lookup():
     """
     Helper (lookup dict) to determine whether the edges are present upside (north) or downside (south) relative to the corridor road.
     """
@@ -241,12 +241,12 @@ def lookup_directions():
         ':9740484528_w0', '1060166260#1', ':9740484527_w0',
         ':9739966908_w0', ':9739966904_w0', '1060112789#0', ':cluster_172228408_9739966907_9739966910_w2', '1060112789#1',
         ],
-}
+    }
 
 def get_tl_related_lanes():
     """
     Helper function to map each direction to lanes (so that veh/ pedestrians can be counted to generate occupancy map.)
-    
+
     At the intersection: 
     - There are 8 incoming lanes, inside lanes, and 4 outgoing lanes for vehicles. 
     - If the same lane is used for multiple turn directions (straight, left) mark them with -1.

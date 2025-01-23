@@ -6,7 +6,7 @@ import random
 import gymnasium as gym
 import numpy as np
 from utils import convert_demand_to_scale_factor, scale_demand
-from sim_config import *
+from sim_config import get_direction_lookup, get_tl_related_lanes, get_tl_related_pedestrian_edges, get_intersection_phase_groups
 
 class ControlEnv(gym.Env):
     """
@@ -26,7 +26,7 @@ class ControlEnv(gym.Env):
         self.manual_demand_ped = control_args['manual_demand_ped']
         self.demand_scale_min = control_args['demand_scale_min']
         self.demand_scale_max = control_args['demand_scale_max']
-        self.step_length = control_args['step_length']
+        self.step_length = control_args['step_length'] # SUMO allows to specify how long (in real world time) should each step be.
         self.action_duration = control_args['action_duration']
         self.max_timesteps = control_args['max_timesteps']
         self.use_gui = control_args['gui']
@@ -39,7 +39,6 @@ class ControlEnv(gym.Env):
         self.vehicle_output_trips = self.vehicle_output_trips.replace('.xml', f'{self.unique_suffix}.xml')
         self.pedestrian_output_trips = self.pedestrian_output_trips.replace('.xml', f'{self.unique_suffix}.xml')
         
-
         if self.manual_demand_veh is not None :
             scaling = convert_demand_to_scale_factor(self.manual_demand_veh, "vehicle", self.vehicle_input_trips) # Convert the demand to scaling factor first
             scale_demand(self.vehicle_input_trips, self.vehicle_output_trips, scaling, demand_type="vehicle")
@@ -83,12 +82,8 @@ class ControlEnv(gym.Env):
         self.pressure_dict['crosswalks'] = {c: 0 for c in self.controlled_crosswalks.keys()}
         self.directions = ['north', 'east', 'south', 'west']
         self.turns = ['straight', 'right', 'left']
-        self.single_obs_shape = 40
-
 
     def _get_vehicle_direction(self, signal_state):
-        """
-        """
         # Define signal bits for left and right blinkers
         VEH_SIGNAL_BLINKER_RIGHT = 0b1  # Bit 0
         VEH_SIGNAL_BLINKER_LEFT = 0b10  # Bit 1
@@ -436,13 +431,26 @@ class ControlEnv(gym.Env):
     @property
     def observation_space(self):
         """
-        Each timestep (not action step) observation is the pressure in all outgoing directions.
+        Observation is composed of: 
+        - Current state information (9 bit string which is repeated steps_per_action times)
+        - For Intersection and Mid-block: Advanced Traffic State (ATS)
+
+        Observation space defined per action step (i.e. accumulation over a number of action duration steps)
+        Intersection (40 x steps_per_action)
+        * Vehicles
+        - For each direction + turn ():
+            - Incoming
+            - In
+        - Pedestrians
+
+        Each midblock ()
+        - 
         """
         # The observation is the entire observation buffer
         return gym.spaces.Box(
             low=0, 
             high=1, 
-            shape=(self.steps_per_action, int(self.single_obs_shape)),
+            shape=(self.steps_per_action, 40),
             dtype=np.float32
         )
 
@@ -455,23 +463,16 @@ class ControlEnv(gym.Env):
         reward = 0
         done = False
         observation_buffer = []
-        #print(f"\nAction: {action}")
-
-        # break down the actions into their components
-        current_tl_action = action[0].item() # Convert tensor to int
-        current_ns_crosswalk_action = action[1].item()
-        current_ew_crosswalk_action = action[2].item()
-
-        # Run simulation steps for the duration of the action
-        for _ in range(self.steps_per_action):
+        for _ in range(self.steps_per_action): # Run simulation steps for the duration of the action
             
-            # Apply action needs to happen every timestep
+            # Apply action needs to happen every timestep (TODO: return information useful for reward calculation)
             self._apply_action(action, self.current_action_step, self.previous_action)
-
+            
             traci.simulationStep() # Step length is the simulation time that elapses when each time this is called.
+
             self.step_count += 1
-            # Increment the current action step
-            self.current_action_step = (self.current_action_step + 1) % self.steps_per_action # Wrapped around some modulo arithmetic
+            # Increment the current action step (goes from 0 to steps_per_action-1)
+            self.current_action_step = (self.current_action_step + 1) % self.steps_per_action 
 
             # TODO: For the time being. Modify it later.
             obs = np.random.rand(40)
@@ -484,24 +485,16 @@ class ControlEnv(gym.Env):
             #self._update_pressure_dict(self.corrected_occupancy_map)
 
             # Accumulate reward
+            # TODO: For the time being. Modify it later.
             #reward += self._get_reward(current_tl_action)
-            reward += 0 # TODO: For the time being. Modify it later.
+            reward += 0 
 
-            # Check if episode is done
-            if self._check_done():
-                done = True
-                break
+        # Check if episode is done (outside the for loop, otherwise it would create a broken observation)
+        if self._check_done():
+            done = True
 
-        # formatted_buffer = "\n".join(f"{arr})" for arr in observation_buffer)
-        # print(f"\nAccumulated Observation:\n{formatted_buffer}")
-        # print(f"\nCurrent Action: {action}")
-        #print(f"\nAccumulated Reward: {reward}")
-        self.previous_action = current_tl_action
-        observation = np.asarray(observation_buffer, dtype=np.float32) # shape (steps_per_action, 74); e.g. (10, 74) with 10 items each of size 74 
-        #print(f"\nObservation (in step): {observation.shape}")
-        info = {}
-
-        return observation, reward, done, False, info
+        observation = np.asarray(observation_buffer, dtype=np.float32) 
+        return observation, reward, done, False, {} # info is empty
         
     def _get_observation(self, print_map=False):
         """
@@ -512,6 +505,8 @@ class ControlEnv(gym.Env):
             - It would have been fine if model was MLP (we can just attach the previous action at the end)
             But for CNN, it breaks the grid structure.
         Pressure itself is not a part of the observation. It is only used for reward calculation.
+
+        TODO: Some parts of the observation dont need normalization (current phase information).
         """
         
         # Get the occupancy map and print it
@@ -559,44 +554,7 @@ class ControlEnv(gym.Env):
             observation.append(outgoing)
 
         observation = np.asarray(observation, dtype=np.float32)
-        # Create a mask for part of observations that do not need normalization i.e., a bunch of elements at the beginning (which do not need a normalization)
-
-        mask = list(range(len(current_tl_info) + len(self.current_crosswalk_actions), len(observation))) # Except 0, 1, 2, 3
-        observation[mask] /= 10.0 # TODO: A better normalization scheme?
-
-        # #TODO: Accumulate crosswalk specific info to be accumulated for the design agent. 
-        # # Concatenate the crosswalk info (4 obs for each crosswalk)
-        # crosswalk_info = []
-        # for crosswalk_id in self.controlled_crosswalk_masked_ids: # ':9687187501_c0' and ':9687187500_c0' are same special case crosswalk
-        #     if crosswalk_id != ':9687187501_c0': # This if condition is a huge tax to the system.
-        #         crosswalk_info.append(len(self.corrected_occupancy_map['crosswalks'][crosswalk_id]['upside']))
-        #         crosswalk_info.append(len(self.corrected_occupancy_map['crosswalks'][crosswalk_id]['downside']))
-        #         crosswalk_info.append(len(self.corrected_occupancy_map['crosswalks'][crosswalk_id]['inside']))
-        #         crosswalk_info.append(len(self.corrected_occupancy_map['crosswalks'][crosswalk_id]['rerouted']))
-        # crosswalk_info = np.asarray(crosswalk_info, dtype=np.float32)
-
-        #print(f"\nObservation: {observation.shape}")
         return observation
-    
-    def _get_tl_switch_state(self, east_to_north_switch, north_to_east_switch, current_action_step):
-        """
-        If this function is called, one of them needs to be true.
-        """
-        if east_to_north_switch:
-            current_tl_action = 4
-        elif north_to_east_switch:
-            current_tl_action = 5
-
-        durations = [phase["duration"] for phase in self.tl_phase_groups[current_tl_action]]
-        cumulative_durations = [sum(durations[:i+1]) for i in range(len(durations))] # [4, 5, 10]
-
-        for i, duration in enumerate(cumulative_durations):
-            if current_action_step < duration:
-                index = i
-                break
-
-        self.current_tl_state_index = index
-        return self.tl_phase_groups[current_tl_action][index]["state"]   
 
     def _apply_action(self, action, current_action_step, previous_action=None):
         """
@@ -619,10 +577,9 @@ class ControlEnv(gym.Env):
         previous_mid_block_action = previous_action[2:]
 
         # Detect a switch in all the components (the vehicle part at the intersection considered as one component) i.e., total 8 components
-        # For the intersection, other than switching from last phase (all red with bitstring 11), there is a switch
         switches = [] # contains boolean values (0 = No switch, 1 = Switch)
-        if previous_intersection_action == 11: # All red
-            switch_in_intersection = [0]
+        if previous_intersection_action == 11: # If the last phase was all red, assume no switch (no intermediate yellow required)
+            switch_in_intersection = 0
         else:
             if current_intersection_action != previous_intersection_action:
                 switch_in_intersection = 1
@@ -650,41 +607,30 @@ class ControlEnv(gym.Env):
         # #print(f"\nState: {state}\n")
         # traci.trafficlight.setRedYellowGreenState(self.tl_ids[0], state)
 
+        self.previous_action = action
+
     def _get_reward(self, current_tl_action):
         """ 
-                
-        Intersection:
-            - Traffic Signal control: 2 major choices: 
-                1. Pressure based:
-                Pressure = Incoming vehicles - Outgoing vehicles. Penalize high pressure. 
-
-                2. Maximum wait aggregated queue (mwaq)
-                mwaq = (sum of queue lengths of all directions) x maximum waiting time among all 
-                Can be used for both vehicle and pedestrian. Penalize high mwaq.
-
-            - Crosswalk Signal Control (in the intersection)
-                1. Pressure based Incoming (upside + downside) - Outgoing (inside crosswalk). Penalize high pressure.
-
-        Corridor:
-            - Control 9 crosswalks
-            Pressure = Incoming (upside + downside) - Outgoing (inside crosswalk)
-            Should each crosswalk act like a traffic light?
-
-        Other general components: 
-            - Penalty on frequent changes of action
-
+        * Reward is based on the alleviation of pressure (penalize high pressure)
+        * Intersection:
+            - Vehicle pressure = Incoming - Outgoing 
+            - Pedestrian pressure = Incoming (upside + downside) - Outgoing (inside crosswalk)
+        * Mid-block:
+            - Same as intersection
+        Other components: 
+            - Penalize frequent changes of action/ switching
 
         # TODO: 
         0. Get the lambda values from wandb config.
-        1. Reward centering?
-        2. Reward shaping?
+        1. Alternatively Maximum wait aggregated queue (mwaq) can also be used for reward. 
+            mwaq = (sum of queue lengths of all directions) x maximum waiting time among all 
+            Can be used for both vehicle and pedestrian. Penalize high mwaq.
         """
 
         reward = 0
         lambda1, lambda2, lambda3 = -0.33, -0.33, -0.33
 
-        #### Pressure based ####
-        # Traffic Signal Control
+        # Intersection
         vehicle_pressure = 0
         for tl_id in self.tl_ids:
             for direction in self.directions:
@@ -788,8 +734,7 @@ class ControlEnv(gym.Env):
         self.sumo_running = True
         self.step_count = 0 # This counts the timesteps in an episode. Needs reset.
         self.current_action_step = 0
-        self.tl_lane_dict = {}
-        self.tl_lane_dict['cluster_172228464_482708521_9687148201_9687148202_#5more'] = initialize_lanes()
+        self.tl_lane_dict = get_tl_related_lanes()
 
         # Randomly initialize the actions (current tl phase group and combined binary action for crosswalks) 
         self.current_tl_phase_group = random.choice([0, 1, 2, 3]) # not including [4, 5] from the list
@@ -814,7 +759,7 @@ class ControlEnv(gym.Env):
             
         observation = np.asarray(observation_buffer, dtype=np.float32)
         #print(f"\nObservation (in reset): {observation.shape}")
-        return observation, {} # {} is empty info
+        return observation, {} # nfo is empty
 
     def close(self):
         if self.sumo_running:
