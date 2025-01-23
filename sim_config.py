@@ -83,10 +83,11 @@ def get_real_world_tl_phases():
         ]
     }
 
-# Since the intersection has a more complex logic, its implemented here.
-# For crosswalks, its done in apply_action.
 def get_intersection_phase_groups(action_duration):
     """
+    Since the intersection has a more complex phase logic, its implemented here.
+    For other TLs, its done in apply_action.
+        
     For the intersection (TL): 
     - 0: Allow N-S disallow other directions
     - 1: Allow E-W disallow other directions
@@ -114,11 +115,9 @@ def get_intersection_phase_groups(action_duration):
         1: [{"duration": action_duration, "state": "yyyyrrrryyyyrrrr"}],
         2: [{"duration": action_duration, "state": "yyyyrrrryyyyrrrr"}],
         3: [{"duration": action_duration, "state": "yyyyrrrryyyyrrrr"}],
-
         4: [{"duration": 4, "state": "yyyyrrrryyyyrrrr"}, 
             {"duration": 1, "state": "rrrrrrrrrrrrrrrr"}, 
             {"duration": (action_duration - (4 + 1)), "state": "rrrrGGGGrrrrGGGG"}],
-
         5: [{"duration": 4, "state": "yyyyrrrryyyyrrrr"}, 
             {"duration": 1, "state": "rrrrrrrrrrrrrrrr"}, 
             {"duration": (action_duration - (4 + 1)), "state": "rrrrGGGGrrrrGGGG"}],
@@ -132,86 +131,10 @@ def get_intersection_phase_groups(action_duration):
         }
     return tl_phase_groups, crosswalk_phase_groups
 
-
-def get_tl_related_pedestrian_edges():
-    """
-    Helper function to return pedestrian related edges for each TL.
-    Useful in building occupancy map.
-    - Ids are the crosswalk itself (A pedestrian's current_edge will end with _c0 if they are inside the crosswalk)
-    - vicinity_walking_edges was designed for re-routing (perhaps not used here.)
-    - connected_edges was designed for one-step lookup (however, that information is not something that can be determined observationally. so perhaps not used here.)
-    - Excluded from this collection are the the walking areas in the junctions near the crosswalks (because pedestrians present here could be going anywhere).
-    - _w0 or _w1 attached to junction names will be the walking areas over that junction. 
-
-    """
-
-    return {
-            ':cluster_172228464_482708521_9687148201_9687148202_#5more_c2': { # Intersection one
-                'vicinity_walking_edges': ['1054116929#4', '1054116929#2',':cluster_172228464_482708521_9687148201_9687148202_#5more_w6','1058666193_0',':cluster_172228464_482708521_9687148201_9687148202_#5more_w5' ], 
-                'related_junction_edges': [':9687148199_w0','1054116933_0',':9687148198_w0',':9727816638_w0'],  
-                'connected_edges': ['1078803478#0','1058666191#4','1058666191#3','1054116932#1','1054116932#0'],
-                }, 
-                 
-            ':cluster_172228464_482708521_9687148201_9687148202_#5more_c1': { # Intersection two
-                'vicinity_walking_edges': ['1054116929#0', '1054116929#1',':cluster_172228464_482708521_9687148201_9687148202_#5more_w4'], 
-                'related_junction_edges': [':9687148197_w0',':9666242268_w0',':9727816638_w0',':9687148198_w0'],
-                'connected_edges': ['1058666191#4','1058666191#3','1050677005#3','452522817#1','1050677005#2'],
-                },
-
-            ':9727816850_c0': { # Mid block TL + crosswalks from left to right
-                'vicinity_walking_edges': [':9727816850_w1', '1058666207#1', ':9727816844_w0',':9727816850_w0', '1058666206#0', '1058666207#0' ], # Have to be re-routed # JUnctions should not be here
-                'related_junction_edges': [':9727816846_w0', ':9727816851_w0'], 
-                'connected_edges': ['1050677005#7','1050677005#6','1058666191#1','1058666191#2'],
-            },
-
-            ':9727816623_c0': {
-                'vicinity_walking_edges': ['1058666188#1', '1051865729#3',':9727816623_w0', ':9727816623_w1'],
-                'related_junction_edges': [':9727816625_w0', ':9666274798_w0'], # All edges with _w0 in the end begin with : in front
-                'connected_edges': ['1058666187#2','1058666187#3', '1050677005#10','1050677005#9' ], 
-                'reroute_edges': {'upside': '1051865729#3' , 'downside': '1058666188#1' },
-
-            },
-
-            ':9740157155_c0': {
-                'vicinity_walking_edges': ['1060131391#1', '1060131391#0', ':9740157155_w0',':9740157155_w1',':9740157153_w0', '1060131390' ],
-                'related_junction_edges': [':9666274886_w0', ':9740157154_w0'],
-                'connected_edges': ['1060131388#2','1060131388#3', '1050677005#13', '1050677005#12'],
-                'reroute_edges': {'upside': '1060131391#1' , 'downside': '1060131391#0'}, 
-                
-            },
-
-            ':cluster_9740157181_9740483933_c0': {
-                'vicinity_walking_edges': [':cluster_9740157181_9740483933_w0', ':cluster_9740157181_9740483933_w1', '1060131401#2', '1060131401#3'],
-                'related_junction_edges': [':9740157180_w0', ':9655154530_w0'],
-                'connected_edges': ['1060131402', ':9740483934_w0', ':9740157180_w0', '1060131401#1', '1050677005#14', '1050677005#13', '1050677007#1'],
-                
-            },
-
-            ':9740157194_c0': {
-                'vicinity_walking_edges': ['1060131405#1', ':9740157194_w1', ':9740157194_w0', ':9740157192_w0', '1060131406', '1060131405#0'], # Have to be re-routed
-                'related_junction_edges': [':9740157204_w0', ':9740157195_w0', ':10054309033_w0', ], # One step lookup
-                'connected_edges': ['1050677005#16', '1098062395', '1050677005#18', '1060131403#1', '1060112727#1', '1060131404#1'],
-            
-            
-            },
-
-            ':9740157209_c0': {
-                'vicinity_walking_edges': ['1060131408#1', ':9740157209_w0', ':9740157209_w1', '1060131408#0', '1060131410' ],
-                'related_junction_edges': [':9740157207_w0', ':9740157211_w0', ':9740157210_w0', '1060131404#2' ], # For lookup
-                'connected_edges': [':9740484420_w0', '1060131404#3', '1050677005#19', '1050677005#18', '1060131409#1' ],
-                
-            },
-
-            ':9740484527_c0': {
-                'vicinity_walking_edges': ['1060166260#1', ':9740484527_w0', ':9740484527_w1', '1050677005#21'],
-                'related_junction_edges': [':9740484528_w0', ':9740484524_w0'],
-                'connected_edges': ['1060166262#2', '1050677005#20', '1060112787#2', '1060112787#1'],
-            }
-        }
-
 def get_direction_lookup():
     """
     Helper (lookup dict) to determine whether the edges are present upside (north) or downside (south) relative to the corridor road.
+    Not used. Because in some of the pedestrian crosswalk vicinity edges, the same vicinity edge can be upside for one and downside for another.
     """
     return {
     'upside': [ 
@@ -227,7 +150,6 @@ def get_direction_lookup():
         ':9740484527_w1', '1050677005#21', ':9740484524_w0',
         ':cluster_172228408_9739966907_9739966910_w3', '1060112789#2',
         ],
-
     'downside': [ 
         ':9727816658_w0', '1058666192', ':9687187495_w0', ':9687187500_w0',
         '1054116929#2', '1058666193_0',':9687148198_w0',':9727816638_w0',':cluster_172228464_482708521_9687148201_9687148202_#5more_w5',
@@ -243,154 +165,291 @@ def get_direction_lookup():
         ],
     }
 
-def get_tl_related_lanes():
+def get_related_lanes_edges():
     """
-    Helper function to map each direction to lanes (so that veh/ pedestrians can be counted to generate occupancy map.)
+    Helper function to map each direction to edges/ lanes (so that veh/ pedestrians can be counted to generate occupancy map)
+    We make use of traci.lane.getLastStepVehicleIDs(lane) to get vehicle information and traci.edge.getLastStepPersonIDs(edge) to get pedestrian info
 
     At the intersection: 
     - There are 8 incoming lanes, inside lanes, and 4 outgoing lanes for vehicles. 
-    - If the same lane is used for multiple turn directions (straight, left) mark them with -1.
-    
+    - In most of the cases, same lane is used for multiple turn directions (straight, left) mark them with -1.
+    - Pedestrian at west means they want to cross the crosswalk located in the west (from both sides)
+    - Pedestrian (outgoing) means they are inside the crosswalk
+    - Pedestrians (incoming): If the edge ends with _wx, then we are certain that they want to cross (listed in main) but for other edges, they could be going in orthogonal direction as well (listed in vicinity).  
+
     At Mid block crosswalks:
+    - There are no turn directions.
+    - For pedestrians, there is only one crosswalk per mid block TL i.e., keeping that as direction north.
+    - Pedestrian (outgoing) means they are inside the crosswalk
+    - Vicinity edges are not used
+
+    * List contains lanes for vehicles and edges for pedestrians
+    * Lanes/ Edges going West to East have a negative sign in front of their ids
     
-    * Lanes/ Edges going West to East have a negative sign.
+    * vicinity edges:
+    1. [':9687148199_w0', ':9687148211_w0', '1054116933', '1054116929#5', '1054116929#4']
+    2. ['1058666193', '1054116929#2', '1054116929#1', ':9727816638_w0', ':9687148198_w0']
+    3. ['1054116929#0', '1054116929#9', '1054116930', ':9687148197_w0', ':9666242268_w0']
+    4. ['9687148200_w0',':9687148182_w0', '1054116931', '1054116929#6', '1054116929#7']
+    * South = 1 + 2, East = 3 + 2, West = 4 + 1, North = 3 + 4
     """
 
     return { 
-            'cluster_172228464_482708521_9687148201_9687148202_#5more': {
-                "vehicle": {
-                    "incoming": {
-                        # If there is a junction, then locate the edges in that junction and add the appropriate incoming edges here (exclude walking areas, or lanes already added).
-                        # Because there is a zipper lane here # 'junction:172668791', using . as delimiter because : is in the name of the edge
-                        "south-straight": ['1078803478#0_1', 'edge.:172668791_0','1078803477#5_1'] ,
-                        "south-right": ['-1'],
-                        "south-left": ['1078803478#0_2'],
-                        "west-straight": ['1060131306#0_0'],
-                        "west-right": ['-1'] ,
-                        "west-left": ['-1'],
-                        "east-straight": ['-16666012#2_0'] ,
-                        "east-right": ['-1'], # The same lane in east-straight acts as right and left
-                        "east-left": ['-1'],
-                        "north-straight": ['773672648#0_1'], 
-                        "north-right": ['773672648#0_0'],
-                        "north-left": ['773672648#0_2'],
-                    },
-                    # Based on incoming from direction
-                    "inside": {
-                        "south-straight": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_5'],
-                        "south-right": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_4'],
-                        "south-left": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_6'],
-                        "west-straight": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_9'],
-                        "west-right": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_8'],
-                        "west-left": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_10'],
-                        "east-straight": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_1'],
-                        "east-right": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_0'],
-                        "east-left": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_2'],
-                        "north-straight": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_13'],
-                        "north-right": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_12'],
-                        "north-left": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_14'],
-                    },
-                    "outgoing": {
-                        "west": ['-1060131306#0_0'] , 
-                        "south": ['773672649#1_0'],
-                        "east": ['16666012#2_0'], 
-                        "north": ['452522817#1_1'],
-                    },
+        'cluster_172228464_482708521_9687148201_9687148202_#5more': { # Intersection 
+            "vehicle": {
+                "incoming": {
+                    "south-straight": ['1078803478#0_1', 'edge.:172668791_0','1078803477#5_1'], # Because there is a zipper lane here ('junction:172668791'), using . as delimiter because : is in the name of the edge
+                    "south-right": ['-1'],
+                    "south-left": ['1078803478#0_2'],
+                    "west-straight": ['1060131306#0_0'],
+                    "west-right": ['-1'] ,
+                    "west-left": ['-1'],
+                    "east-straight": ['-16666012#2_0'] ,
+                    "east-right": ['-1'], # The same lane in east-straight acts as right and left
+                    "east-left": ['-1'],
+                    "north-straight": ['773672648#0_1'], 
+                    "north-right": ['773672648#0_0'],
+                    "north-left": ['773672648#0_2'],
                 },
+                "inside": {
+                    "south-straight": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_5'],
+                    "south-right": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_4'],
+                    "south-left": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_6'],
+                    "west-straight": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_9'],
+                    "west-right": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_8'],
+                    "west-left": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_10'],
+                    "east-straight": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_1'],
+                    "east-right": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_0'],
+                    "east-left": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_2'],
+                    "north-straight": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_13'],
+                    "north-right": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_12'],
+                    "north-left": ['edge.:cluster_172228464_482708521_9687148201_9687148202_#5more_14'],
+                },
+                "outgoing": {
+                    "west": ['-1060131306#0_0'] , 
+                    "south": ['773672649#1_0'],
+                    "east": ['16666012#2_0'], 
+                    "north": ['452522817#1_1'],
+                },
+            },
+            "pedestrian": {
+                "incoming": { 
+                    "west": {
+                        "main": [':cluster_172228464_482708521_9687148201_9687148202_#5more_w7',':cluster_172228464_482708521_9687148201_9687148202_#5more_w0'] ,
+                        "vicinity": ['9687148200_w0',':9687148182_w0', '1054116931', '1054116929#6', '1054116929#7', ':9687148199_w0', ':9687148211_w0', '1054116933', '1054116929#5', '1054116929#4'],
+                        },
+                    "south": {
+                        "main": [':cluster_172228464_482708521_9687148201_9687148202_#5more_w5', ':cluster_172228464_482708521_9687148201_9687148202_#5more_w6'],
+                        "vicinity": [':9687148199_w0', ':9687148211_w0', '1054116933', '1054116929#5', '1054116929#4', '1058666193', '1054116929#2', '1054116929#1', ':9727816638_w0', ':9687148198_w0'],
+                        },
+                    "east": {
+                        "main": [':cluster_172228464_482708521_9687148201_9687148202_#5more_w4',':cluster_172228464_482708521_9687148201_9687148202_#5more_w3' ],
+                        "vicinity": ['1054116929#0', '1054116929#9', '1054116930', ':9687148197_w0', ':9666242268_w0', '1058666193', '1054116929#2', '1054116929#1', ':9727816638_w0', ':9687148198_w0'],
+                        },
+                    "north": {
+                        "main": [':cluster_172228464_482708521_9687148201_9687148202_#5more_w1',':cluster_172228464_482708521_9687148201_9687148202_#5more_w2'] ,
+                        "vicinity": ['1054116929#0', '1054116929#9', '1054116930', ':9687148197_w0', ':9666242268_w0', '9687148200_w0',':9687148182_w0', '1054116931', '1054116929#6', '1054116929#7'],
+                        },
+                },
+                "outgoing": { 
+                    "west": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c3'],
+                    "south": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c2'] ,
+                    "east": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c1'],
+                    "north": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c0'],
+                },
+            }
+        },
 
-                "pedestrian": {
-                    "incoming": { # Incoming and want to cross this direction. From both sides
-                        "west": [':cluster_172228464_482708521_9687148201_9687148202_#5more_w7',':cluster_172228464_482708521_9687148201_9687148202_#5more_w0'] ,
-                        "south": [':cluster_172228464_482708521_9687148201_9687148202_#5more_w5', ':cluster_172228464_482708521_9687148201_9687148202_#5more_w6'],
-                        "east": [':cluster_172228464_482708521_9687148201_9687148202_#5more_w4',':cluster_172228464_482708521_9687148201_9687148202_#5more_w3' ],
-                        "north": [':cluster_172228464_482708521_9687148201_9687148202_#5more_w1',':cluster_172228464_482708521_9687148201_9687148202_#5more_w2'] ,
+        # Mid block TL + crosswalks from left to right
+        '9727816850': { 
+            "vehicle": {
+                "incoming": {
+                    "west-straight": ['-16666012#3_0'],
+                    "east-straight": ['16666012#2_0'],
+                },
+                "inside": {
+                    "west-straight": ['9727816850'],
+                    "east-straight": ['9727816850'],
+                },
+                "outgoing": {
+                    "west-straight": ['-16666012#2_0'],
+                    "east-straight": ['16666012#3_0'],
+                }
+            },
+            "pedestrian": {
+                "incoming": {
+                    "north": {
+                        "main": [':9727816850_w1', '1058666207#1', ':9727816844_w0',':9727816850_w0', '1058666206#0', '1058666207#0', ':9727816846_w0', ':9727816851_w0'],
+                        "vicinity": [''],
+                        },
+                },
+                "outgoing": {
+                    "north": [':9727816850_c0']
+                }
+            }
+        },
+        '9727816623': {
+            "vehicle": {
+                "incoming": {
+                    "west-straight": ['-16666012#5_0'],
+                    "east-straight": ['16666012#4_0'],
+                },
+                "inside": {
+                    "west-straight": ['9727816623'],
+                    "east-straight": ['9727816623'],
+                },
+                "outgoing": {
+                    "west-straight": ['-16666012#4_0'],
+                    "east-straight": ['16666012#5_0'],
+                }
+            },
+            "pedestrian": {
+                "incoming": {
+                    "north": {
+                        "main": ['1058666188#1', '1051865729#3',':9727816623_w0', ':9727816623_w1', ':9727816625_w0', ':9666274798_w0'],
+                        "vicinity": [''],
                     },
-                    "outgoing": { # Is when they are inside the crossing
-                        "west": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c3'],
-                        "south": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c2'] ,
-                        "east": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c1'],
-                        "north": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c0'],
+                },  
+                "outgoing": {
+                    "north": [':9727816623_c0']
+                }
+            }
+        },
+        '9740157155': {
+            "vehicle": {
+                "incoming": {
+                    "west-straight": ['-16666012#7_0'],
+                    "east-straight": ['16666012#6_0'],
+                },
+                "inside": {
+                    "west-straight": ['9740157155'],
+                    "east-straight": ['9740157155'],
+                },
+                "outgoing": {
+                    "west-straight": ['-16666012#6_0'],
+                    "east-straight": ['16666012#7_0'],
+                }
+            },
+            "pedestrian": {
+                "incoming": {
+                    "north": {
+                        "main": ['1060131391#1', '1060131391#0', ':9740157155_w0',':9740157155_w1',':9740157153_w0', '1060131390', ':9666274886_w0', ':9740157154_w0'],
+                        "vicinity": [''],
                     },
+                },
+                "outgoing": {
+                    "north": [':9740157155_c0']
+                }
+            }
+        },
+        'cluster_9740157181_9740483933': {
+            "vehicle": {
+                "incoming": {
+                    "west-straight": ['-16666012#11_0'],
+                    "east-straight": ['16666012#9_0'],
+                },
+                "inside": {
+                    "west-straight": ['9740157181'],
+                    "east-straight": ['9740157181'],
+                },
+                "outgoing": {
+                    "west-straight": ['-16666012#9_0'],
+                    "east-straight": ['16666012#11_0'], 
                 }
             },
-            # Mid block TL + crosswalks from left to right
-            '9727816850': { 
-                "vehicle": {
-                    "incoming": {},
-                    "inside": {},
-                    "outgoing": {}
+            "pedestrian": {
+                "incoming": {
+                    "north": {
+                        "main": [':cluster_9740157181_9740483933_w0', ':cluster_9740157181_9740483933_w1', '1060131401#2', '1060131401#3', ':9740157180_w0', ':9655154530_w0'],
+                        "vicinity": [''],
+                    },
                 },
-                "pedestrian": {
-                    "incoming": {},
-                    "outgoing": {}
+                "outgoing": {
+                    "north": [':cluster_9740157181_9740483933_c0']
+                }
+            }
+        },
+        '9740157194': {
+            "vehicle": {
+                "incoming": {
+                    "west-straight": ['-16666012#13_0'],
+                    "east-straight": ['16666012#12_0'],
+                },
+                "inside": {
+                    "west-straight": ['9740157194'],
+                    "east-straight": ['9740157194'],
+                },
+                "outgoing": {
+                    "west-straight": ['-16666012#12_0'],
+                    "east-straight": ['16666012#13_0'],
                 }
             },
-            '9727816623': {
-                "vehicle": {
-                    "incoming": {},
-                    "inside": {},
-                    "outgoing": {}
+            "pedestrian": {
+                "incoming": {
+                    "north": {
+                        "main": ['1060131405#1', ':9740157194_w1', ':9740157194_w0', ':9740157192_w0', '1060131406', '1060131405#0', ':9740157204_w0', ':9740157195_w0', ':10054309033_w0'],
+                        "vicinity": [''],
+                    },
                 },
-                "pedestrian": {
-                    "incoming": {},
-                    "outgoing": {}
+                "outgoing": {
+                    "north": [':9740157194_c0']
+                }
+            }
+        },
+        '9740157209': {
+            "vehicle": {
+                "incoming": {
+                    "west-straight": ['-16666012#14_0'],
+                    "east-straight": ['16666012#13_0'],
+                },
+                "inside": {
+                    "west-straight": ['9740157209'],
+                    "east-straight": ['9740157209'],
+                },
+                "outgoing": {
+                    "west-straight": ['-16666012#13_0'],
+                    "east-straight": ['16666012#14_0'],
                 }
             },
-            '9740157155': {
-                "vehicle": {
-                    "incoming": {},
-                    "inside": {},
-                    "outgoing": {}
+            "pedestrian": {
+                "incoming": {
+                    "north": {
+                        "main": ['1060131408#1', ':9740157209_w0', ':9740157209_w1', '1060131408#0', '1060131410', ':9740157207_w0', ':9740157211_w0', ':9740157210_w0', '1060131404#2' ],
+                        "vicinity": [''],
+                    },
                 },
-                "pedestrian": {
-                    "incoming": {},
-                    "outgoing": {}
+                "outgoing": {
+                    "north": [':9740157209_c0']
+                }
+            }
+        },
+        '9740484527': {
+            "vehicle": {
+                "incoming": {
+                    "west-straight": ['-16666012#17_0'],
+                    "east-straight": ['16666012#16_0'],
+                },
+                "inside": {
+                    "west-straight": ['9740484527'],
+                    "east-straight": ['9740484527'],
+                },
+                "outgoing": {
+                    "west-straight": ['-16666012#16_0'],
+                    "east-straight": ['16666012#17_0'],
                 }
             },
-            'cluster_9740157181_9740483933': {
-                "vehicle": {
-                    "incoming": {},
-                    "inside": {},
-                    "outgoing": {}
+            "pedestrian": {
+                "incoming": {
+                    "north": {
+                        "main": ['1060166260#1', ':9740484527_w0', ':9740484527_w1', '1050677005#21', ':9740484528_w0', ':9740484524_w0'],
+                        "vicinity": [''],
+                    },
                 },
-                "pedestrian": {
-                    "incoming": {},
-                    "outgoing": {}
-                }
-            },
-            '9740157194': {
-                "vehicle": {
-                    "incoming": {},
-                    "inside": {},
-                    "outgoing": {}
-                },
-                "pedestrian": {
-                    "incoming": {},
-                    "outgoing": {}
-                }
-            },
-            '9740157209': {
-                "vehicle": {
-                    "incoming": {},
-                    "inside": {},
-                    "outgoing": {}
-                },
-                "pedestrian": {
-                    "incoming": {},
-                    "outgoing": {}
-                }
-            },
-            '9740484527': {
-                "vehicle": {
-                    "incoming": {},
-                    "inside": {},
-                    "outgoing": {}
-                },
-                "pedestrian": {
-                    "incoming": {},
-                    "outgoing": {}
+                "outgoing": {
+                    "north": [':9740484527_c0']
                 }
             }
         }
+    }
 
 

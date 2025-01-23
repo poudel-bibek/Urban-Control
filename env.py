@@ -6,7 +6,7 @@ import random
 import gymnasium as gym
 import numpy as np
 from utils import convert_demand_to_scale_factor, scale_demand
-from sim_config import get_direction_lookup, get_tl_related_lanes, get_tl_related_pedestrian_edges, get_intersection_phase_groups
+from sim_config import get_direction_lookup, get_related_lanes_edges, get_intersection_phase_groups
 
 class ControlEnv(gym.Env):
     """
@@ -63,8 +63,8 @@ class ControlEnv(gym.Env):
 
         self.current_action_step = 0 # To track where we are within the curret action's duration
         self.tl_phase_groups, self.crosswalk_phase_groups = get_intersection_phase_groups(self.action_duration)
-        self.controlled_crosswalks, self.direction_and_edges  = get_tl_related_pedestrian_edges(), get_direction_lookup()
-        self.tl_lane_dict = get_tl_related_lanes()
+        self.direction_and_edges  = get_direction_lookup()
+        self.tl_lane_dict = get_related_lanes_edges()
         self.tl_pedestrian_status = {} # For pedestrians related to crosswalks attached to TLS.
 
         self.current_tl_phase_group = None
@@ -79,7 +79,6 @@ class ControlEnv(gym.Env):
                 self.edge_to_direction[edge] = direction
 
         self.pressure_dict = {tl_id: {'vehicle': {}, 'pedestrian': {}} for tl_id in self.tl_ids}
-        self.pressure_dict['crosswalks'] = {c: 0 for c in self.controlled_crosswalks.keys()}
         self.directions = ['north', 'east', 'south', 'west']
         self.turns = ['straight', 'right', 'left']
 
@@ -279,18 +278,16 @@ class ControlEnv(gym.Env):
 
     def _get_occupancy_map(self, ):
         """
-        Features: 
-            - If the same lane is used for multiple directions, the indicator light of vehicle is used to determine the direction. (The indicator light turns on about 100m far from the junction.)
+        Occupancy map = dict with vehicle and pedestrian information in the neighbourhood of all TLs
+        If the same lane is used for multiple turns (straight, right, left), the indicator light (turns ON about 100m as a vehicle approaches the junction) of vehicle is used to determine the actual direction. 
         """
 
         occupancy_map = {}
-
-        # For the traffic light and its related components
-        for tl_id, lanes in self.tl_lane_dict.items():
+        for tl_id in self.tl_ids:
             occupancy_map[tl_id] = {
                 "vehicle": {
                     "incoming": {},
-                    "inside": {}, # Inside the junction
+                    "inside": {}, # Inside the junction (since mid-block TLs are small, may not apply to them)
                     "outgoing": {}
                 },
                 "pedestrian": {
@@ -299,6 +296,14 @@ class ControlEnv(gym.Env):
                 }
             }
             
+
+
+
+
+
+
+
+
             for agent_type in ["vehicle", "pedestrian"]:
                 for direction in  occupancy_map[tl_id][agent_type].keys():
                     for lane_group, lane_list in lanes[agent_type][direction].items():
