@@ -81,6 +81,8 @@ class ControlEnv(gym.Env):
         self.pressure_dict = {tl_id: {'vehicle': {}, 'pedestrian': {}} for tl_id in self.tl_ids}
         self.directions = ['north', 'east', 'south', 'west']
         self.turns = ['straight', 'right', 'left']
+        self.direction_turn_intersection = [f"{direction}-{turn}" for direction in self.directions for turn in self.turns]
+        self.direction_turn_midblock = ['west-straight', 'east-straight']
 
     def _get_vehicle_direction(self, signal_state):
         # Define signal bits for left and right blinkers
@@ -96,73 +98,94 @@ class ControlEnv(gym.Env):
         elif right_blinker and not left_blinker:
             return "right"
         else:
-            # This covers cases where both blinkers are on (emergency) or off
-            return "center"
+            return "center" # cases where both blinkers are on (emergency) or off
 
     def _step_operations(self, occupancy_map, print_map=False, cutoff_distance=100):
         """
-        Requires occupancy map as input. The changes made here should be reflected in the next time step's occupancy map.
-        Some corrections have to be done every step.
-        1. Update the pedestrian status when they cross: For each traffic light, check the outgoing pedestrians.
-        If a pedestrian is in the outgoing area and hasn't been marked as 'crossed', update their status to 'crossed' in the self.tl_pedestrian_status dictionary.
-        2. In case the same lanes are used for L, R, S turns (in case of vehicles and incoming). The straight lane will have repeated entries, remove them.  
-        3. Vehicles are only included in the occupancy map if they are close to a given distance. In both incoming and outgoing directions.
+        Some corrections have to be done to the occupancy map every step.
+        1. Pedestrians wanting to cross, and pedestrians already crossed both are going to be in the same area in simulation. This mechanism helps distinguish between them. 
+        - If a pedestrian is inside (present in outgoing of occupancy map) the crosswalk and hasn't been marked as 'crossed', mark them.
+        - Later during tracking, only include unmarked pedestrians in incoming.
+        - This mechanism fails when a pedestrian wants to cross twice (however, the probability of this happening is low, assume they wont cross twice).
+        2. At the intersection, in some directions (incoming), same lanes are used for L, R, S turns (in case of vehicles and incoming). The straight lane will have repeated entries of those vehicles, remove them.  
+        3. Vehicles are only included in the occupancy map if they are within a given distance (due to the length of some edges, far away vehicles may also be present). Only for incoming and outgoing.
         """
-        # Handle outgoing pedestrians
+        # 1.
         for tl_id in self.tl_ids:
-            for _, persons in occupancy_map[tl_id]['pedestrian']['outgoing'].items():
-                for person in persons:
-                    if person not in self.tl_pedestrian_status or self.tl_pedestrian_status[person] != 'crossed':
-                        # If the pedestrian crossed once, consider them as crossed (assume they wont cross twice, there is no way to know this without looking into their route, which is not practical.) 
-                        self.tl_pedestrian_status[person] = 'crossed'
+            if tl_id == 'cluster_172228464_482708521_9687148201_9687148202_#5more': # Intersection has 4 outgoing directions
 
-        # Handle special case for incoming vehicles
+                for direction in self.directions:
+                    for area in ["main", "vicinity"]:
+                        for ped_id in occupancy_map[tl_id]["pedestrian"]["outgoing"][direction][area]:
+                            if self._check_crossing_status(ped_id):
+                                self.tl_pedestrian_status[ped_id] = 'crossed'
+
+            else: # Midblock has one direction (north). Also midblocks have no vicinity edges.
+                for ped_id in occupancy_map[tl_id]["pedestrian"]["outgoing"]["north"]["main"]:
+                    if self._check_crossing_status(ped_id):
+                        self.tl_pedestrian_status[ped_id] = 'crossed'
+
+        # 2.
+        for direction_turn in self.direction_turn_intersection:
+            if direction_turn not in ['south-straight', 'west-straight', 'east-straight', 'north-straight']:
+                direction, _ = direction_turn.split('-')
+                straight_lane = f"{direction}-straight"
+                straight_lane_vehicles = occupancy_map['cluster_172228464_482708521_9687148201_9687148202_#5more']['vehicle']['incoming'][straight_lane]
+                
+                # If this vehicles in a non-straight lane are also in the straight lane, remove them from the straight lane.
+                for veh_id in occupancy_map['cluster_172228464_482708521_9687148201_9687148202_#5more']['vehicle']['incoming'][direction_turn]:
+                    if veh_id in straight_lane_vehicles:
+                        occupancy_map['cluster_172228464_482708521_9687148201_9687148202_#5more']['vehicle']['incoming'][straight_lane].remove(veh_id)
+
+        # 3.
         for tl_id in self.tl_ids:
-            for lane_group, vehicles in occupancy_map[tl_id]['vehicle']['incoming'].items():
-                if lane_group not in ['south-straight', 'west-straight', 'east-straight', 'north-straight']:
-                    ew_ns_direction = lane_group.split('-')[0]
-                    straight_lane_group = f"{ew_ns_direction}-straight"
-                    
-                    # If this vehicle (which is in a non-straight lane) is also in the straight lane, remove it from the straight lane.
-                    for vehicle in vehicles:
-                        if vehicle in occupancy_map[tl_id]['vehicle']['incoming'][straight_lane_group]:
-                            occupancy_map[tl_id]['vehicle']['incoming'][straight_lane_group].remove(vehicle) # Remove from the straight lane group
-        
-        # Handle vehicles
-        for direction in ['incoming', 'outgoing']:
-            for lane_group, vehicles in occupancy_map[tl_id]['vehicle'][direction].items():
-                vehicles_to_remove = []
-                for vehicle in vehicles:
-                    distance = self._get_vehicle_distance_to_junction(tl_id, vehicle)
-                    if distance > cutoff_distance:
-                        vehicles_to_remove.append(vehicle)
-                    
-                # Remove vehicles outside the cutoff distance
-                for vehicle in vehicles_to_remove:
-                    occupancy_map[tl_id]['vehicle'][direction][lane_group].remove(vehicle)
+            if tl_id == 'cluster_172228464_482708521_9687148201_9687148202_#5more': # Intersection has 8 directions for incoming and 4 for outgoing
+                # Incoming
+                for direction_turn in self.direction_turn_intersection:
+                    for veh_id in occupancy_map[tl_id]["vehicle"]["incoming"][direction_turn]:
+                        distance = self._get_vehicle_distance_to_junction(tl_id, veh_id)
+                        if distance > cutoff_distance:
+                            occupancy_map[tl_id]["vehicle"]["incoming"][direction_turn].remove(veh_id)
 
-        if print_map: # Corrected map
+                # Outgoing
+                for direction in self.directions:
+                    for veh_id in occupancy_map[tl_id]["vehicle"]["outgoing"][direction]:
+                        distance = self._get_vehicle_distance_to_junction(tl_id, veh_id)
+                        if distance > cutoff_distance:
+                            occupancy_map[tl_id]["vehicle"]["outgoing"][direction].remove(veh_id)
+
+            else: # Midblock has two directions (west-straight, east-straight) 
+
+                # Incoming
+                for direction_turn in self.direction_turn_midblock:
+                    for veh_id in occupancy_map[tl_id]["vehicle"]["incoming"][direction_turn]:
+                        distance = self._get_vehicle_distance_to_junction(tl_id, veh_id)
+                        if distance > cutoff_distance:
+                            occupancy_map[tl_id]["vehicle"]["incoming"][direction_turn].remove(veh_id)
+
+                # Outgoing
+                for direction in self.directions:
+                    for veh_id in occupancy_map[tl_id]["vehicle"]["outgoing"][direction]:
+                        distance = self._get_vehicle_distance_to_junction(tl_id, veh_id)
+                        if distance > cutoff_distance:
+                            occupancy_map[tl_id]["vehicle"]["outgoing"][direction].remove(veh_id)
+
+        if print_map: 
             print("\nOccupancy Map:")
-            for id, data in occupancy_map.items():
-                if id == 'crosswalks':
-                    print(f"\nCrosswalks:")
-                    for crosswalk_id, crosswalk_data in data.items():
-                        print(f"    Crosswalk: {crosswalk_id}")
-                        for direction, count in crosswalk_data.items():
-                            print(f"        {direction.capitalize()}: {count}")
-                else:
-                    print(f"\nTraffic Light: {id}")
-                    for agent_type in ["vehicle", "pedestrian"]:
-                        print(f"  {agent_type.capitalize()}s:")
-                        for direction in occupancy_map[id][agent_type].keys():
-                            print(f"    {direction.capitalize()}:")
-                            for lane_group, ids in data[agent_type][direction].items():
-                                print(f"      {lane_group}: {len(ids)} [{', '.join(ids)}]")
-                                if agent_type == "vehicle":
-                                    for idx in ids:
-                                        distance = self._get_vehicle_distance_to_junction(id, idx)
-                                        print(f"        {idx}: {distance:.2f}m")   
-            
+            for tl_id, tl_data in occupancy_map.items():
+                print(f"\nTraffic Light: {tl_id}")
+                for type in ["vehicle", "pedestrian"]:
+                    print(f"  {type.capitalize()}:")
+
+                    for group in tl_data[type].keys():
+                        print(f"    {group.capitalize()}:")
+                        for direction, ids in tl_data[type][group].items():
+                            print(f"      {direction.capitalize()}: {len(ids)} [{', '.join(ids)}]")
+                            if type == "vehicle":
+                                for idx in ids:
+                                    distance = self._get_vehicle_distance_to_junction(tl_id, idx)
+                                    print(f"        {idx}: {distance:.2f}m")   
+
         return occupancy_map
 
     def _get_vehicle_distance_to_junction(self, junction_id, vehicle_id):
@@ -176,16 +199,12 @@ class ControlEnv(gym.Env):
         try:
             # Get the x, y coordinates of the junction
             junction_pos = traci.junction.getPosition(junction_id)
-
-            # Get the x, y coordinates of the vehicle
             vehicle_pos = traci.vehicle.getPosition(vehicle_id)
-
-            # Calculate the Euclidean distance
+            # Euclidean distance
             distance = math.sqrt(
                 (junction_pos[0] - vehicle_pos[0])**2 + 
                 (junction_pos[1] - vehicle_pos[1])**2
             )
-
             return distance
 
         except traci.TraCIException as e:
@@ -296,117 +315,111 @@ class ControlEnv(gym.Env):
                 }
             }
             
+        for tl_id in self.tl_ids:
+            for type in ["vehicle", "pedestrian"]:
 
+                if type == "vehicle": # vehicles have edges and lanes
+                    for group in ["incoming", "inside", "outgoing"]:
 
+                        # At the intersection, they have 8 directions for incoming + inside and 4 directions for outgoing
+                        if tl_id == 'cluster_172228464_482708521_9687148201_9687148202_#5more':
+                            for direction_turn in self.direction_turn_intersection:
+                                occupancy_map[tl_id][type][group][direction_turn] = []
+                                lanes = self.tl_lane_dict[tl_id][type][group][direction_turn]
 
-
-
-
-
-
-            for agent_type in ["vehicle", "pedestrian"]:
-                for direction in  occupancy_map[tl_id][agent_type].keys():
-                    for lane_group, lane_list in lanes[agent_type][direction].items():
-                        occupancy_map[tl_id][agent_type][direction][lane_group] = []
-                        for lane in lane_list:
-                            if agent_type == "vehicle":
-
-                                if lane != '-1':  # Skip lanes that are common for all directions
-                                    ids = traci.lane.getLastStepVehicleIDs(lane) if "edge" not in lane else traci.edge.getLastStepVehicleIDs(lane.split('.')[1]) # Its actually an edge in the else case.
-                                    occupancy_map[tl_id][agent_type][direction][lane_group].extend(ids)
-                                else: 
+                                if lanes != '-1':  # Skip lanes that are common for all directions
+                                    veh_ids = traci.lane.getLastStepVehicleIDs(lanes) if "edge" not in lanes else traci.edge.getLastStepVehicleIDs(lanes.split('.')[1]) 
+                                    occupancy_map[tl_id][type][group][direction_turn].extend(veh_ids)
+                                
+                                else:
+                                    # Look at the indicator light of the vehicle to get the actual direction.
+                                    # Get the direction, turn. Then get all vehicles in the straight lane 
                                     # If there are multiple -1s, this case can occur multiple times.
-                                    # In this case, look at the indicator light of the vehicle to get the direction.
-                                    # Get the EW-NS direction and the current turn direction, then all vehicles in the straight lane group
-                                    ew_ns_direction = lane_group.split('-')[0]
-                                    turn_direction = lane_group.split('-')[1]
+                                    direction, turn = direction_turn.split('-')
+                                    straight_lane = lanes[type][direction][f"{direction}-straight"][0] # Use 0 because in the current implementation, there is only one straight lane per direction
+                                    veh_ids = traci.lane.getLastStepVehicleIDs(straight_lane) if "edge" not in straight_lane else traci.edge.getLastStepVehicleIDs(straight_lane.split('.')[1]) 
 
-                                    straight_lane_group = f"{ew_ns_direction}-straight"
-
-                                    # TODO: If there are multiple straight lanes where vehicles that want to go left or right also exist, then need to account for that
-                                    straight_lane = lanes[agent_type][direction][straight_lane_group][0] 
-                                    existing_ids = traci.lane.getLastStepVehicleIDs(straight_lane) if "edge" not in lane else traci.edge.getLastStepVehicleIDs(lane.split('.')[1])  # Its actually an edge in the else case.
-
-                                    #print(f"Straight lane: {straight_lane}, Existing ids: {existing_ids}")
-
-                                    if len(existing_ids)>0:
-                                        #print(f"Vehicle exists")
+                                    if len(veh_ids) > 0:
+                                        print(f"Vehicles exist in straight lane {straight_lane}")
                                         new_ids = []
-                                        for veh_id in existing_ids:
-                                            signal_state = traci.vehicle.getSignals(veh_id)
-                                            veh_direction = self._get_vehicle_direction(signal_state)
-                                            # print(f"Vehicle: {veh_id}, Signal: {signal_state}, Direction: {veh_direction}")
-                                            if veh_direction == turn_direction:
+                                        for veh_id in veh_ids:
+                                            veh_direction = self._get_vehicle_direction(traci.vehicle.getSignals(veh_id))
+                                            if veh_direction == turn:
                                                 new_ids.append(veh_id)
 
-                                        occupancy_map[tl_id][agent_type][direction][lane_group].extend(new_ids) 
+                                        occupancy_map[tl_id][type][group][direction_turn].extend(new_ids)
 
-                            else:  # pedestrian
-                                if lane.startswith(':'):  # Check if it's an internal lane
-                                    # Doing it the computationally expensive way
-                                    # Get all persons in the simulation
-                                    all_persons = traci.person.getIDList()
-                                    # Filter persons on this junction
-                                    for person in all_persons:
-                                        if traci.person.getRoadID(person) == lane:
-                                            # If not crossed yet, add to incoming 
+                        else:  # For midblock TLs, they have 2 directions each for incoming, inside, and outgoing
+                            for direction_turn in self.direction_turn_midblock:
+                                occupancy_map[tl_id][type][group][direction_turn] = []
+                                lanes = self.tl_lane_dict[tl_id][type][group][direction_turn]
+
+                                veh_ids = traci.lane.getLastStepVehicleIDs(lanes) if "edge" not in lanes else traci.edge.getLastStepVehicleIDs(lanes.split('.')[1]) 
+                                print(f"Vehicles {veh_ids} exist in {lanes}")
+                                occupancy_map[tl_id][type][group][direction_turn].extend(veh_ids)
+
+                else: # pedestrians may have lanes or edges. further divided into main and vicinity, each with incoming and outgoing
+                    for group in ["incoming", "outgoing"]:
+                    
+                        # Intersection has four directions.
+                        if tl_id == 'cluster_172228464_482708521_9687148201_9687148202_#5more':
+                            for direction in self.directions:
+                                occupancy_map[tl_id][type][group][direction] = {}
+                                for area in ["main", "vicinity"]:
+                                    occupancy_map[tl_id][type][group][direction][area] = []
+                                    
+                                    lanes_edges = self.tl_lane_dict[tl_id][type][group][direction][area]
+                                    for lane_edge in lanes_edges:
+                                        if lane_edge.startswith(':'): # Check if it's an internal lane. If yes, do it the computationally expensive way. Get all persons in the simulation
                                             
-                                            if direction == "incoming":
-                                                if person not in self.tl_pedestrian_status or self.tl_pedestrian_status[person] != 'crossed': 
-                                                    occupancy_map[tl_id][agent_type][direction][lane_group].append(person)
-                                            else: 
-                                                # Add to outgoing, just being inside the crossing is enough.
-                                                occupancy_map[tl_id][agent_type][direction][lane_group].append(person)
+                                            for ped_id in traci.person.getIDList():
+                                                if traci.person.getRoadID(ped_id) == lane_edge:
+                                                    if group == "incoming":
+                                                        if self._check_crossing_status(ped_id):
+                                                            occupancy_map[tl_id][type][group][direction][area].append(ped_id)
+                                                    else:
+                                                        occupancy_map[tl_id][type][group][direction][area].append(ped_id)
+                                        else:
+                                            for ped_id in traci.edge.getLastStepPersonIDs(lane_edge):
+                                                if group == "incoming":
+                                                    if self._check_crossing_status(ped_id):
+                                                        occupancy_map[tl_id][type][group][direction][area].append(ped_id)
+                                                else:
+                                                    occupancy_map[tl_id][type][group][direction][area].append(ped_id)
 
-                                else: 
-                                    print("Only implemented to work with JunctionDomain. Not implemented yet for external lanes or edges")
+                        else: # Midblock has one direction (north). Also midblocks have no vicinity edges.
+                            occupancy_map[tl_id][type][group]["north"]["main"] = []
+                            lanes_edges = self.tl_lane_dict[tl_id][type][group]["north"]["main"]
 
-        # For the crosswalks related components
-        # For each crosswalk, get the occupancy in the upside, downside, inside, and rerouted.
-        # Do we get the pedestrian ids or do we just get the count? # For now, let's get the ids.
-        # If they are being-rerouted, they should not be a part of upside, downside, and inside. 
-        occupancy_map['crosswalks'] = {}
-        for crosswalk_id in self.controlled_crosswalk_masked_ids:
-            occupancy_map['crosswalks'][crosswalk_id] = {
-                "upside": [],
-                "downside": [],
-                "inside": [],
-                "rerouted": [] }
+                            for lane_edge in lanes_edges:
+                                if lane_edge.startswith(':'): # Check if it's an internal lane. If yes, do it the computationally expensive way. Get all persons in the simulation
+                                    
+                                    for ped_id in traci.person.getIDList():
+                                        if traci.person.getRoadID(ped_id) == lane_edge:
+                                            
+                                            if group == "incoming":
+                                                if self._check_crossing_status(ped_id):
+                                                    occupancy_map[tl_id][type][group]["north"]["main"].append(ped_id)
+                                            else:
+                                                occupancy_map[tl_id][type][group]["north"]["main"].append(ped_id)
+                                else:
 
-            # These already contain internal edges
-            vicinity_walking_edges = self.controlled_crosswalks[crosswalk_id]['vicinity_walking_edges']
-        
-            # For upside and downside
-            for edge in vicinity_walking_edges:
-                pedestrians = traci.edge.getLastStepPersonIDs(edge)
-                direction = self.edge_to_direction[edge]
-                occupancy_map['crosswalks'][crosswalk_id][direction].extend(pedestrians) # Incase ids are wanted, use the list instead of the length
+                                    for ped_id in traci.edge.getLastStepPersonIDs(lane_edge):
+                                        if group == "incoming":
+                                            if self._check_crossing_status(ped_id):
+                                                occupancy_map[tl_id][type][group]["north"]["main"].append(ped_id)
+                                        else:
+                                            occupancy_map[tl_id][type][group]["north"]["main"].append(ped_id)
 
-            # For inside, use the crosswalk id itself.
-            pedestrians = traci.edge.getLastStepPersonIDs(crosswalk_id)
-            occupancy_map['crosswalks'][crosswalk_id]['inside'].extend(pedestrians)
-
-            # Add re-routed pedestrians
-            # If this crosswalk happens to be disabled, then add the upside and downside values to get the rerouted value. Setting upside, downside to 0.
-            # Inside may contain pessengers that are in the process of crossing when the new decision is made. Not setting that to 0.
-            if crosswalk_id in self.crosswalks_to_disable:
-                occupancy_map['crosswalks'][crosswalk_id]['rerouted'] = occupancy_map['crosswalks'][crosswalk_id]['upside'] + occupancy_map['crosswalks'][crosswalk_id]['downside']
-                occupancy_map['crosswalks'][crosswalk_id]['upside'] = []
-                occupancy_map['crosswalks'][crosswalk_id]['downside'] = []
-
-        # Special case: This id 'ids': [':9687187500_c0', ':9687187501_c0'] represents a single disjoint crosswalk. Do not repeat the counts twice.
-        # Just use the 9687187500_c0 once and skip the second part of the special case crosswalk (only for upside and downside) because it would have been counted in the first part.
-        # This is the special case crosswalk # Since this is updating for inside (it is not affected by re-routing)
-        # Also not affected by other possible problems beacuse of the order [500 comes before 501 inthe crosswalks list]
-        pedestrians = traci.edge.getLastStepPersonIDs(crosswalk_id)
-        occupancy_map['crosswalks'][':9687187500_c0']['inside'].extend(occupancy_map['crosswalks'][':9687187501_c0']['inside']) # Use ':9687187500_c0'
-        del occupancy_map['crosswalks'][':9687187501_c0'] # Delete the second part of the special case crosswalk
-
-        # for crosswalk_id in self.controlled_crosswalk_masked_ids:
-        #     if crosswalk_id != ':9687187501_c0':
-        #         print(f"\nStep:{self.step_count}\n\nCrosswalk: {crosswalk_id}\nUpside: {occupancy_map['crosswalks'][crosswalk_id]['upside']}\nDownside: {occupancy_map['crosswalks'][crosswalk_id]['downside']}\nInside: {occupancy_map['crosswalks'][crosswalk_id]['inside']}\nRerouted: {occupancy_map['crosswalks'][crosswalk_id]['rerouted']}")
         return occupancy_map
     
+    def _check_crossing_status(self, pedestrian_id):
+        """
+        There is a 1 timestep delay in marking pedestrians as crossed.
+        In the first timestep, the pedestrian will not be in the tl_pedestrian_status dictionary.
+        """
+        return True if pedestrian_id not in self.tl_pedestrian_status or self.tl_pedestrian_status[pedestrian_id] != "crossed" else False
+
     @property
     def action_space(self):
         """
@@ -479,12 +492,9 @@ class ControlEnv(gym.Env):
             # Increment the current action step (goes from 0 to steps_per_action-1)
             self.current_action_step = (self.current_action_step + 1) % self.steps_per_action 
 
-            # TODO: For the time being. Modify it later.
-            obs = np.random.rand(40)
-            observation_buffer.append(obs)
-
-            #obs = self._get_observation(print_map=False)
+            obs = self._get_observation(print_map=False)
             #print(f"\nObservation: {obs}")
+            observation_buffer.append(obs)
             
             # TODO: For the time being. Modify it later.
             #self._update_pressure_dict(self.corrected_occupancy_map)
@@ -518,47 +528,50 @@ class ControlEnv(gym.Env):
         occupancy_map = self._get_occupancy_map()
         self.corrected_occupancy_map = self._step_operations(occupancy_map, print_map=print_map, cutoff_distance=100)
         
-        observation = []
-        tl_id = self.tl_ids[0]
+        # TODO: For the time being. Modify it later.
+        observation = np.random.rand(40)
         
-        #### Current phase group info (This changes even within the action timesteps) ####
-        current_tl_info = []
-        current_tl_info.append(self.current_tl_phase_group/4) # 0, 1, 2, 3 to 0, 0.25, 0.5, 0.75 
-        current_tl_info.append(self.current_tl_state_index/2) # For 0, 1, 2, 3, its always 0 but for 4 and 5, it varies in 0, 1, 2; convert that to 0, 0.5, 1
-
-        observation.extend(current_tl_info)
-        observation.extend([float(x) for x in self.current_crosswalk_actions]) # 0 and 1 to 0.0 and 1.0
+        # observation = []
+        # tl_id = self.tl_ids[0]
         
-        #### VEHICLES INFO ####
-        # Incoming
-        for outgoing_direction in self.directions:
-            for turn in self.turns:
-                incoming = len(self.corrected_occupancy_map[tl_id]['vehicle']['incoming'][f"{outgoing_direction}-{turn}"])
-                observation.append(incoming)
+        # #### Current phase group info (This changes even within the action timesteps) ####
+        # current_tl_info = []
+        # current_tl_info.append(self.current_tl_phase_group/4) # 0, 1, 2, 3 to 0, 0.25, 0.5, 0.75 
+        # current_tl_info.append(self.current_tl_state_index/2) # For 0, 1, 2, 3, its always 0 but for 4 and 5, it varies in 0, 1, 2; convert that to 0, 0.5, 1
 
-        # Inside
-        for outgoing_direction in self.directions:
-            for turn in self.turns:
-                inside = len(self.corrected_occupancy_map[tl_id]['vehicle']['inside'][f"{outgoing_direction}-{turn}"])
-                observation.append(inside)
+        # observation.extend(current_tl_info)
+        # observation.extend([float(x) for x in self.current_crosswalk_actions]) # 0 and 1 to 0.0 and 1.0
+        
+        # #### VEHICLES INFO ####
+        # # Incoming
+        # for outgoing_direction in self.directions:
+        #     for turn in self.turns:
+        #         incoming = len(self.corrected_occupancy_map[tl_id]['vehicle']['incoming'][f"{outgoing_direction}-{turn}"])
+        #         observation.append(incoming)
 
-        # Outgoing
-        for outgoing_direction in self.directions:
-            outgoing = len(self.corrected_occupancy_map[tl_id]['vehicle']['outgoing'][outgoing_direction])
-            observation.append(outgoing)
+        # # Inside
+        # for outgoing_direction in self.directions:
+        #     for turn in self.turns:
+        #         inside = len(self.corrected_occupancy_map[tl_id]['vehicle']['inside'][f"{outgoing_direction}-{turn}"])
+        #         observation.append(inside)
+
+        # # Outgoing
+        # for outgoing_direction in self.directions:
+        #     outgoing = len(self.corrected_occupancy_map[tl_id]['vehicle']['outgoing'][outgoing_direction])
+        #     observation.append(outgoing)
             
-        #### PEDESTRIANS INFO ####
-        # Incoming
-        for outgoing_direction in self.directions:
-            incoming = len(self.corrected_occupancy_map[tl_id]['pedestrian']['incoming'][outgoing_direction])
-            observation.append(incoming)
+        # #### PEDESTRIANS INFO ####
+        # # Incoming
+        # for outgoing_direction in self.directions:
+        #     incoming = len(self.corrected_occupancy_map[tl_id]['pedestrian']['incoming'][outgoing_direction])
+        #     observation.append(incoming)
 
-        # Outgoing
-        for outgoing_direction in self.directions:
-            outgoing = len(self.corrected_occupancy_map[tl_id]['pedestrian']['outgoing'][outgoing_direction])
-            observation.append(outgoing)
+        # # Outgoing
+        # for outgoing_direction in self.directions:
+        #     outgoing = len(self.corrected_occupancy_map[tl_id]['pedestrian']['outgoing'][outgoing_direction])
+        #     observation.append(outgoing)
 
-        observation = np.asarray(observation, dtype=np.float32)
+        # observation = np.asarray(observation, dtype=np.float32)
         return observation
 
     def _apply_action(self, action, current_action_step, previous_action=None):
@@ -568,6 +581,13 @@ class ControlEnv(gym.Env):
 
         The function internally checks if a switch in vehicle directions that turn green.
         If a switch is detected, a 4-second mandatory yellow phase is enforced to the direction/ light that is turning red, before starting the new phase in the other light.
+
+        For each Midblock TL, there are three phases: 
+        - GGr: Green for the 2 vehicle directions, red for pedestrian crosswalk
+        - yyr: Yellow for the 2 vehicle directions, red for pedestrian crosswalk
+        - rrG: Red for both vehicle directions, green for pedestrian crosswalk
+        * It does not matter what phases are specified in the Tlogic in net file, we override it here.
+
         """
         # Use previous action to detect signal switching
         if previous_action is None: # First action 
@@ -739,7 +759,7 @@ class ControlEnv(gym.Env):
         self.sumo_running = True
         self.step_count = 0 # This counts the timesteps in an episode. Needs reset.
         self.current_action_step = 0
-        self.tl_lane_dict = get_tl_related_lanes()
+        self.tl_lane_dict = get_related_lanes_edges()
 
         # Randomly initialize the actions (current tl phase group and combined binary action for crosswalks) 
         self.current_tl_phase_group = random.choice([0, 1, 2, 3]) # not including [4, 5] from the list
@@ -756,12 +776,9 @@ class ControlEnv(gym.Env):
             self._apply_action(initial_action, step, None)
             traci.simulationStep()
 
-            # TODO: For the time being. Modify it later.
-            obs = np.random.rand(40)
+            obs = self._get_observation()
             observation_buffer.append(obs)
 
-            #obs = self._get_observation()
-            
         observation = np.asarray(observation_buffer, dtype=np.float32)
         #print(f"\nObservation (in reset): {observation.shape}")
         return observation, {} # nfo is empty

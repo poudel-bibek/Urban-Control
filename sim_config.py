@@ -168,7 +168,7 @@ def get_direction_lookup():
 def get_related_lanes_edges():
     """
     Helper function to map each direction to edges/ lanes (so that veh/ pedestrians can be counted to generate occupancy map)
-    We make use of traci.lane.getLastStepVehicleIDs(lane) to get vehicle information and traci.edge.getLastStepPersonIDs(edge) to get pedestrian info
+    We make use of traci.edge.getLastStepPersonIDs(edge) to get pedestrian info and both traci.lane.getLastStepVehicleIDs(lane) and traci.edge.getLastStepVehicleIDs(edge) to get vehicle info
 
     At the intersection: 
     - There are 8 incoming lanes, inside lanes, and 4 outgoing lanes for vehicles. 
@@ -192,13 +192,14 @@ def get_related_lanes_edges():
     3. ['1054116929#0', '1054116929#9', '1054116930', ':9687148197_w0', ':9666242268_w0']
     4. ['9687148200_w0',':9687148182_w0', '1054116931', '1054116929#6', '1054116929#7']
     * South = 1 + 2, East = 3 + 2, West = 4 + 1, North = 3 + 4
+    * make use of . as a delimiter to get the edge 
     """
 
     return { 
         'cluster_172228464_482708521_9687148201_9687148202_#5more': { # Intersection 
             "vehicle": {
                 "incoming": {
-                    "south-straight": ['1078803478#0_1', 'edge.:172668791_0','1078803477#5_1'], # Because there is a zipper lane here ('junction:172668791'), using . as delimiter because : is in the name of the edge
+                    "south-straight": ['1078803478#0_1', 'edge.:172668791_0','1078803477#5_1'], 
                     "south-right": ['-1'],
                     "south-left": ['1078803478#0_2'],
                     "west-straight": ['1060131306#0_0'],
@@ -252,10 +253,22 @@ def get_related_lanes_edges():
                         },
                 },
                 "outgoing": { 
-                    "west": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c3'],
-                    "south": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c2'] ,
-                    "east": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c1'],
-                    "north": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c0'],
+                    "west": {
+                        "main": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c3'],
+                        "vicinity": [''],
+                    },
+                    "south": {
+                        "main": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c2'] ,
+                        "vicinity": [''],
+                    },
+                    "east": {
+                        "main": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c1'],
+                        "vicinity": [''],
+                    },
+                    "north": {
+                        "main": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c0'],
+                        "vicinity": [''],
+                    },
                 },
             }
         },
@@ -268,7 +281,7 @@ def get_related_lanes_edges():
                     "east-straight": ['16666012#2_0'],
                 },
                 "inside": {
-                    "west-straight": ['9727816850'],
+                    "west-straight": ['9727816850'], #TODO: Check if the vehicle above the crosswalk like in this lane/ edge or not
                     "east-straight": ['9727816850'],
                 },
                 "outgoing": {
@@ -280,11 +293,12 @@ def get_related_lanes_edges():
                 "incoming": {
                     "north": {
                         "main": [':9727816850_w1', '1058666207#1', ':9727816844_w0',':9727816850_w0', '1058666206#0', '1058666207#0', ':9727816846_w0', ':9727816851_w0'],
-                        "vicinity": [''],
                         },
                 },
                 "outgoing": {
-                    "north": [':9727816850_c0']
+                    "north": {
+                        "main": [':9727816850_c0']
+                    }
                 }
             }
         },
@@ -307,11 +321,12 @@ def get_related_lanes_edges():
                 "incoming": {
                     "north": {
                         "main": ['1058666188#1', '1051865729#3',':9727816623_w0', ':9727816623_w1', ':9727816625_w0', ':9666274798_w0'],
-                        "vicinity": [''],
                     },
                 },  
                 "outgoing": {
-                    "north": [':9727816623_c0']
+                    "north": {
+                        "main": [':9727816623_c0']
+                    }
                 }
             }
         },
@@ -334,7 +349,6 @@ def get_related_lanes_edges():
                 "incoming": {
                     "north": {
                         "main": ['1060131391#1', '1060131391#0', ':9740157155_w0',':9740157155_w1',':9740157153_w0', '1060131390', ':9666274886_w0', ':9740157154_w0'],
-                        "vicinity": [''],
                     },
                 },
                 "outgoing": {
@@ -361,11 +375,12 @@ def get_related_lanes_edges():
                 "incoming": {
                     "north": {
                         "main": [':cluster_9740157181_9740483933_w0', ':cluster_9740157181_9740483933_w1', '1060131401#2', '1060131401#3', ':9740157180_w0', ':9655154530_w0'],
-                        "vicinity": [''],
                     },
                 },
                 "outgoing": {
-                    "north": [':cluster_9740157181_9740483933_c0']
+                    "north": {
+                        "main": [':cluster_9740157181_9740483933_c0']
+                    }
                 }
             }
         },
@@ -388,11 +403,12 @@ def get_related_lanes_edges():
                 "incoming": {
                     "north": {
                         "main": ['1060131405#1', ':9740157194_w1', ':9740157194_w0', ':9740157192_w0', '1060131406', '1060131405#0', ':9740157204_w0', ':9740157195_w0', ':10054309033_w0'],
-                        "vicinity": [''],
                     },
                 },
                 "outgoing": {
-                    "north": [':9740157194_c0']
+                    "north": {
+                        "main": [':9740157194_c0']
+                    }
                 }
             }
         },
@@ -415,11 +431,12 @@ def get_related_lanes_edges():
                 "incoming": {
                     "north": {
                         "main": ['1060131408#1', ':9740157209_w0', ':9740157209_w1', '1060131408#0', '1060131410', ':9740157207_w0', ':9740157211_w0', ':9740157210_w0', '1060131404#2' ],
-                        "vicinity": [''],
                     },
                 },
                 "outgoing": {
-                    "north": [':9740157209_c0']
+                    "north": {
+                        "main": [':9740157209_c0']
+                    }
                 }
             }
         },
@@ -442,11 +459,12 @@ def get_related_lanes_edges():
                 "incoming": {
                     "north": {
                         "main": ['1060166260#1', ':9740484527_w0', ':9740484527_w1', '1050677005#21', ':9740484528_w0', ':9740484524_w0'],
-                        "vicinity": [''],
                     },
                 },
                 "outgoing": {
-                    "north": [':9740484527_c0']
+                    "north": {
+                        "main": [':9740484527_c0']
+                    }
                 }
             }
         }
