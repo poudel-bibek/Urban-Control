@@ -190,7 +190,7 @@ def get_related_lanes_edges():
     1. [':9687148199_w0', ':9687148211_w0', '1054116933', '1054116929#5', '1054116929#4']
     2. ['1058666193', '1054116929#2', '1054116929#1', ':9727816638_w0', ':9687148198_w0']
     3. ['1054116929#0', '1054116929#9', '1054116930', ':9687148197_w0', ':9666242268_w0']
-    4. ['9687148200_w0',':9687148182_w0', '1054116931', '1054116929#6', '1054116929#7']
+    4. [':9687148200_w0',':9687148182_w0', '1054116931', '1054116929#6', '1054116929#7']
     * South = 1 + 2, East = 3 + 2, West = 4 + 1, North = 3 + 4
     * make use of . as a delimiter to get the edge 
     """
@@ -237,7 +237,7 @@ def get_related_lanes_edges():
                 "incoming": { 
                     "west": {
                         "main": [':cluster_172228464_482708521_9687148201_9687148202_#5more_w7',':cluster_172228464_482708521_9687148201_9687148202_#5more_w0'] ,
-                        "vicinity": ['9687148200_w0',':9687148182_w0', '1054116931', '1054116929#6', '1054116929#7', ':9687148199_w0', ':9687148211_w0', '1054116933', '1054116929#5', '1054116929#4'],
+                        "vicinity": [':9687148200_w0',':9687148182_w0', '1054116931', '1054116929#6', '1054116929#7', ':9687148199_w0', ':9687148211_w0', '1054116933', '1054116929#5', '1054116929#4'],
                         },
                     "south": {
                         "main": [':cluster_172228464_482708521_9687148201_9687148202_#5more_w5', ':cluster_172228464_482708521_9687148201_9687148202_#5more_w6'],
@@ -249,25 +249,25 @@ def get_related_lanes_edges():
                         },
                     "north": {
                         "main": [':cluster_172228464_482708521_9687148201_9687148202_#5more_w1',':cluster_172228464_482708521_9687148201_9687148202_#5more_w2'] ,
-                        "vicinity": ['1054116929#0', '1054116929#9', '1054116930', ':9687148197_w0', ':9666242268_w0', '9687148200_w0',':9687148182_w0', '1054116931', '1054116929#6', '1054116929#7'],
+                        "vicinity": ['1054116929#0', '1054116929#9', '1054116930', ':9687148197_w0', ':9666242268_w0', ':9687148200_w0',':9687148182_w0', '1054116931', '1054116929#6', '1054116929#7'],
                         },
                 },
                 "outgoing": { 
                     "west": {
                         "main": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c3'],
-                        "vicinity": [''],
+                        "vicinity": [],
                     },
                     "south": {
                         "main": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c2'] ,
-                        "vicinity": [''],
+                        "vicinity": [],
                     },
                     "east": {
                         "main": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c1'],
-                        "vicinity": [''],
+                        "vicinity": [],
                     },
                     "north": {
                         "main": [':cluster_172228464_482708521_9687148201_9687148202_#5more_c0'],
-                        "vicinity": [''],
+                        "vicinity": [],
                     },
                 },
             }
@@ -281,8 +281,8 @@ def get_related_lanes_edges():
                     "east-straight": ['16666012#2_0'],
                 },
                 "inside": {
-                    "west-straight": ['9727816850'], #TODO: Check if the vehicle above the crosswalk like in this lane/ edge or not
-                    "east-straight": ['9727816850'],
+                    "west-straight": [':9727816850_0'], 
+                    "east-straight": [':9727816850_1'],
                 },
                 "outgoing": {
                     "west-straight": ['-16666012#2_0'],
@@ -309,8 +309,8 @@ def get_related_lanes_edges():
                     "east-straight": ['16666012#4_0'],
                 },
                 "inside": {
-                    "west-straight": ['9727816623'],
-                    "east-straight": ['9727816623'],
+                    "west-straight": [':9727816623_0'],
+                    "east-straight": [':9727816623_1'],
                 },
                 "outgoing": {
                     "west-straight": ['-16666012#4_0'],
@@ -337,8 +337,8 @@ def get_related_lanes_edges():
                     "east-straight": ['16666012#6_0'],
                 },
                 "inside": {
-                    "west-straight": ['9740157155'],
-                    "east-straight": ['9740157155'],
+                    "west-straight": [':9740157155_0'],
+                    "east-straight": [':9740157155_1'],
                 },
                 "outgoing": {
                     "west-straight": ['-16666012#6_0'],
@@ -352,7 +352,9 @@ def get_related_lanes_edges():
                     },
                 },
                 "outgoing": {
-                    "north": [':9740157155_c0']
+                    "north": {
+                        "main": [':9740157155_c0']
+                    }
                 }
             }
         },
@@ -363,8 +365,8 @@ def get_related_lanes_edges():
                     "east-straight": ['16666012#9_0'],
                 },
                 "inside": {
-                    "west-straight": ['9740157181'],
-                    "east-straight": ['9740157181'],
+                    "west-straight": [':9740157181_0'],
+                    "east-straight": [':9740157181_1'],
                 },
                 "outgoing": {
                     "west-straight": ['-16666012#9_0'],
@@ -391,8 +393,8 @@ def get_related_lanes_edges():
                     "east-straight": ['16666012#12_0'],
                 },
                 "inside": {
-                    "west-straight": ['9740157194'],
-                    "east-straight": ['9740157194'],
+                    "west-straight": [':9740157194_0'],
+                    "east-straight": [':9740157194_1'],
                 },
                 "outgoing": {
                     "west-straight": ['-16666012#12_0'],
@@ -419,8 +421,8 @@ def get_related_lanes_edges():
                     "east-straight": ['16666012#13_0'],
                 },
                 "inside": {
-                    "west-straight": ['9740157209'],
-                    "east-straight": ['9740157209'],
+                    "west-straight": [':9740157209_0'],
+                    "east-straight": [':9740157209_1'],
                 },
                 "outgoing": {
                     "west-straight": ['-16666012#13_0'],
@@ -447,8 +449,8 @@ def get_related_lanes_edges():
                     "east-straight": ['16666012#16_0'],
                 },
                 "inside": {
-                    "west-straight": ['9740484527'],
-                    "east-straight": ['9740484527'],
+                    "west-straight": [':9740484527_0'],
+                    "east-straight": [':9740484527_1'],
                 },
                 "outgoing": {
                     "west-straight": ['-16666012#16_0'],

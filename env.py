@@ -47,7 +47,7 @@ class ControlEnv(gym.Env):
             scaling = convert_demand_to_scale_factor(self.manual_demand_ped, "pedestrian", self.pedestrian_input_trips)
             scale_demand(self.pedestrian_input_trips, self.pedestrian_output_trips, scaling, demand_type="pedestrian")
 
-        self.tl_ids = ['cluster_172228464_482708521_9687148201_9687148202_#5more' # Intersection
+        self.tl_ids = ['cluster_172228464_482708521_9687148201_9687148202_#5more', # Intersection
                        '9727816850', # Mid block TL + crosswalks from left to right
                        '9727816623',
                        '9740157155',
@@ -156,19 +156,12 @@ class ControlEnv(gym.Env):
 
             else: # Midblock has two directions (west-straight, east-straight) 
 
-                # Incoming
-                for direction_turn in self.direction_turn_midblock:
-                    for veh_id in occupancy_map[tl_id]["vehicle"]["incoming"][direction_turn]:
-                        distance = self._get_vehicle_distance_to_junction(tl_id, veh_id)
-                        if distance > cutoff_distance:
-                            occupancy_map[tl_id]["vehicle"]["incoming"][direction_turn].remove(veh_id)
-
-                # Outgoing
-                for direction in self.directions:
-                    for veh_id in occupancy_map[tl_id]["vehicle"]["outgoing"][direction]:
-                        distance = self._get_vehicle_distance_to_junction(tl_id, veh_id)
-                        if distance > cutoff_distance:
-                            occupancy_map[tl_id]["vehicle"]["outgoing"][direction].remove(veh_id)
+                for group in ["incoming", "outgoing"]:
+                    for direction_turn in self.direction_turn_midblock:
+                        for veh_id in occupancy_map[tl_id]["vehicle"][group][direction_turn]:
+                            distance = self._get_vehicle_distance_to_junction(tl_id, veh_id)
+                            if distance > cutoff_distance:
+                                occupancy_map[tl_id]["vehicle"][group][direction_turn].remove(veh_id)
 
         if print_map: 
             print("\nOccupancy Map:")
@@ -180,11 +173,14 @@ class ControlEnv(gym.Env):
                     for group in tl_data[type].keys():
                         print(f"    {group.capitalize()}:")
                         for direction, ids in tl_data[type][group].items():
-                            print(f"      {direction.capitalize()}: {len(ids)} [{', '.join(ids)}]")
                             if type == "vehicle":
+                                print(f"      {direction.capitalize()}: {len(ids)} [{', '.join(ids)}]")
                                 for idx in ids:
                                     distance = self._get_vehicle_distance_to_junction(tl_id, idx)
                                     print(f"        {idx}: {distance:.2f}m")   
+                            else: 
+                                for area in ids.keys():
+                                    print(f"      {direction.capitalize()}: {len(ids[area])} [{', '.join(ids[area])}]")
 
         return occupancy_map
 
@@ -310,55 +306,71 @@ class ControlEnv(gym.Env):
                     "outgoing": {}
                 },
                 "pedestrian": {
-                    "incoming": {},
-                    "outgoing": {}
+                    "incoming": {"north": {}},
+                    "outgoing": {"north": {}}
                 }
             }
             
         for tl_id in self.tl_ids:
             for type in ["vehicle", "pedestrian"]:
 
-                if type == "vehicle": # vehicles have edges and lanes
-                    for group in ["incoming", "inside", "outgoing"]:
-
-                        # At the intersection, they have 8 directions for incoming + inside and 4 directions for outgoing
-                        if tl_id == 'cluster_172228464_482708521_9687148201_9687148202_#5more':
+                if type == "vehicle": # Vehicles 
+                    # At the intersection, they have 8 directions for incoming + inside and 4 directions for outgoing
+                    if tl_id == 'cluster_172228464_482708521_9687148201_9687148202_#5more':
+                        for group in ["incoming", "inside"]: 
                             for direction_turn in self.direction_turn_intersection:
                                 occupancy_map[tl_id][type][group][direction_turn] = []
-                                lanes = self.tl_lane_dict[tl_id][type][group][direction_turn]
+                                lanes_edges = self.tl_lane_dict[tl_id][type][group][direction_turn]
 
-                                if lanes != '-1':  # Skip lanes that are common for all directions
-                                    veh_ids = traci.lane.getLastStepVehicleIDs(lanes) if "edge" not in lanes else traci.edge.getLastStepVehicleIDs(lanes.split('.')[1]) 
-                                    occupancy_map[tl_id][type][group][direction_turn].extend(veh_ids)
-                                
-                                else:
-                                    # Look at the indicator light of the vehicle to get the actual direction.
-                                    # Get the direction, turn. Then get all vehicles in the straight lane 
-                                    # If there are multiple -1s, this case can occur multiple times.
-                                    direction, turn = direction_turn.split('-')
-                                    straight_lane = lanes[type][direction][f"{direction}-straight"][0] # Use 0 because in the current implementation, there is only one straight lane per direction
-                                    veh_ids = traci.lane.getLastStepVehicleIDs(straight_lane) if "edge" not in straight_lane else traci.edge.getLastStepVehicleIDs(straight_lane.split('.')[1]) 
+                                for lane_edge in lanes_edges:
+                                    if lane_edge != '-1':  # Skip lanes that are common for all directions
+                                        veh_ids = traci.lane.getLastStepVehicleIDs(lane_edge) if "edge" not in lane_edge else traci.edge.getLastStepVehicleIDs(lane_edge.split('.')[1]) 
+                                        occupancy_map[tl_id][type][group][direction_turn].extend(veh_ids)
+                                    
+                                    else:
+                                        # Look at the indicator light of the vehicle to get the actual direction.
+                                        # Get the direction, turn. Then get all vehicles in the straight lane 
+                                        # If there are multiple -1s, this case can occur multiple times.
+                                        direction, turn = direction_turn.split('-')
+                                        straight_lane_edge = self.tl_lane_dict[tl_id][type][group][f"{direction}-straight"][0] # Use 0 because in the current implementation, there is only one straight lane per direction
+                                        veh_ids = traci.lane.getLastStepVehicleIDs(straight_lane_edge) if "edge" not in straight_lane_edge else traci.edge.getLastStepVehicleIDs(straight_lane_edge.split('.')[1]) 
 
-                                    if len(veh_ids) > 0:
-                                        print(f"Vehicles exist in straight lane {straight_lane}")
-                                        new_ids = []
-                                        for veh_id in veh_ids:
-                                            veh_direction = self._get_vehicle_direction(traci.vehicle.getSignals(veh_id))
-                                            if veh_direction == turn:
-                                                new_ids.append(veh_id)
+                                        if len(veh_ids) > 0:
+                                            new_ids = []
+                                            for veh_id in veh_ids:
+                                                veh_direction = self._get_vehicle_direction(traci.vehicle.getSignals(veh_id))
+                                                if veh_direction == turn:
+                                                    new_ids.append(veh_id)
 
-                                        occupancy_map[tl_id][type][group][direction_turn].extend(new_ids)
+                                            occupancy_map[tl_id][type][group][direction_turn].extend(new_ids)
 
-                        else:  # For midblock TLs, they have 2 directions each for incoming, inside, and outgoing
+                        # outgoing
+                        for direction in self.directions:
+                            occupancy_map[tl_id][type]["outgoing"][direction] = []
+                            lanes_edges = self.tl_lane_dict[tl_id][type]["outgoing"][direction]
+                            for lane_edge in lanes_edges:
+                                veh_ids = traci.lane.getLastStepVehicleIDs(lane_edge) if "edge" not in lane_edge else traci.edge.getLastStepVehicleIDs(lane_edge.split('.')[1]) 
+                                occupancy_map[tl_id][type]["outgoing"][direction].extend(veh_ids)
+
+                    else:  # For midblock TLs, they have 2 directions each for incoming, inside, and outgoing
+                        for group in ["incoming", "outgoing"]: 
                             for direction_turn in self.direction_turn_midblock:
                                 occupancy_map[tl_id][type][group][direction_turn] = []
-                                lanes = self.tl_lane_dict[tl_id][type][group][direction_turn]
+                                lanes_edges = self.tl_lane_dict[tl_id][type][group][direction_turn]
+                                for lane_edge in lanes_edges:
+                                    veh_ids = traci.lane.getLastStepVehicleIDs(lane_edge) if "edge" not in lane_edge else traci.edge.getLastStepVehicleIDs(lane_edge.split('.')[1]) 
+                                    occupancy_map[tl_id][type][group][direction_turn].extend(veh_ids)
 
-                                veh_ids = traci.lane.getLastStepVehicleIDs(lanes) if "edge" not in lanes else traci.edge.getLastStepVehicleIDs(lanes.split('.')[1]) 
-                                print(f"Vehicles {veh_ids} exist in {lanes}")
-                                occupancy_map[tl_id][type][group][direction_turn].extend(veh_ids)
+                        # Inside has to be done in a computationally expensive way (because its an interal edge not detected either by edge.getLastStepVehicleIDs or lane.getLastStepVehicleIDs). 
+                        # Get all vehicles in the simulation and compare their road id with the lanes_edges.
+                        for direction_turn in self.direction_turn_midblock:
+                            occupancy_map[tl_id][type]["inside"][direction_turn] = []
+                            lanes_edges = self.tl_lane_dict[tl_id][type]["inside"][direction_turn]
+                            for veh_id in traci.vehicle.getIDList():
+                                if traci.vehicle.getRoadID(veh_id) in lanes_edges:
+                                    occupancy_map[tl_id][type]["inside"][direction_turn].append(veh_id)
 
-                else: # pedestrians may have lanes or edges. further divided into main and vicinity, each with incoming and outgoing
+                else: # Pedestrians: lanes or edges further divided into main and vicinity, each with incoming and outgoing
                     for group in ["incoming", "outgoing"]:
                     
                         # Intersection has four directions.
@@ -484,7 +496,7 @@ class ControlEnv(gym.Env):
         for _ in range(self.steps_per_action): # Run simulation steps for the duration of the action
             
             # Apply action needs to happen every timestep (TODO: return information useful for reward calculation)
-            self._apply_action(action, self.current_action_step, self.previous_action)
+            #self._apply_action(action, self.current_action_step, self.previous_action)
             
             traci.simulationStep() # Step length is the simulation time that elapses when each time this is called.
 
@@ -492,10 +504,10 @@ class ControlEnv(gym.Env):
             # Increment the current action step (goes from 0 to steps_per_action-1)
             self.current_action_step = (self.current_action_step + 1) % self.steps_per_action 
 
-            obs = self._get_observation(print_map=False)
+            obs = self._get_observation()
             #print(f"\nObservation: {obs}")
             observation_buffer.append(obs)
-            
+
             # TODO: For the time being. Modify it later.
             #self._update_pressure_dict(self.corrected_occupancy_map)
 
@@ -511,7 +523,7 @@ class ControlEnv(gym.Env):
         observation = np.asarray(observation_buffer, dtype=np.float32) 
         return observation, reward, done, False, {} # info is empty
         
-    def _get_observation(self, print_map=False):
+    def _get_observation(self, print_map=True):
         """
         This is per step observation.
         About including previous action in the observation:
@@ -524,13 +536,11 @@ class ControlEnv(gym.Env):
         TODO: Some parts of the observation dont need normalization (current phase information).
         """
         
-        # Get the occupancy map and print it
-        occupancy_map = self._get_occupancy_map()
-        self.corrected_occupancy_map = self._step_operations(occupancy_map, print_map=print_map, cutoff_distance=100)
+        self.corrected_occupancy_map = self._step_operations(self._get_occupancy_map(), print_map=print_map, cutoff_distance=100)
         
         # TODO: For the time being. Modify it later.
         observation = np.random.rand(40)
-        
+    
         # observation = []
         # tl_id = self.tl_ids[0]
         
@@ -589,13 +599,14 @@ class ControlEnv(gym.Env):
         * It does not matter what phases are specified in the Tlogic in net file, we override it here.
 
         """
+        print(f"\nAction: {action}")
         # Use previous action to detect signal switching
         if previous_action is None: # First action 
             previous_action = action  # Assume that there was no switch
 
         # Intersection action: integer in [0..3]
-        current_intersection_action = action[0:2].item()
-        previous_intersection_action = previous_action[0:2].item()
+        current_intersection_action = action[0:2]
+        previous_intersection_action = previous_action[0:2]
 
         # for crosswalk signals as an example
         current_mid_block_action = action[2:]  
@@ -761,27 +772,22 @@ class ControlEnv(gym.Env):
         self.current_action_step = 0
         self.tl_lane_dict = get_related_lanes_edges()
 
-        # Randomly initialize the actions (current tl phase group and combined binary action for crosswalks) 
-        self.current_tl_phase_group = random.choice([0, 1, 2, 3]) # not including [4, 5] from the list
-        self.current_crosswalk_actions = str(random.randint(0, 1)) + str(random.randint(0, 1))
-
-        action_list = [int(x) for x in str(self.current_tl_phase_group) + self.current_crosswalk_actions]
-        initial_action = torch.tensor(action_list, dtype=torch.long)
+        # Randomly initialize actions (2 bits for intersection, 7 bits for crosswalks)
+        initial_action = ''.join(str(x) for x in torch.randint(2, (9,), dtype=torch.long).tolist()) # bit string
         print(f"\nInitial action: {initial_action}\n")
-
-        # Initialize the observation buffer
         observation_buffer = []
-        for step in range(self.steps_per_action):
-            # Apply the current phase group using _apply_action
-            self._apply_action(initial_action, step, None)
-            traci.simulationStep()
+        for _ in range(self.steps_per_action):
 
+            #self._apply_action(initial_action, self.current_action_step, None)
+            traci.simulationStep() 
+            self.step_count += 1
+            self.current_action_step = (self.current_action_step + 1) % self.steps_per_action 
             obs = self._get_observation()
             observation_buffer.append(obs)
 
         observation = np.asarray(observation_buffer, dtype=np.float32)
-        #print(f"\nObservation (in reset): {observation.shape}")
-        return observation, {} # nfo is empty
+        print(f"\nObservation (in reset): {observation.shape}")
+        return observation, {} # info is empty
 
     def close(self):
         if self.sumo_running:
