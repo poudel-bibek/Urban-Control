@@ -442,38 +442,24 @@ class ControlEnv(gym.Env):
             1  = allow pedestrians to cross at a given mid-block segment
             0  = disallow pedestrians at that segment
         """
+        # simple action
         action_space = [2, 2] + [2] * 7
         return gym.spaces.MultiDiscrete(action_space)
+
+        # advanced action
+        # action_space = [2, 2] + [2] * 7 + [2] * 7
+        # return gym.spaces.MultiDiscrete(action_space)
 
     @property
     def observation_space(self):
         """
         * Observation space is defined per action step (i.e. accumulated over action duration)
-        * Observation is composed of: 
-        - Current phase information (9 digits that transitions throughout the action duration)
-        - For Intersection (40 x steps_per_action):
-            - Vehicles: 
-                - Advanced Traffic State (ATS) Vehicles
-                - For each direction + turn ():
-                    - Incoming
-
-            - Pedestrians
-
-        For midblock (10 x steps_per_action):
-            - Vehicles: 
-                - Advanced Traffic State (ATS) Vehicles
-                - For each direction + turn ():
-                    - Incoming
-            
-            - Pedestrians
         """
-        # The observation is the entire observation buffer
-        return gym.spaces.Box(
-            low=0, 
-            high=1, 
-            shape=(self.steps_per_action, 40),
-            dtype=np.float32
-        )
+        # simple observation
+        return gym.spaces.Box(low=0, high=1, shape=(self.steps_per_action, 97), dtype=np.float32)
+    
+        # advanced observation
+        # 
 
     def step(self, action):
         """
@@ -512,10 +498,44 @@ class ControlEnv(gym.Env):
 
         observation = np.asarray(observation_buffer, dtype=np.float32) 
         return observation, reward, done, False, {} # info is empty
-        
+    
     def _get_observation(self, current_phase, print_map=True):
         """
-        * Per step observation.
+        wrapper
+        """
+        return self._get_simple_observation(current_phase, print_map)
+        # return self._get_advanced_observation(current_phase, print_map)
+    
+    def _apply_action(self, action, current_action_step, prev_action=None):
+        """
+        wrapper
+        """
+        return self._apply_simple_action(action, current_action_step, prev_action)
+        # return self._apply_advanced_action(action, current_action_step, prev_action)
+
+    def _get_simple_observation(self, current_phase, print_map=True):
+        """
+        * Per step observation size = 97
+        * Composed of: 
+            - Current phase information (9 elements that transitions throughout the action duration)
+            - Intersection (32 elements):
+                - Vehicles: 
+                    - Incoming (12 directions)
+                    - Inside (8 directions)
+                    - Outgoing (4 directions)
+                - Pedestrians
+                    - Incoming (4 directions)
+                    - Outgoing (4 directions)
+            - 7 Midblocks (7x8 = 56 elements):
+                - Vehicles: 
+                    - Incoming (2 directions)
+                    - Inside (2 directions)
+                    - Outgoing (2 directions)
+                - Pedestrians
+                    - Incoming (1 direction)
+                    - Outgoing (1 direction)
+            - 9 + 32 + 56 = 97
+
         * Each action persists for a number of timesteps (transitioning though phases); observation is collected at each timestep.
         * Pressure itself is not a part of the observation (only used for reward calculation).
         * Add full info about one TL at a time (preserve locality).
@@ -525,13 +545,11 @@ class ControlEnv(gym.Env):
         """
         
         self.corrected_occupancy_map = self._step_operations(self._get_occupancy_map(), print_map=print_map, cutoff_distance=100)
-        observation = []
-        before_count = len(observation)
-        observation.extend(current_phase)  # 9 elements
+        observation = current_phase # 9 elements
 
         # Intersection
         # - vehicles
-        int_incoming = [] # 8 directions
+        int_incoming = [] # 12 directions
         for direction_turn in self.direction_turn_intersection_incoming:
             int_incoming.append(len(self.corrected_occupancy_map['cluster_172228464_482708521_9687148201_9687148202_#5more']["vehicle"]["incoming"][direction_turn]))
         observation.extend(int_incoming)
@@ -586,10 +604,17 @@ class ControlEnv(gym.Env):
             observation.append(len(self.corrected_occupancy_map[tl_id]["pedestrian"]["outgoing"]["north"]["main"]))
 
         observation = np.asarray(observation, dtype=np.float32)/ 10.0 # max normalizer
-        print(f"\nObservation: shape: {observation.shape}, value: {observation}")
+        print(f"\nObservation: shape: {observation.shape}, value: {observation}") 
         return observation
 
-    def _apply_action(self, action, current_action_step, prev_action=None):
+    def _get_advanced_observation(self, current_phase, print_map=True):
+        """
+        Advanced Traffic State (ATS).
+        * Composed of: 
+        """
+        pass
+
+    def _apply_simple_action(self, action, current_action_step, prev_action=None):
         """
         apply_action is the enforcement of the chosen action (9-bit string) to the traffic lights and crosswalks, and will be called every step.
         previous_action will be None in reset.
@@ -651,6 +676,11 @@ class ControlEnv(gym.Env):
         self.previous_action = action
         current_phase = np.asarray([1, 0, 2, 3, 2, 1, 0, 1, 0], dtype=np.float32) # 9 bits that represent the latest phase. 
         return current_phase
+    
+    def _apply_advanced_action(self, action, current_action_step, prev_action=None):
+        """
+        """
+        pass
 
     def _get_reward(self, current_tl_action):
         """ 
