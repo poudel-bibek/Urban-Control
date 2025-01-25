@@ -124,10 +124,10 @@ def get_intersection_phase_groups(action_duration):
         }
 
     crosswalk_phase_groups = {
-        '00': {'A': 'r', 'B': 'r', 'C': 'r', 'D': 'r'},
-        '01': {'A': 'r', 'B': 'G', 'C': 'r', 'D': 'G'},
-        '10': {'A': 'G', 'B': 'r', 'C': 'G', 'D': 'r'},
-        '11': {'A': 'G', 'B': 'G', 'C': 'G', 'D': 'G'},
+        0: {'A': 'r', 'B': 'r', 'C': 'r', 'D': 'r'}, 
+        1: {'A': 'r', 'B': 'G', 'C': 'r', 'D': 'G'}, 
+        2: {'A': 'G', 'B': 'r', 'C': 'G', 'D': 'r'}, 
+        3: {'A': 'G', 'B': 'G', 'C': 'G', 'D': 'G'}, 
         }
     return tl_phase_groups, crosswalk_phase_groups
 
