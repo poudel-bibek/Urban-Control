@@ -74,12 +74,11 @@ class ControlEnv(gym.Env):
             for edge in edges:
                 self.edge_to_direction[edge] = direction
 
-        self.pressure_dict = {tl_id: {'vehicle': {}, 'pedestrian': {}} for tl_id in self.tl_ids}
-        self.directions = ['north', 'east', 'south', 'west']
-        self.turns = ['straight', 'right', 'left']
+        self.directions = ["north", "east", "south", "west"]
+        self.turns = ["straight", "right", "left"]
         self.direction_turn_intersection_incoming = [f"{direction}-{turn}" for direction in self.directions for turn in self.turns]
         self.direction_turn_intersection_inside = [f"{direction}-{turn}" for direction in self.directions for turn in ["straight", "left"]] # Exclude right
-        self.direction_turn_midblock = ['west-straight', 'east-straight']
+        self.direction_turn_midblock = ["west-straight", "east-straight"]
 
     def _get_vehicle_direction(self, signal_state):
         # Define signal bits for left and right blinkers
@@ -204,96 +203,99 @@ class ControlEnv(gym.Env):
             print(f"Error calculating distance: {e}")
             return None
     
-    def _update_pressure_dict(self, corrected_occupancy_map):
+    def _get_pressure_dict(self, occupancy_map, print_pressure=True):
         """
-        Update the data structure that holds info about pressure in outgoing directions.
-        For both vehicles and pedestrians.
-
-        For crosswalks, If the pedestrians are being rerouted, that means there is pressure that is not being addressed.
-        Pressure = incoming (upside + downside) - outgoing (inside)
-        However, if rerouted, then Pressure = -ve (rerouted)
+        Update the data structure that holds info about pressure (in each outgoing direction).
+        For both vehicles and pedestrians:
+            - Pressure = incoming - outgoing
         """
+        pressure_dict = {tl_id: {"vehicle": {}, "pedestrian": {}} for tl_id in self.tl_ids}
+        # Intersection
+        # 1. Vehicles
+        veh_pressure = {d: 0 for d in self.directions}
+        for outgoing_direction in self.directions:
+            incoming = 0 
+            if outgoing_direction == 'north':
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"]["south-straight"])
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"]["east-right"])
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"]["west-left"])
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["inside"]["south-straight"])
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["inside"]["west-left"])
 
-        for tl_id in self.tl_ids:
-            #### VEHICLES ####
+            elif outgoing_direction == 'south':
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"]["north-straight"])
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"]["east-left"])
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"]["west-right"])
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["inside"]["north-straight"])
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["inside"]["east-left"])
 
-            # Initialize pressure and calculate for each direction
-            vehicle_pressure = {d: 0 for d in self.directions}
+            elif outgoing_direction == 'east':
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"]["west-straight"])
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"]["north-left"])
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"]["south-right"])
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["inside"]["west-straight"])
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["inside"]["north-left"])
 
-            for outgoing_direction in self.directions:
-                # Calculate incoming traffic towards this direction
-                incoming = 0
-                if outgoing_direction == 'north': # These four are outgoing directions
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['incoming']['south-straight'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['incoming']['east-right'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['incoming']['west-left'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['inside']['south-straight'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['inside']['east-right'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['inside']['west-left'])
+            elif outgoing_direction == 'west':
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"]["east-straight"])
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"]["north-right"])
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"]["south-left"])
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["inside"]["east-straight"])
+                incoming += len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["inside"]["south-left"])
 
-                elif outgoing_direction == 'south': # These four are outgoing directions
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['incoming']['north-straight'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['incoming']['east-left'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['incoming']['west-right'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['inside']['north-straight'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['inside']['east-left'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['inside']['west-right'])
+            outgoing = len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["outgoing"][outgoing_direction])
+            veh_pressure[outgoing_direction] = incoming - outgoing
+            pressure_dict["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"][outgoing_direction] = veh_pressure[outgoing_direction]
 
-                elif outgoing_direction == 'east': # These four are outgoing directions
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['incoming']['west-straight'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['incoming']['north-left'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['incoming']['south-right'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['inside']['west-straight'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['inside']['north-left'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['inside']['south-right'])
+        # 2. Pedestrians 
+        # Incmoing (0.7*main + 0.3*vicinity)
+        ped_pressure = {d: 0 for d in self.directions}
+        for outgoing_direction in self.directions:
+            incoming = 0.7 * len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["pedestrian"]["incoming"][outgoing_direction]["main"]) + \
+                0.3 * len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["pedestrian"]["incoming"][outgoing_direction]["vicinity"])
+            outgoing = len(occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["pedestrian"]["outgoing"][outgoing_direction]["main"]) # vicinity does not exist
+            ped_pressure[outgoing_direction] = incoming - outgoing
+            pressure_dict["cluster_172228464_482708521_9687148201_9687148202_#5more"]["pedestrian"][outgoing_direction] = ped_pressure[outgoing_direction]
 
-                elif outgoing_direction == 'west': # These four are outgoing directions
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['incoming']['east-straight'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['incoming']['north-right'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['incoming']['south-left'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['inside']['east-straight'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['inside']['north-right'])
-                    incoming += len(corrected_occupancy_map[tl_id]['vehicle']['inside']['south-left'])
-                
-                # Calculate actual outgoing traffic
-                outgoing = len(corrected_occupancy_map[tl_id]['vehicle']['outgoing'][outgoing_direction])
-                
-                # Calculate pressure
-                vehicle_pressure[outgoing_direction] = incoming - outgoing
-                self.pressure_dict[tl_id]['vehicle'][outgoing_direction] = vehicle_pressure[outgoing_direction]
+        # Midblock
+        for tl_id in self.tl_ids[1:]:
+            # 1. Vehicles (have two directions)
+            veh_pressure = {d: 0 for d in self.direction_turn_midblock}
+            for direction in self.direction_turn_midblock:
+                incoming = len(occupancy_map[tl_id]["vehicle"]["incoming"][direction])
+                outgoing = len(occupancy_map[tl_id]["vehicle"]["outgoing"][direction])
+                veh_pressure[direction] = incoming - outgoing
+                pressure_dict[tl_id]["vehicle"][direction] = veh_pressure[direction]
 
-            #### PEDESTRIANS (In this TL crossings) ####
-            pedestrian_pressure = {d: 0 for d in self.directions}
+            # 2. Pedestrians (have one direction)
+            # Vicinity does not exist
+            ped_pressure = {"north": 0}
+            incoming = len(occupancy_map[tl_id]["pedestrian"]["incoming"]["north"]["main"])
+            outgoing = len(occupancy_map[tl_id]["pedestrian"]["outgoing"]["north"]["main"])
+            ped_pressure["north"] = incoming - outgoing
+            pressure_dict[tl_id]["pedestrian"]["north"] = ped_pressure["north"]
 
-            for outgoing_direction in self.directions:
-                # Calculate incoming pedestrians towards this direction
-                incoming = len(corrected_occupancy_map[tl_id]['pedestrian']['incoming'][outgoing_direction])
-                
-                # Calculate actual outgoing pedestrians
-                outgoing = len(corrected_occupancy_map[tl_id]['pedestrian']['outgoing'][outgoing_direction])
-                
-                # Calculate pressure
-                pedestrian_pressure[outgoing_direction] = incoming - outgoing
-                self.pressure_dict[tl_id]['pedestrian'][outgoing_direction] = pedestrian_pressure[outgoing_direction]
+        if print_pressure:
+            print("\nPressure Dictionary:")
+            print("===================")
+            print(f"\nIntersection:")
+            print(f"Vehicles: {pressure_dict['cluster_172228464_482708521_9687148201_9687148202_#5more']['vehicle']}")
+            print(f"Pedestrians: {pressure_dict['cluster_172228464_482708521_9687148201_9687148202_#5more']['pedestrian']}")
+            
+            print("\nMidblock TLs:")
+            for tl_id in self.tl_ids[1:]:
+                print(f"{tl_id}:")
+                print(f"  Vehicles: {pressure_dict[tl_id]['vehicle']}")
+                print(f"  Pedestrians: {{'north': {pressure_dict[tl_id]['pedestrian']['north']}}}")
 
-        #### CROSSWALKS ####  
-        for crosswalk_id in self.controlled_crosswalk_masked_ids:
-            if crosswalk_id != ':9687187501_c0': # Special case crosswalk
-                incoming = len(corrected_occupancy_map['crosswalks'][crosswalk_id]['upside']) + len(corrected_occupancy_map['crosswalks'][crosswalk_id]['downside'])
-                outgoing = len(corrected_occupancy_map['crosswalks'][crosswalk_id]['inside'])
-                rerouted = len(corrected_occupancy_map['crosswalks'][crosswalk_id]['rerouted'])
-
-                if rerouted > 0:
-                    self.pressure_dict['crosswalks'][crosswalk_id] = -rerouted
-                else:
-                    self.pressure_dict['crosswalks'][crosswalk_id] = incoming - outgoing
-
+        return pressure_dict
+    
     def _get_occupancy_map(self, ):
         """
         Occupancy map = dict with vehicle and pedestrian information in the neighbourhood of all TLs
         If the same lane is used for multiple turns (straight, right, left), the indicator light (turns ON about 100m as a vehicle approaches the junction) of vehicle is used to determine the actual direction. 
+        occupancy_map stores the ids.
         """
-
         occupancy_map = {}
         for tl_id in self.tl_ids:
             occupancy_map[tl_id] = {
@@ -484,8 +486,8 @@ class ControlEnv(gym.Env):
             obs = self._get_observation(current_phase)
             observation_buffer.append(obs)
 
-            # TODO: For the time being. Modify it later.
-            #self._update_pressure_dict(self.corrected_occupancy_map)
+            # Needs to be done before reward calculation
+            pressure_dict = self._get_pressure_dict(self.corrected_occupancy_map)
 
             # Accumulate reward
             # TODO: For the time being. Modify it later.
@@ -545,7 +547,7 @@ class ControlEnv(gym.Env):
         """
         
         self.corrected_occupancy_map = self._step_operations(self._get_occupancy_map(), print_map=print_map, cutoff_distance=100)
-        observation = current_phase # 9 elements
+        observation = list(current_phase) # 9 elements
 
         # Intersection
         # - vehicles
@@ -579,7 +581,6 @@ class ControlEnv(gym.Env):
 
         # Midblock (7 TLs)
         for tl_id in self.tl_ids[1:]:
-            print(f"\nTL ID: {tl_id}")
             # - vehicles
             mb_incoming = [] # 2 directions
             for direction_turn in self.direction_turn_midblock:
@@ -674,7 +675,7 @@ class ControlEnv(gym.Env):
         # traci.trafficlight.setRedYellowGreenState(self.tl_ids[0], state)
 
         self.previous_action = action
-        current_phase = np.asarray([1, 0, 2, 3, 2, 1, 0, 1, 0], dtype=np.float32) # 9 bits that represent the latest phase. 
+        current_phase = [1, 0, 2, 3, 2, 1, 0, 1, 0] # 9 bits that represent the latest phase. Return as a list.
         return current_phase
     
     def _apply_advanced_action(self, action, current_action_step, prev_action=None):
@@ -682,7 +683,7 @@ class ControlEnv(gym.Env):
         """
         pass
 
-    def _get_reward(self, current_tl_action):
+    def _get_reward(self, pressure_dict, current_tl_action):
         """ 
         * Reward is based on the alleviation of pressure (penalize high pressure)
         * Intersection:
@@ -707,13 +708,13 @@ class ControlEnv(gym.Env):
         vehicle_pressure = 0
         for tl_id in self.tl_ids:
             for direction in self.directions:
-                vehicle_pressure += self.pressure_dict[tl_id]['vehicle'][direction]
+                vehicle_pressure += pressure_dict[tl_id]['vehicle'][direction]
 
         # Crosswalk Signal Control
         pedestrian_pressure = 0
         for tl_id in self.tl_ids:
             for direction in self.directions:
-                pedestrian_pressure += self.pressure_dict[tl_id]['pedestrian'][direction]
+                pedestrian_pressure += pressure_dict[tl_id]['pedestrian'][direction]
 
         #### MWAQ based ####
         # TODO:: Implement this and add to sweep.
@@ -723,7 +724,7 @@ class ControlEnv(gym.Env):
         controlled_crosswalk_pressures = []
         for crosswalk_id in self.controlled_crosswalk_masked_ids:
             if crosswalk_id != '9687187501_c0':
-                controlled_crosswalk_pressures.append(self.pressure_dict['crosswalks'][crosswalk_id]) 
+                controlled_crosswalk_pressures.append(pressure_dict['crosswalks'][crosswalk_id]) 
 
         # Only collect the positive pressure values. A negative value means re-routed i.e., the pressure was discarded.
         crosswalks_pressure = sum(pressure for pressure in controlled_crosswalk_pressures if pressure > 0)
@@ -820,7 +821,10 @@ class ControlEnv(gym.Env):
             self.step_count += 1
             self.current_action_step = (self.current_action_step + 1) % self.steps_per_action 
             obs = self._get_observation(current_phase)
+            pressure_dict = self._get_pressure_dict(self.corrected_occupancy_map)
             observation_buffer.append(obs)
+            
+            # TODO: Should there be a reward calculation in reset?
 
         observation = np.asarray(observation_buffer, dtype=np.float32)
         print(f"\nObservation (in reset): {observation.shape}")
