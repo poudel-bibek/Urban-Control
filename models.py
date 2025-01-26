@@ -162,18 +162,12 @@ class CNNActorCritic(nn.Module):
         intersection_action = intersection_dist.sample() # This predicts 0, 1, 2, or 3
         # print(f"Intersection action: {intersection_action}")
 
-        # represent intersection action in binary form
-        intersection_action_binary = torch.zeros(2).to(intersection_action.device)
-        intersection_action_binary[0] = (intersection_action // 2) % 2  # First bit
-        intersection_action_binary[1] = intersection_action % 2  # Second bit
-        # print(f"Intersection action in binary: {intersection_action_binary}")
-
         midblock_probs = torch.sigmoid(midblock_logits)
         midblock_dist = Bernoulli(midblock_probs)
         midblock_actions = midblock_dist.sample() # This predicts 0 or 1
         # print(f"Midblock actions: {midblock_actions}")
         
-        combined_action = torch.cat([intersection_action_binary, midblock_actions.squeeze(0)], dim=0)
+        combined_action = torch.cat([intersection_action, midblock_actions.squeeze(0)], dim=0)
         log_prob = intersection_dist.log_prob(intersection_action) + midblock_dist.log_prob(midblock_actions).sum()
         # print(f"\nCombined action: {combined_action}, shape: {combined_action.shape}")
         # print(f"\nLog probability: {log_prob}, shape: {log_prob.shape}")
@@ -196,14 +190,14 @@ class CNNActorCritic(nn.Module):
         """
 
         action_logits = self.actor(states)
-        print(f"\nAction logits: {action_logits}")
+        # print(f"\nAction logits: {action_logits}")
 
         # Simple action
         # 1. Get distributions 
         intersection_logits = action_logits[:, :4]
         midblock_logits = action_logits[:, 4:]
-        print(f"\nIntersection logits: {intersection_logits}")
-        print(f"Midblock logits: {midblock_logits}")
+        # print(f"\nIntersection logits: {intersection_logits}")
+        # print(f"Midblock logits: {midblock_logits}")
 
         intersection_probs = torch.softmax(intersection_logits, dim=1)
         intersection_dist = Categorical(intersection_probs)
@@ -214,27 +208,27 @@ class CNNActorCritic(nn.Module):
         intersection_bits = actions[:, :2]  # (batch_size, 2)
         intersection_int = (2 * intersection_bits[:, 0] + intersection_bits[:, 1]).long()
         midblock_bits = actions[:, 2:].float() # (batch_size, 7)
-        print(f"\nIntersection bits: {intersection_bits}, shape: {intersection_bits.shape}")
-        print(f"\nIntersection int: {intersection_int}, shape: {intersection_int.shape}")
-        print(f"\nMidblock bits: {midblock_bits}, shape: {midblock_bits.shape}")
+        # print(f"\nIntersection bits: {intersection_bits}, shape: {intersection_bits.shape}")
+        # print(f"\nIntersection int: {intersection_int}, shape: {intersection_int.shape}")
+        # print(f"\nMidblock bits: {midblock_bits}, shape: {midblock_bits.shape}")
 
         # 2.2 Get log probs
         intersection_log_probs = intersection_dist.log_prob(intersection_int)
         midblock_log_probs = midblock_dist.log_prob(midblock_bits)
-        print(f"\nIntersection log probs: {intersection_log_probs}, shape: {intersection_log_probs.shape}")
-        print(f"\nMidblock log probs: {midblock_log_probs}, shape: {midblock_log_probs.shape}")
+        # print(f"\nIntersection log probs: {intersection_log_probs}, shape: {intersection_log_probs.shape}")
+        # print(f"\nMidblock log probs: {midblock_log_probs}, shape: {midblock_log_probs.shape}")
 
         # 3. Combine to get the joint log probs 
         action_log_probs = intersection_log_probs + midblock_log_probs.sum(dim=1)
-        print(f"\nAction log probs: {action_log_probs}, shape: {action_log_probs.shape}")
+        # print(f"\nAction log probs: {action_log_probs}, shape: {action_log_probs.shape}")
 
         # 4. Get the total entropy of the distributions.
         total_entropy = intersection_dist.entropy() + midblock_dist.entropy().sum(dim=1)
-        print(f"\nTotal entropy: {total_entropy}, shape: {total_entropy.shape}")       
+        # print(f"\nTotal entropy: {total_entropy}, shape: {total_entropy.shape}")       
 
         # 5. Get the state values
         state_values = self.critic(states)
-        print(f"\nState values: {state_values}, shape: {state_values.shape}")
+        # print(f"\nState values: {state_values}, shape: {state_values.shape}")
         return action_log_probs, state_values, total_entropy
         
         # Advanced action

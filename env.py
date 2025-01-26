@@ -62,7 +62,7 @@ class ControlEnv(gym.Env):
         print(f"Steps per action: {self.steps_per_action}")
 
         self.current_action_step = 0 # To track where we are within the curret action's duration
-        self.tl_phase_groups, self.crosswalk_phase_groups = get_intersection_phase_groups(self.action_duration)
+        self.int_tl_phase_groups, self.int_crosswalk_phase_groups = get_intersection_phase_groups()
         self.direction_and_edges  = get_direction_lookup()
         self.tl_lane_dict = get_related_lanes_edges()
         self.tl_pedestrian_status = {} # For pedestrians related to crosswalks attached to TLS.
@@ -151,7 +151,6 @@ class ControlEnv(gym.Env):
                             occupancy_map[tl_id]["vehicle"]["outgoing"][direction].remove(veh_id)
 
             else: # Midblock has two directions (west-straight, east-straight) 
-
                 for group in ["incoming", "outgoing"]:
                     for direction_turn in self.direction_turn_midblock:
                         for veh_id in occupancy_map[tl_id]["vehicle"][group][direction_turn]:
@@ -434,21 +433,22 @@ class ControlEnv(gym.Env):
     @property
     def action_space(self):
         """
+        * Simple action space
         The control action is represented as a 9-bit string for each traffic light:
-        - First two bits: Intersection signal (4 mutually exclusive configurations)
-            00 = allow vehicular traffic through North-South only
-            01 = allow vehicular traffic through East-West only
-            10 = allow dedicated left turns through N-E and S-W only
-            11 = disallow vehicular traffic in all directions
+        - First digit: Intersection signal (4 mutually exclusive configurations)
+            0 = allow vehicular traffic through East-West only
+            1 = allow vehicular traffic through North-South only
+            2 = allow dedicated left turns through N-E and S-W only
+            3 = disallow vehicular traffic in all directions
         - Next seven bits: Mid-block crosswalk signals (each bit is Bernoulli)
-            1  = allow pedestrians to cross at a given mid-block segment
-            0  = disallow pedestrians at that segment
+            1  = allow vehicles to cross (pedestrians red) at a given mid-block segment
+            0  = disallow vehicles to cross (pedestrians green) at that segment
         """
-        # simple action
-        action_space = [2, 2] + [2] * 7
+        # Simple action
+        action_space = [4] + [2] * 7  # First value is 0-3 for intersection, remaining 7 are binary
         return gym.spaces.MultiDiscrete(action_space)
 
-        # advanced action
+        # Advanced action
         # action_space = [2, 2] + [2] * 7 + [2] * 7
         # return gym.spaces.MultiDiscrete(action_space)
 
@@ -457,42 +457,45 @@ class ControlEnv(gym.Env):
         """
         * Observation space is defined per action step (i.e. accumulated over action duration)
         """
-        # simple observation
+        # Simple observation
         return gym.spaces.Box(low=0, high=1, shape=(self.steps_per_action, 97), dtype=np.float32)
     
-        # advanced observation
-        # 
+        # Advanced observation
+        # TODO: Implement
 
     def step(self, action):
         """
         """
         if not self.sumo_running:
             raise Exception("Environment is not running. Call reset() to start the environment.")
-        
+        if self.previous_action is None:
+            self.previous_action = action
+
         reward = 0
         done = False
         observation_buffer = []
-        for _ in range(self.steps_per_action): # Run simulation steps for the duration of the action
+        # switch detection does not need to be done every timestep. 
+        switch_state = self._detect_switch(action, self.previous_action)
+
+        for i in range(self.steps_per_action): # Run simulation steps for the duration of the action
             
-            # Apply action needs to happen every timestep (TODO: return information useful for reward calculation)
-            current_phase = self._apply_action(action, self.current_action_step, self.previous_action)
-            
+            # Apply action is called every timestep (return information useful for reward calculation)
+            current_phase = self._apply_action(np.array(action), i, switch_state)
             traci.simulationStep() # Step length is the simulation time that elapses when each time this is called.
-
             self.step_count += 1
-            # Increment the current action step (goes from 0 to steps_per_action-1)
-            self.current_action_step = (self.current_action_step + 1) % self.steps_per_action 
-
             obs = self._get_observation(current_phase)
             observation_buffer.append(obs)
 
-            # Needs to be done before reward calculation
+            # Do before reward calculation
             pressure_dict = self._get_pressure_dict(self.corrected_occupancy_map)
 
             # Accumulate reward
             # TODO: For the time being. Modify it later.
             #reward += self._get_reward(current_tl_action)
             reward += 0 
+
+        # outside the loop
+        self.previous_action = action
 
         # Check if episode is done (outside the for loop, otherwise it would create a broken observation)
         if self._check_done():
@@ -501,6 +504,36 @@ class ControlEnv(gym.Env):
         observation = np.asarray(observation_buffer, dtype=np.float32) 
         return observation, reward, done, False, {} # info is empty
     
+    def _detect_switch(self, current_action, previous_action):
+        """
+        Detect a switch in all the components (the vehicle part at the intersection considered as one component) i.e., total 8 components
+        For Intersection:
+            - A switch is detected if action changes from: 
+                - 0 to 1: E-W green to N-S green
+                - 1 to 0: N-S green to E-W green
+                - 2 to 0: N-E + S-W green (Dedicated left) to E-W green
+        For Midblock: 
+            - Action = 1 means vehicle green (pedestrian red)
+            - Action = 0 means vehicle red (pedestrian green)
+            - We only enfore a mandatory yellow phase if there is a 1 to 0 transition i.e., only consider this as a switch.
+        """
+        current_action = ''.join(map(str, current_action.tolist()))
+        previous_action = ''.join(map(str, previous_action.tolist()))
+        current_intersection_action = current_action[0:1]
+        current_mid_block_action = current_action[1:]  
+        previous_intersection_action = previous_action[0:1]
+        previous_mid_block_action = previous_action[1:]
+        # print(f"Current actions: Intersection: {current_intersection_action}, Midblock: {current_mid_block_action}")
+        # print(f"Previous actions: Intersection: {previous_intersection_action}, Midblock: {previous_mid_block_action}")
+
+        switch_state = []
+        intersection_switch = [int(c1 == '0' and c2 == '1') or int(c1 == '1' and c2 == '0') or int(c1 == '2' and c2 == '0') for c1, c2 in zip(previous_intersection_action, current_intersection_action)]
+        switch_state.extend(intersection_switch)
+        midblock_switch = [int(c1 == '1' and c2 == '0') for c1, c2 in zip(previous_mid_block_action, current_mid_block_action)] # only detect 1->0 transitions
+        switch_state.extend(midblock_switch)
+        # print(f"Switch state: {switch_state}")
+        return switch_state
+
     def _get_observation(self, current_phase, print_map=False):
         """
         wrapper
@@ -596,7 +629,7 @@ class ControlEnv(gym.Env):
 
             # Outgoing, 1 direction
             observation.append(len(self.corrected_occupancy_map[tl_id]["pedestrian"]["outgoing"]["north"]["main"]))
-
+        # print(f"\nObservation before normalization: {observation}")
         observation = np.asarray(observation, dtype=np.float32)/ 10.0 # max normalizer
         #print(f"\nObservation: shape: {observation.shape}, value: {observation}") 
         return observation
@@ -608,75 +641,54 @@ class ControlEnv(gym.Env):
         """
         pass
 
-    def _apply_action(self, action, current_action_step, prev_action=None):
+    def _apply_action(self, action, current_action_step, switch_state):
         """
         wrapper
         """
-        return self._apply_simple_action(action, current_action_step, prev_action)
-        # return self._apply_advanced_action(action, current_action_step, prev_action)
+        return self._apply_simple_action(action, current_action_step, switch_state)
+        # return self._apply_advanced_action(action, current_action_step, switch_state)
         
-    def _apply_simple_action(self, action, current_action_step, prev_action=None):
+    def _apply_simple_action(self, action, current_action_step, switch_state):
         """
-        apply_action is the enforcement of the chosen action (9-bit string) to the traffic lights and crosswalks, and will be called every step.
-        previous_action will be None during reset.
+        apply_action is the enforcement of the chosen action (9-bit string) to the traffic lights and crosswalks at every step.
+        Based on the switch_state, a 4-second mandatory yellow phase is enforced to the direction/ light that is turning red, before starting the new phase in the other light.
+        For Intersection: 
 
-        The function internally checks if a switch in vehicle directions that turn green.
-        If a switch is detected, a 4-second mandatory yellow phase is enforced to the direction/ light that is turning red, before starting the new phase in the other light.
-
-        For each Midblock TL, there are three phases: 
+        For each Midblock:
         - GGr: Green for the 2 vehicle directions, red for pedestrian crosswalk
         - yyr: Yellow for the 2 vehicle directions, red for pedestrian crosswalk
         - rrG: Red for both vehicle directions, green for pedestrian crosswalk
-        * It does not matter what phases are specified in the Tlogic in net file, we override it here.
 
+        * It does not matter what phases are specified in the Tlogic in net file, we override it from here.
         """
+        print(f"Action: {action}")
+        current_phase = []
 
-        # print(f"\nAction: {action}")
-        # Use previous action to detect signal switching
-        if prev_action is None: # First action 
-            self.previous_action = action  # Assume that there was no switch
+        # Intersection
+        int_action = action[0]
+        int_switch_state = switch_state[0]
+        if int_switch_state == 0:
+            int_vehicle_phase_group = int_action
+            vehicle_phase_string = self.int_tl_phase_groups[int_vehicle_phase_group]
+        else:
+            # If switch_state is 1 and current_action is 1, select phase group 4
+            # If switch_state is 1 and current_action is 0, select phase group 5
+            if int_action == 1:
+                int_vehicle_phase_group = 4
+                vehicle_phase_string = self.int_tl_phase_groups[int_vehicle_phase_group][current_action_step]
+            else:
+                int_vehicle_phase_group = 5
+                vehicle_phase_string = self.int_tl_phase_groups[int_vehicle_phase_group][current_action_step]
 
-        # split actions
-        current_intersection_action = action[0:2]
-        current_mid_block_action = action[2:]  
-
-        previous_intersection_action = self.previous_action[0:2]
-        previous_mid_block_action = self.previous_action[2:]
-        # print(f"Type of previous_mid_block_action: {type(previous_mid_block_action)}, current_mid_block_action: {type(current_mid_block_action)}")
-
-        # Detect a switch in all the components (the vehicle part at the intersection considered as one component) i.e., total 8 components
-        # switches = [] # contains boolean values (0 = No switch, 1 = Switch)
-        # if previous_intersection_action == 11: # If the last phase was all red, assume no switch (no intermediate yellow required)
-        #     switch_in_intersection = 0
-        # else:
-        #     if current_intersection_action != previous_intersection_action:
-        #         switch_in_intersection = 1
-        #     else:
-        #         switch_in_intersection = 0
-
-        # switches.append(switch_in_intersection)
-        # # For midblock, there is a switch if the previous action is not the same as the current action
-        # switch_in_midblock = (current_mid_block_action != previous_mid_block_action)
-        # switches.append(switch_in_midblock)
-
-        # Mandatory yellow enforcement
-        # if any(switches):
-        #     # Insert a 4-second yellow transition between switching states
-        #     tl_state = self._get_tl_switch_state(east_to_north_switch, north_to_east_switch, current_action_step)
-
-        # # For the signalized crosswalk control. Append ArBCrD at the end of the tl state string.
-        # self.current_crosswalk_actions = str(action[1].item()) + str(action[2].item()) # two binary actions 0, 1
-        # crosswalk_state = self.crosswalk_phase_groups[self.current_crosswalk_actions]
+        current_phase.append(int_vehicle_phase_group)
+        pedestrian_phase_abcd = self.int_crosswalk_phase_groups[int_action]
+        pedestrian_phase_string = pedestrian_phase_abcd['A'] + pedestrian_phase_abcd['B'] + 'r' + pedestrian_phase_abcd['C'] + 'r' + pedestrian_phase_abcd['D']
+        int_state = vehicle_phase_string + pedestrian_phase_string
+        traci.trafficlight.setRedYellowGreenState(self.tl_ids[0], int_state)
         
-        # # Construct the crosswalk state string from the dict values
-        # crosswalk_state_str = (crosswalk_state['A'] + crosswalk_state['B'] + 'r' + crosswalk_state['C'] + 'r' + crosswalk_state['D'])
-        
-        # state = tl_state + crosswalk_state_str
-        # #print(f"\nState: {state}\n")
-        # traci.trafficlight.setRedYellowGreenState(self.tl_ids[0], state)
+        # Midblock
 
-        self.previous_action = action
-        current_phase = [1, 0, 2, 3, 2, 1, 0, 1, 0] # 9 bits that represent the latest phase. Return as a list.
+        current_phase.extend([0, 2, 3, 2, 1, 0, 1, 0]) # 9 bits that represent the latest phase. Return as a list.
         return current_phase
     
     def _apply_advanced_action(self, action, current_action_step, prev_action=None):
@@ -778,18 +790,14 @@ class ControlEnv(gym.Env):
                         "--quit-on-end", 
                         "-c", "./SUMO_files/Craver_traffic_lights.sumocfg", 
                         "--step-length", str(self.step_length),
-                        "--route-files", f"{self.vehicle_output_trips},{self.pedestrian_output_trips}"
-                        ]
-                        
+                        "--route-files", f"{self.vehicle_output_trips},{self.pedestrian_output_trips}"]
         else:
             sumo_cmd = ["sumo-gui" if self.use_gui else "sumo", 
                         "--verbose",
                         "--quit-on-end", 
                         "-c", "./SUMO_files/Craver_traffic_lights.sumocfg", 
                         "--step-length", str(self.step_length),
-                        "--route-files", f"{self.vehicle_output_trips},{self.pedestrian_output_trips}"
-                        ]
-                        
+                        "--route-files", f"{self.vehicle_output_trips},{self.pedestrian_output_trips}"]
         max_retries = 3
         try:
             for attempt in range(max_retries):
@@ -809,19 +817,18 @@ class ControlEnv(gym.Env):
 
         self.sumo_running = True
         self.step_count = 0 # This counts the timesteps in an episode. Needs reset.
-        self.current_action_step = 0
         self.tl_lane_dict = get_related_lanes_edges()
 
-        # Randomly initialize actions (2 bits for intersection, 7 bits for crosswalks)
-        initial_action = ''.join(str(x) for x in torch.randint(2, (9,), dtype=torch.long).tolist()) # bit string
+        # Randomly initialize actions (1 digit for intersection, 7 bits for crosswalks)
+        initial_action = np.concatenate([np.random.randint(4, size=1), np.random.randint(2, size=7)]).astype(np.int32)
+        initial_switch_state = np.zeros(8)
         print(f"\nInitial action: {initial_action}\n")
         observation_buffer = []
-        for _ in range(self.steps_per_action):
+        for i in range(self.steps_per_action):
 
-            current_phase = self._apply_action(initial_action, self.current_action_step, None)
+            current_phase = self._apply_action(initial_action, i, initial_switch_state)
             traci.simulationStep() 
             self.step_count += 1
-            self.current_action_step = (self.current_action_step + 1) % self.steps_per_action 
             obs = self._get_observation(current_phase)
             pressure_dict = self._get_pressure_dict(self.corrected_occupancy_map)
             observation_buffer.append(obs)

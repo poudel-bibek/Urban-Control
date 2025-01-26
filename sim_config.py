@@ -83,14 +83,14 @@ def get_real_world_tl_phases():
         ]
     }
 
-def get_intersection_phase_groups(action_duration):
+def get_intersection_phase_groups():
     """
     Since the intersection has a more complex phase logic, its implemented here.
     For other TLs, its done in apply_action.
         
     For the intersection (TL): 
-    - 0: Allow N-S disallow other directions
-    - 1: Allow E-W disallow other directions
+    - 0: Allow E-W disallow other directions 
+    - 1: Allow N-S disallow other directions
     - 2: Allow North-East and South-West direction (Dedicated left turns), disallow other directions
     - 3: Disallow vehicular traffic in all direction 
 
@@ -103,33 +103,48 @@ def get_intersection_phase_groups(action_duration):
     For the intersection (Crosswalks):
     * Essentially in the string towards the end of the phase ArBCrD, find replacement values for A, B, C, D. 
     * A = allow North, B = allow East, C = allow South, D = allow West
-    * The duration is always 1
-    - 00: Both N-S and E-W crosswalks are red
-    - 01: N-S crosswalk is red, E-W crosswalk is green
-    - 10: N-S crosswalk is green, E-W crosswalk is red
-    - 11: Both N-S and E-W crosswalks are green
+    - 0: N-S Red, E-W Green
+    - 1: N-S Green, E-W Red
+    - 2: N-W Green, S-E Green (Dedicated left turns)
+    - 3: N-S Red, E-W Red (All Red)
     """
 
-    tl_phase_groups = {
-        0: [{"duration": action_duration, "state": "yyyyrrrryyyyrrrr"}],
-        1: [{"duration": action_duration, "state": "yyyyrrrryyyyrrrr"}],
-        2: [{"duration": action_duration, "state": "yyyyrrrryyyyrrrr"}],
-        3: [{"duration": action_duration, "state": "yyyyrrrryyyyrrrr"}],
-        4: [{"duration": 4, "state": "yyyyrrrryyyyrrrr"}, 
-            {"duration": 1, "state": "rrrrrrrrrrrrrrrr"}, 
-            {"duration": (action_duration - (4 + 1)), "state": "rrrrGGGGrrrrGGGG"}],
-        5: [{"duration": 4, "state": "yyyyrrrryyyyrrrr"}, 
-            {"duration": 1, "state": "rrrrrrrrrrrrrrrr"}, 
-            {"duration": (action_duration - (4 + 1)), "state": "rrrrGGGGrrrrGGGG"}],
+    int_tl_phase_groups = {
+        0: "GGrrrrrrGGrrrrrr", # east-straight, east-right, west-straight, west-right 
+        1: "rrrrGGrrrrrrGGrr", # north-straight, north-right, south-straight, south-right
+        2: "rrrrrrGGrrrrrrGG", # north-east, south-west (for visuals, make u-turn ON as well)
+        3: "rrrrrrrrrrrrrrrr", # all red
+        4: { 0: "yyrrrrrryyrrrrrr",
+            1: "yyrrrrrryyrrrrrr",
+            2: "yyrrrrrryyrrrrrr",
+            3: "yyrrrrrryyrrrrrr",
+            4: "rrrrrrrrrrrrrrrr",
+            5: "rrrrGGrrrrrrGGrr",
+            6: "rrrrGGrrrrrrGGrr",
+            7: "rrrrGGrrrrrrGGrr",
+            8: "rrrrGGrrrrrrGGrr",
+            9: "rrrrGGrrrrrrGGrr",
+        }, 
+        5: { 0: "rrrryyrrrrrryyrr",
+            1: "rrrryyrrrrrryyrr",
+            2: "rrrryyrrrrrryyrr",
+            3: "rrrryyrrrrrryyrr",
+            4: "rrrrrrrrrrrrrrrr",
+            5: "GGrrrrrrGGrrrrrr",
+            6: "GGrrrrrrGGrrrrrr",
+            7: "GGrrrrrrGGrrrrrr",
+            8: "GGrrrrrrGGrrrrrr",
+            9: "GGrrrrrrGGrrrrrr",
         }
-
-    crosswalk_phase_groups = {
-        0: {'A': 'r', 'B': 'r', 'C': 'r', 'D': 'r'}, 
-        1: {'A': 'r', 'B': 'G', 'C': 'r', 'D': 'G'}, 
-        2: {'A': 'G', 'B': 'r', 'C': 'G', 'D': 'r'}, 
+    }
+            
+    int_crosswalk_phase_groups = {
+        0: {'A': 'r', 'B': 'G', 'C': 'r', 'D': 'G'}, 
+        1: {'A': 'G', 'B': 'r', 'C': 'G', 'D': 'r'}, 
+        2: {'A': 'r', 'B': 'r', 'C': 'r', 'D': 'r'}, 
         3: {'A': 'G', 'B': 'G', 'C': 'G', 'D': 'G'}, 
-        }
-    return tl_phase_groups, crosswalk_phase_groups
+    }
+    return int_tl_phase_groups, int_crosswalk_phase_groups
 
 def get_direction_lookup():
     """
