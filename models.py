@@ -121,84 +121,123 @@ class CNNActorCritic(nn.Module):
     def act(self, state):
         """
         Select an action based on the current state:
-        - First action: 4-class classification for traffic light
-        - Second and third actions: binary choices for crosswalks
+        * Simple Action: 
+        - First two bits:
+            - Intersection control on 4 mutually exclusive choices
+            - Logits passed through softmax: 
+                - Converts a vector of logits to a vector of probabilities that sum to 1
+            - Feed the probabilities to a Categorical distribution
+                - Then we sample to get one of the 4 choices
 
-        Sigmoid: For Bernoulli, we want to represent the single probability parameter p, hence we use the sigmoid (converts a single logit to a single probability).
-        Softmax:  For Categorical, we have several categories for our distribution. We want to represent the probability for each category in a logit vector (convert to a vector of probabilities that sum to 1).
+        - Next seven bits:
+            - Midblock TL/ crosswalk signals
+            - Bernoulli distribution (single probability parameter p)
+            - Logits passed through sigmoid: 
+                - Converts a single logit to a single probability value between 0 and 1
+                - The probability is of getting 1
+            - Feed each of the 7 probabilities to independent Bernoulli distribution
+                - Then we sample to get either 0 or 1 for each of the 7 choices.
+        
+        - Modeling: 
+            - We are modeling these choices independently. 
+            - The assumption is that optimal action in one of them does not affect the others i.e., there is no possibility of coordination. 
+            - Log probabilities can be summed for independent events. To get the joint log probability:
+                - Sum the log probabilities of the individual midblock choices.
+                - Add the log probability of the intersection choice.
+    
+        * Advanced Action: 
         """
         state_tensor = state.reshape(1, self.in_channels, self.action_duration, self.per_timestep_state_dim) # 1= batch size
         action_logits = self.actor(state_tensor)
         #print(f"\nAction logits: {action_logits}")
-        
-        # Split logits into traffic light and crosswalk decisions
-        traffic_logits = action_logits[:, :4]  # First 4 logits for traffic light (4-class)
-        crosswalk_logits = action_logits[:, 4:]  # Last 2 logits for crosswalks (binary)
-        # print(f"\nTraffic logits: {traffic_logits}")
-        # print(f"Crosswalk logits: {crosswalk_logits}")
-        
-        traffic_probs = torch.softmax(traffic_logits, dim=1)
-        traffic_dist = Categorical(traffic_probs)
-        traffic_action = traffic_dist.sample() # This predicts 0, 1, 2, or 3
-        # print(f"Traffic action: {traffic_action}")
 
-        crosswalk_probs = torch.sigmoid(crosswalk_logits)
-        crosswalk_dist = Bernoulli(crosswalk_probs)
-        crosswalk_actions = crosswalk_dist.sample() # This predicts 0 or 1
-        # print(f"Crosswalk actions: {crosswalk_actions}\n")
+        # Simple action
+        intersection_logits = action_logits[:, :4]  # First 4 logits for traffic light (4 choices)
+        midblock_logits = action_logits[:, 4:]  # Last 7 logits for crosswalks (binary choices)
+        # print(f"\nIntersection logits: {intersection_logits}")
+        # print(f"Midblock logits: {midblock_logits}")
         
-        # Combine actions
-        combined_action = torch.cat([traffic_action, crosswalk_actions.squeeze(0)], dim=0)
-        # print(f"\nCombined action: {combined_action}")
-        
-        # Calculate log probabilities
-        log_prob = traffic_dist.log_prob(traffic_action) + crosswalk_dist.log_prob(crosswalk_actions).sum()
+        intersection_probs = torch.softmax(intersection_logits, dim=1)
+        intersection_dist = Categorical(intersection_probs)
+        intersection_action = intersection_dist.sample() # This predicts 0, 1, 2, or 3
+        # print(f"Intersection action: {intersection_action}")
 
-        #  print(f"\nCombined action: {combined_action}, shape: {combined_action.shape}")
+        # represent intersection action in binary form
+        intersection_action_binary = torch.zeros(2).to(intersection_action.device)
+        intersection_action_binary[0] = (intersection_action // 2) % 2  # First bit
+        intersection_action_binary[1] = intersection_action % 2  # Second bit
+        # print(f"Intersection action in binary: {intersection_action_binary}")
+
+        midblock_probs = torch.sigmoid(midblock_logits)
+        midblock_dist = Bernoulli(midblock_probs)
+        midblock_actions = midblock_dist.sample() # This predicts 0 or 1
+        # print(f"Midblock actions: {midblock_actions}")
+        
+        combined_action = torch.cat([intersection_action_binary, midblock_actions.squeeze(0)], dim=0)
+        log_prob = intersection_dist.log_prob(intersection_action) + midblock_dist.log_prob(midblock_actions).sum()
+        # print(f"\nCombined action: {combined_action}, shape: {combined_action.shape}")
         # print(f"\nLog probability: {log_prob}, shape: {log_prob.shape}")
 
         return combined_action.int(), log_prob
+    
+        # Advanced action
 
     def evaluate(self, states, actions):
         """
-        Evaluates a batch of states and actions.
-        States are passed to actor to get action logits, using which we get the probabilities and then the distribution. similar to act function.
-        Then using the sampled actions, we get the log probabilities and the entropy. 
-        Finally, we pass the states to critic to get the state values. (used to compute the value function component of the PPO loss)
-        The entropy is used as a regularization term to encourage exploration.
+        Evaluate a batch of states and actions.
+        * Simple action: 
 
-        sum operation: 
+        - 1. Use the state input to get the current distributions (dont get new actions).
+        - 2. Use the distribution and input actions provided (actions that were already-sampled; convert binary intersection actions to decimal) to get the log probs (how likely is the distribution to get the action).
+        - 3. Combine to get the joint log probs (sum across the 7 Bernoullis and sum the intersection log prob).
+            - sum operation is valid because the actions are independent. 
+        - 4. Get the individual entropy (used as a regularization term to encourage exploration) and sum them to get the total entropy.
+        - 5. Get the state values from critic.
         """
-        action_logits = self.actor(states)
-        
-        # Split logits and actions
-        traffic_logits = action_logits[:, 0:2]
-        crosswalk_logits = action_logits[:, 2:]
-        traffic_actions = actions[:, 0:2].argmax(dim=1)  # Convert one-hot back to index
-        crosswalk_actions = actions[:, 2:].float()
-        
-        # Evaluate traffic direction actions
-        traffic_probs = torch.softmax(traffic_logits, dim=1)
-        traffic_dist = Categorical(traffic_probs)
-        traffic_log_probs = traffic_dist.log_prob(traffic_actions)
-        
-        # Evaluate crosswalk actions
-        crosswalk_probs = torch.sigmoid(crosswalk_logits)
-        crosswalk_dist = Bernoulli(crosswalk_probs)
-        crosswalk_log_probs = crosswalk_dist.log_prob(crosswalk_actions)
-        
-        # Combine log probabilities
-        action_log_probs = traffic_log_probs + crosswalk_log_probs.sum(dim=1)
-        
-        # Calculate entropy 
-        dist_entropy = traffic_dist.entropy() + crosswalk_dist.entropy().sum(dim=1)
-        
-        state_values = self.critic(states)
-        # print(f"\nState values: {state_values}, shape: {state_values.shape}")
-        # print(f"\nAction log probabilities: {action_log_probs}, shape: {action_log_probs.shape}")
-        # print(f"\nEntropy: {dist_entropy}, shape: {dist_entropy.shape}")
 
-        return action_log_probs, state_values, dist_entropy
+        action_logits = self.actor(states)
+        print(f"\nAction logits: {action_logits}")
+
+        # Simple action
+        # 1. Get distributions 
+        intersection_logits = action_logits[:, :4]
+        midblock_logits = action_logits[:, 4:]
+        print(f"\nIntersection logits: {intersection_logits}")
+        print(f"Midblock logits: {midblock_logits}")
+
+        intersection_probs = torch.softmax(intersection_logits, dim=1)
+        intersection_dist = Categorical(intersection_probs)
+        midblock_probs = torch.sigmoid(midblock_logits)
+        midblock_dist = Bernoulli(midblock_probs)
+
+        # 2.1 Convert binary intersection actions to decimal
+        intersection_bits = actions[:, :2]  # (batch_size, 2)
+        intersection_int = (2 * intersection_bits[:, 0] + intersection_bits[:, 1]).long()
+        midblock_bits = actions[:, 2:].float() # (batch_size, 7)
+        print(f"\nIntersection bits: {intersection_bits}, shape: {intersection_bits.shape}")
+        print(f"\nIntersection int: {intersection_int}, shape: {intersection_int.shape}")
+        print(f"\nMidblock bits: {midblock_bits}, shape: {midblock_bits.shape}")
+
+        # 2.2 Get log probs
+        intersection_log_probs = intersection_dist.log_prob(intersection_int)
+        midblock_log_probs = midblock_dist.log_prob(midblock_bits)
+        print(f"\nIntersection log probs: {intersection_log_probs}, shape: {intersection_log_probs.shape}")
+        print(f"\nMidblock log probs: {midblock_log_probs}, shape: {midblock_log_probs.shape}")
+
+        # 3. Combine to get the joint log probs 
+        action_log_probs = intersection_log_probs + midblock_log_probs.sum(dim=1)
+        print(f"\nAction log probs: {action_log_probs}, shape: {action_log_probs.shape}")
+
+        # 4. Get the total entropy of the distributions.
+        total_entropy = intersection_dist.entropy() + midblock_dist.entropy().sum(dim=1)
+        print(f"\nTotal entropy: {total_entropy}, shape: {total_entropy.shape}")       
+
+        # 5. Get the state values
+        state_values = self.critic(states)
+        print(f"\nState values: {state_values}, shape: {state_values.shape}")
+        return action_log_probs, state_values, total_entropy
+        
+        # Advanced action
 
     def param_count(self, ):
         """

@@ -33,6 +33,7 @@ def parallel_worker(rank, shared_policy_old, control_args, queue, global_seed, w
     - Worker policy inference runs in GPU.
     - memory_queue is used to store the memory of each worker and send it back to the main process.
     - A shared policy_old (dict copy passed here) is used for importance sampling.
+    - 1 memory transfer happens every memory_transfer_freq * action_duration sim steps.
     """
 
     # Set seed for this worker
@@ -69,6 +70,7 @@ def parallel_worker(rank, shared_policy_old, control_args, queue, global_seed, w
 
         if steps_since_update >= memory_transfer_freq or done or truncated:
             # Put local memory in the queue for the main process to collect
+            time.sleep(1)
             queue.put((rank, local_memory))
             local_memory = Memory()  # Reset local memory
             steps_since_update = 0
@@ -167,14 +169,12 @@ def train(train_config, is_sweep=False, sweep_config=None):
     action_timesteps = 0
     best_reward = float('-inf')
 
-    for iteration in range(1, total_iterations + 1): # Starting from 1 to prevent policy update in the very first iteration.
+    for iteration in range(0, total_iterations): # Starting from 1 to prevent policy update in the very first iteration.
         
         global_step = iteration * train_config['num_processes']*control_args['total_action_timesteps_per_episode']*train_config['action_duration']
-        print(f"\nStarting iteration: {iteration}/{total_iterations} with {global_step} total steps so far\n")
+        print(f"\nStarting iteration: {iteration + 1}/{total_iterations} with {global_step} total steps so far\n")
 
-        reward, done, info = 0, False, {}
         queue = mp.Queue()
-
         processes = []
         active_workers = []
         for rank in range(control_args['num_processes']):
@@ -208,10 +208,10 @@ def train(train_config, is_sweep=False, sweep_config=None):
                 action_timesteps += len(memory.states)
                 del memory #https://pytorch.org/docs/stable/multiprocessing.html
 
-                # Update PPO every n times action has been taken
-                if action_timesteps % control_args['update_freq'] == 0:
+                # Update PPO every n times (or close) action has been taken 
+                if action_timesteps >= control_args['update_freq']:
                     action_timesteps = 0 
-
+                    print(f"Updating PPO with {len(all_memories)} memories HERE")
                     loss = control_ppo.update(all_memories)
                     # Update shared policy with new weights after PPO update
                     shared_policy_old.model.load_state_dict(control_ppo.policy_old.state_dict())

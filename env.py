@@ -203,7 +203,7 @@ class ControlEnv(gym.Env):
             print(f"Error calculating distance: {e}")
             return None
     
-    def _get_pressure_dict(self, occupancy_map, print_pressure=True):
+    def _get_pressure_dict(self, occupancy_map, print_dict=False):
         """
         Update the data structure that holds info about pressure (in each outgoing direction).
         For both vehicles and pedestrians:
@@ -275,7 +275,7 @@ class ControlEnv(gym.Env):
             ped_pressure["north"] = incoming - outgoing
             pressure_dict[tl_id]["pedestrian"]["north"] = ped_pressure["north"]
 
-        if print_pressure:
+        if print_dict:
             print("\nPressure Dictionary:")
             print("===================")
             print(f"\nIntersection:")
@@ -501,21 +501,14 @@ class ControlEnv(gym.Env):
         observation = np.asarray(observation_buffer, dtype=np.float32) 
         return observation, reward, done, False, {} # info is empty
     
-    def _get_observation(self, current_phase, print_map=True):
+    def _get_observation(self, current_phase, print_map=False):
         """
         wrapper
         """
         return self._get_simple_observation(current_phase, print_map)
         # return self._get_advanced_observation(current_phase, print_map)
-    
-    def _apply_action(self, action, current_action_step, prev_action=None):
-        """
-        wrapper
-        """
-        return self._apply_simple_action(action, current_action_step, prev_action)
-        # return self._apply_advanced_action(action, current_action_step, prev_action)
 
-    def _get_simple_observation(self, current_phase, print_map=True):
+    def _get_simple_observation(self, current_phase, print_map=False):
         """
         * Per step observation size = 97
         * Composed of: 
@@ -605,20 +598,27 @@ class ControlEnv(gym.Env):
             observation.append(len(self.corrected_occupancy_map[tl_id]["pedestrian"]["outgoing"]["north"]["main"]))
 
         observation = np.asarray(observation, dtype=np.float32)/ 10.0 # max normalizer
-        print(f"\nObservation: shape: {observation.shape}, value: {observation}") 
+        #print(f"\nObservation: shape: {observation.shape}, value: {observation}") 
         return observation
 
-    def _get_advanced_observation(self, current_phase, print_map=True):
+    def _get_advanced_observation(self, current_phase, print_map=False):
         """
         Advanced Traffic State (ATS).
         * Composed of: 
         """
         pass
 
+    def _apply_action(self, action, current_action_step, prev_action=None):
+        """
+        wrapper
+        """
+        return self._apply_simple_action(action, current_action_step, prev_action)
+        # return self._apply_advanced_action(action, current_action_step, prev_action)
+        
     def _apply_simple_action(self, action, current_action_step, prev_action=None):
         """
         apply_action is the enforcement of the chosen action (9-bit string) to the traffic lights and crosswalks, and will be called every step.
-        previous_action will be None in reset.
+        previous_action will be None during reset.
 
         The function internally checks if a switch in vehicle directions that turn green.
         If a switch is detected, a 4-second mandatory yellow phase is enforced to the direction/ light that is turning red, before starting the new phase in the other light.
@@ -630,7 +630,8 @@ class ControlEnv(gym.Env):
         * It does not matter what phases are specified in the Tlogic in net file, we override it here.
 
         """
-        print(f"\nAction: {action}")
+
+        # print(f"\nAction: {action}")
         # Use previous action to detect signal switching
         if prev_action is None: # First action 
             self.previous_action = action  # Assume that there was no switch
@@ -641,22 +642,22 @@ class ControlEnv(gym.Env):
 
         previous_intersection_action = self.previous_action[0:2]
         previous_mid_block_action = self.previous_action[2:]
-        print(f"Type of previous_mid_block_action: {type(previous_mid_block_action)}, current_mid_block_action: {type(current_mid_block_action)}")
+        # print(f"Type of previous_mid_block_action: {type(previous_mid_block_action)}, current_mid_block_action: {type(current_mid_block_action)}")
 
         # Detect a switch in all the components (the vehicle part at the intersection considered as one component) i.e., total 8 components
-        switches = [] # contains boolean values (0 = No switch, 1 = Switch)
-        if previous_intersection_action == 11: # If the last phase was all red, assume no switch (no intermediate yellow required)
-            switch_in_intersection = 0
-        else:
-            if current_intersection_action != previous_intersection_action:
-                switch_in_intersection = 1
-            else:
-                switch_in_intersection = 0
+        # switches = [] # contains boolean values (0 = No switch, 1 = Switch)
+        # if previous_intersection_action == 11: # If the last phase was all red, assume no switch (no intermediate yellow required)
+        #     switch_in_intersection = 0
+        # else:
+        #     if current_intersection_action != previous_intersection_action:
+        #         switch_in_intersection = 1
+        #     else:
+        #         switch_in_intersection = 0
 
-        switches.append(switch_in_intersection)
-        # For midblock, there is a switch if the previous action is not the same as the current action
-        switch_in_midblock = (current_mid_block_action != previous_mid_block_action)
-        switches.append(switch_in_midblock)
+        # switches.append(switch_in_intersection)
+        # # For midblock, there is a switch if the previous action is not the same as the current action
+        # switch_in_midblock = (current_mid_block_action != previous_mid_block_action)
+        # switches.append(switch_in_midblock)
 
         # Mandatory yellow enforcement
         # if any(switches):
@@ -699,6 +700,7 @@ class ControlEnv(gym.Env):
         1. Alternatively Maximum wait aggregated queue (mwaq) can also be used for reward. 
             mwaq = (sum of queue lengths of all directions) x maximum waiting time among all 
             Can be used for both vehicle and pedestrian. Penalize high mwaq.
+        Remove dimensions from reward. Do counts of vehicles and pedestrians have dimensions?
         """
 
         reward = 0

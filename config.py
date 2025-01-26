@@ -45,7 +45,7 @@ def get_config():
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.2,  # Dropout rate for CNN
-        "action_dim": 6,  # Number of action logits (not the same as number of actions. think)
+        "action_dim": 7 + 4,  # 7 + 4 for simple action. Number of action logits (not the same as number of actions. think)
         "in_channels": 1, # in_channels for cnn
 
         # Evaluation
