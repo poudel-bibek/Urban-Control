@@ -74,6 +74,7 @@ class ControlEnv(gym.Env):
             for edge in edges:
                 self.edge_to_direction[edge] = direction
 
+        self.midblock_phase_groups = {0: "rrG", 1: "GGr", 2: "yyr", 3: "rrr"}
         self.directions = ["north", "east", "south", "west"]
         self.turns = ["straight", "right", "left"]
         self.direction_turn_intersection_incoming = [f"{direction}-{turn}" for direction in self.directions for turn in self.turns]
@@ -655,13 +656,16 @@ class ControlEnv(gym.Env):
         For Intersection: 
 
         For each Midblock:
-        - GGr: Green for the 2 vehicle directions, red for pedestrian crosswalk
-        - yyr: Yellow for the 2 vehicle directions, red for pedestrian crosswalk
-        - rrG: Red for both vehicle directions, green for pedestrian crosswalk
+        - Action = 0: rrG: Red for both vehicle directions, green for pedestrian crosswalk
+        - Action = 1: GGr: Green for the 2 vehicle directions, red for pedestrian crosswalk
+        - If switch state is 1 (that means current action is 0):
+             - Action 2: 4 timesteps of yyr: Yellow for the 2 vehicle directions, red for pedestrian crosswalk
+             - Action 3: 1 timestep of rrr (all-red)
+             - Action 0: 5 timestep of rrG
 
         * It does not matter what phases are specified in the Tlogic in net file, we override it from here.
         """
-        print(f"Action: {action}")
+        print(f"Action: {action}, switch_state: {switch_state}, type: {type(switch_state)}")
         current_phase = []
 
         # Intersection
@@ -687,8 +691,25 @@ class ControlEnv(gym.Env):
         traci.trafficlight.setRedYellowGreenState(self.tl_ids[0], int_state)
         
         # Midblock
+        for i in range(1, len(self.tl_ids)):
+            tl_id = self.tl_ids[i]
+            mb_switch_state = switch_state[i]
 
-        current_phase.extend([0, 2, 3, 2, 1, 0, 1, 0]) # 9 bits that represent the latest phase. Return as a list.
+            if mb_switch_state == 1:
+                if current_action_step < 4:
+                    mb_action = 2
+                elif current_action_step == 4:
+                    mb_action = 3
+                elif current_action_step == 5:
+                    mb_action = 0
+            else:
+                mb_action = action[i]
+            
+            current_phase.append(mb_action)
+            mb_phase_string = self.midblock_phase_groups[mb_action]
+            print(f"Setting phase: {mb_phase_string} for {tl_id}")
+            traci.trafficlight.setRedYellowGreenState(tl_id, mb_phase_string)
+
         return current_phase
     
     def _apply_advanced_action(self, action, current_action_step, prev_action=None):
