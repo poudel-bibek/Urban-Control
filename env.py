@@ -81,6 +81,18 @@ class ControlEnv(gym.Env):
         self.direction_turn_intersection_inside = [f"{direction}-{turn}" for direction in self.directions for turn in ["straight", "left"]] # Exclude right
         self.direction_turn_midblock = ["west-straight", "east-straight"]
 
+        # Normalization parameters (100m cutoff distance with 5m veh and 2.5m gap = approx 13 vehicles)
+        self.max_pressure_vehicle = 15
+        self.max_pressure_pedestrian = 25 # arbitrary
+        self.max_switches = len(self.tl_ids)
+        
+        # Reward weights 
+        self.l1 = control_args.get('l1')  # intersection vehicle pressure weight
+        self.l2 = control_args.get('l2')  # intersection pedestrian pressure weight 
+        self.l3 = control_args.get('l3')  # midblock vehicle pressure weight
+        self.l4 = control_args.get('l4')  # midblock pedestrian pressure weight
+        self.l5 = control_args.get('l5')  # switch penalty weight
+
     def _get_vehicle_direction(self, signal_state):
         # Define signal bits for left and right blinkers
         VEH_SIGNAL_BLINKER_RIGHT = 0b1  # Bit 0
@@ -724,6 +736,7 @@ class ControlEnv(gym.Env):
     
     def _get_pressure_based_reward(self, pressure_dict, switch_state):
         """
+        * Normalized pressure-based
         * Reward is based on the alleviation of pressure (penalize high pressure)
         * Intersection:
             - Vehicle pressure = Incoming - Outgoing 
@@ -733,45 +746,46 @@ class ControlEnv(gym.Env):
         Other components: 
             - Penalize frequent changes of action based on switch_state
 
-        # TODO: 
-        - Get the lambda values from wandb config.
-        - Remove dimensions from reward. Do counts of vehicles and pedestrians have dimensions?
+        * All components are normalized (removes dimensions) to approximately [-1, 0] range before applying weights.
+        * The lambda values can be gotten from wandb config
         """
 
-        reward = 0
-        l1, l2, l3, l4, l5 = -0.33, -0.33, -0.33, -0.33, -1 # Negative because we want to penalize high pressure
-
-        # Intersection
-        # Vehicles
+        # Intersection vehicle pressure (normalize by max pressure * number of directions)
         int_veh_pressure = 0
         for direction in self.directions:
             int_veh_pressure += pressure_dict["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"][direction]
+        norm_int_veh_pressure = int_veh_pressure / (self.max_pressure_vehicle * len(self.directions))
 
-        # Pedestrians
+        # Intersection pedestrian pressure
         int_ped_pressure = 0
         for direction in self.directions:
             int_ped_pressure += pressure_dict["cluster_172228464_482708521_9687148201_9687148202_#5more"]["pedestrian"][direction]
+        norm_int_ped_pressure = int_ped_pressure / (self.max_pressure_pedestrian * len(self.directions))
 
-        # Midblock
-        # Vehicles (two directions)
+        # Midblock vehicle pressure (normalize by max pressure * number of midblock TLs * directions per TL)
         mb_veh_pressure = 0
+        num_midblock = len(self.tl_ids[1:])
         for tl_id in self.tl_ids[1:]:
             for direction in self.direction_turn_midblock:
                 mb_veh_pressure += pressure_dict[tl_id]["vehicle"][direction]
+        norm_mb_veh_pressure = mb_veh_pressure / (self.max_pressure_vehicle * num_midblock * len(self.direction_turn_midblock))
 
-        # Pedestrians (one direction)
+        # Midblock pedestrian pressure
         mb_ped_pressure = 0
         for tl_id in self.tl_ids[1:]:
             mb_ped_pressure += pressure_dict[tl_id]["pedestrian"]["north"]
-                
-        reward = l1*int_veh_pressure + l2*int_ped_pressure + l3*mb_veh_pressure + l4*mb_ped_pressure
+        norm_mb_ped_pressure = mb_ped_pressure / (self.max_pressure_pedestrian * num_midblock)
 
-        # Other components
-        # Frequent change penalty
-        frequency_penalty = sum(switch_state) # If a lot of signals were changed, this will be higher.
-        reward -= l5 * frequency_penalty # Since this is per step, action change penalty is reflected multiplied by action steps.
-        
-        #print(f"\nStep Reward: {reward}")
+        # Switch penalty (already normalized by max possible switches)
+        norm_switch_penalty = sum(switch_state) / self.max_switches
+
+        # Calculate final reward
+        reward = (self.l1 * norm_int_veh_pressure + 
+                 self.l2 * norm_int_ped_pressure + 
+                 self.l3 * norm_mb_veh_pressure + 
+                 self.l4 * norm_mb_ped_pressure + 
+                 self.l5 * norm_switch_penalty)
+
         return reward
 
     def _get_mwaq_reward(self, pressure_dict, switch_state):

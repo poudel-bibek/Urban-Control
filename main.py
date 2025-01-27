@@ -71,8 +71,9 @@ def parallel_worker(rank, shared_policy_old, control_args, queue, global_seed, w
 
         if steps_since_update >= memory_transfer_freq or done or truncated:
             # Put local memory in the queue for the main process to collect
-            queue.put((rank, deepcopy(local_memory)))
-            time.sleep(1) # prevent Empty queue error.
+            memory_copy = deepcopy(local_memory)
+            queue.put((rank, memory_copy))
+            time.sleep(2) # prevent Empty queue error.
             local_memory = Memory()  # Reset local memory
             steps_since_update = 0
 
