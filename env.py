@@ -474,13 +474,14 @@ class ControlEnv(gym.Env):
         reward = 0
         done = False
         observation_buffer = []
+        action = np.array(action)
         # switch detection does not need to be done every timestep. 
         switch_state = self._detect_switch(action, self.previous_action)
 
         for i in range(self.steps_per_action): # Run simulation steps for the duration of the action
             
             # Apply action is called every timestep (return information useful for reward calculation)
-            current_phase = self._apply_action(np.array(action), i, switch_state)
+            current_phase = self._apply_action(action, i, switch_state)
             traci.simulationStep() # Step length is the simulation time that elapses when each time this is called.
             self.step_count += 1
             obs = self._get_observation(current_phase)
@@ -488,11 +489,7 @@ class ControlEnv(gym.Env):
 
             # Do before reward calculation
             pressure_dict = self._get_pressure_dict(self.corrected_occupancy_map)
-
-            # Accumulate reward
-            # TODO: For the time being. Modify it later.
-            #reward += self._get_reward(current_tl_action)
-            reward += 0 
+            reward += self._get_reward(pressure_dict, switch_state)
 
         # outside the loop
         self.previous_action = action
@@ -517,8 +514,8 @@ class ControlEnv(gym.Env):
             - Action = 0 means vehicle red (pedestrian green)
             - We only enfore a mandatory yellow phase if there is a 1 to 0 transition i.e., only consider this as a switch.
         """
-        current_action = ''.join(map(str, current_action.tolist()))
-        previous_action = ''.join(map(str, previous_action.tolist()))
+        current_action = ''.join(map(str, current_action))
+        previous_action = ''.join(map(str, previous_action))
         current_intersection_action = current_action[0:1]
         current_mid_block_action = current_action[1:]  
         previous_intersection_action = previous_action[0:1]
@@ -720,8 +717,13 @@ class ControlEnv(gym.Env):
         """
         pass
 
-    def _get_reward(self, pressure_dict, current_tl_action):
+    def _get_reward(self, pressure_dict, switch_state):
         """ 
+        """
+        return self._get_pressure_based_reward(pressure_dict, switch_state)
+    
+    def _get_pressure_based_reward(self, pressure_dict, switch_state):
+        """
         * Reward is based on the alleviation of pressure (penalize high pressure)
         * Intersection:
             - Vehicle pressure = Incoming - Outgoing 
@@ -729,61 +731,56 @@ class ControlEnv(gym.Env):
         * Mid-block:
             - Same as intersection
         Other components: 
-            - Penalize frequent changes of action/ switching
+            - Penalize frequent changes of action based on switch_state
 
         # TODO: 
-        0. Get the lambda values from wandb config.
-        1. Alternatively Maximum wait aggregated queue (mwaq) can also be used for reward. 
-            mwaq = (sum of queue lengths of all directions) x maximum waiting time among all 
-            Can be used for both vehicle and pedestrian. Penalize high mwaq.
-        Remove dimensions from reward. Do counts of vehicles and pedestrians have dimensions?
+        - Get the lambda values from wandb config.
+        - Remove dimensions from reward. Do counts of vehicles and pedestrians have dimensions?
         """
 
         reward = 0
-        lambda1, lambda2, lambda3 = -0.33, -0.33, -0.33
+        l1, l2, l3, l4, l5 = -0.33, -0.33, -0.33, -0.33, -1 # Negative because we want to penalize high pressure
 
         # Intersection
-        vehicle_pressure = 0
-        for tl_id in self.tl_ids:
-            for direction in self.directions:
-                vehicle_pressure += pressure_dict[tl_id]['vehicle'][direction]
+        # Vehicles
+        int_veh_pressure = 0
+        for direction in self.directions:
+            int_veh_pressure += pressure_dict["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"][direction]
 
-        # Crosswalk Signal Control
-        pedestrian_pressure = 0
-        for tl_id in self.tl_ids:
-            for direction in self.directions:
-                pedestrian_pressure += pressure_dict[tl_id]['pedestrian'][direction]
+        # Pedestrians
+        int_ped_pressure = 0
+        for direction in self.directions:
+            int_ped_pressure += pressure_dict["cluster_172228464_482708521_9687148201_9687148202_#5more"]["pedestrian"][direction]
 
-        #### MWAQ based ####
-        # TODO:: Implement this and add to sweep.
+        # Midblock
+        # Vehicles (two directions)
+        mb_veh_pressure = 0
+        for tl_id in self.tl_ids[1:]:
+            for direction in self.direction_turn_midblock:
+                mb_veh_pressure += pressure_dict[tl_id]["vehicle"][direction]
 
-        # Crosswalk control
-        crosswalks_pressure = 0
-        controlled_crosswalk_pressures = []
-        for crosswalk_id in self.controlled_crosswalk_masked_ids:
-            if crosswalk_id != '9687187501_c0':
-                controlled_crosswalk_pressures.append(pressure_dict['crosswalks'][crosswalk_id]) 
-
-        # Only collect the positive pressure values. A negative value means re-routed i.e., the pressure was discarded.
-        crosswalks_pressure = sum(pressure for pressure in controlled_crosswalk_pressures if pressure > 0)
+        # Pedestrians (one direction)
+        mb_ped_pressure = 0
+        for tl_id in self.tl_ids[1:]:
+            mb_ped_pressure += pressure_dict[tl_id]["pedestrian"]["north"]
                 
-        reward = lambda1*vehicle_pressure + lambda2*pedestrian_pressure + lambda3*crosswalks_pressure
+        reward = l1*int_veh_pressure + l2*int_ped_pressure + l3*mb_veh_pressure + l4*mb_ped_pressure
 
-
-        # Corridor
-        # Crosswalk control
-
-        # Other general components
-        # Frequency penalty
-        if self.previous_action is not None and current_tl_action != self.previous_action:
-            reward -= 0.5  # Penalty for changing tl actions. Since this is per step reward. Action change is reflected multiplied by action steps.
+        # Other components
+        # Frequent change penalty
+        frequency_penalty = sum(switch_state) # If a lot of signals were changed, this will be higher.
+        reward -= l5 * frequency_penalty # Since this is per step, action change penalty is reflected multiplied by action steps.
         
-        # Re-route penalty (because any re-route increases travel time). Only collect the negative pressure values
-        reroute_pressure = sum(pressure for pressure in controlled_crosswalk_pressures if pressure < 0) # This is already negative.
-        reward -= reroute_pressure
-
         #print(f"\nStep Reward: {reward}")
         return reward
+
+    def _get_mwaq_reward(self, pressure_dict, switch_state):
+        """
+        Maximum wait aggregated queue (mwaq)
+        mwaq = (sum of queue lengths of all directions) x maximum waiting time among all 
+        Can be used for both vehicle and pedestrian. Penalize high mwaq.
+        """
+        pass
 
     def _check_done(self):
         """
