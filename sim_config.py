@@ -110,7 +110,7 @@ def get_intersection_phase_groups():
     """
 
     int_tl_phase_groups = {
-        0: "GGrrrrrrGGrrrrrr", # east-straight, east-right, west-straight, west-right 
+        0: "GGGGrrrrGGGGrrrr", # east-straight, east-right, west-straight, west-right, since east-left and west-left share the lane, they are also G. Same for u-turns. 
         1: "rrrrGGrrrrrrGGrr", # north-straight, north-right, south-straight, south-right
         2: "rrrrrrGGrrrrrrGG", # north-east, south-west (for visuals, make u-turn ON as well)
         3: "rrrrrrrrrrrrrrrr", # all red

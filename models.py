@@ -147,6 +147,7 @@ class CNNActorCritic(nn.Module):
     
         * Advanced Action: 
         """
+        print(f"State: shape: {state.shape}, type: {type(state)}")
         state_tensor = state.reshape(1, self.in_channels, self.action_duration, self.per_timestep_state_dim) # 1= batch size
         action_logits = self.actor(state_tensor)
         #print(f"\nAction logits: {action_logits}")

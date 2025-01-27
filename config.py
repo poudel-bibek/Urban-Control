@@ -90,7 +90,7 @@ def classify_and_return_args(train_config, worker_device):
         'model_size': train_config['model_size'],
         'kernel_size': train_config['kernel_size'],
         'dropout_rate': train_config['dropout_rate'],
-        'per_timestep_state_dim': 97, # Circular dependency, hardcoded here. For simple state space
+        'per_timestep_state_dim': 96, # Circular dependency, hardcoded here. For simple state space
     }
 
     ppo_args = {

@@ -281,7 +281,6 @@ class ControlEnv(gym.Env):
             print(f"\nIntersection:")
             print(f"Vehicles: {pressure_dict['cluster_172228464_482708521_9687148201_9687148202_#5more']['vehicle']}")
             print(f"Pedestrians: {pressure_dict['cluster_172228464_482708521_9687148201_9687148202_#5more']['pedestrian']}")
-            
             print("\nMidblock TLs:")
             for tl_id in self.tl_ids[1:]:
                 print(f"{tl_id}:")
@@ -700,14 +699,18 @@ class ControlEnv(gym.Env):
                     mb_action = 2
                 elif current_action_step == 4:
                     mb_action = 3
-                elif current_action_step == 5:
+                elif current_action_step >= 5:
                     mb_action = 0
             else:
                 mb_action = action[i]
             
             current_phase.append(mb_action)
             mb_phase_string = self.midblock_phase_groups[mb_action]
-            print(f"Setting phase: {mb_phase_string} for {tl_id}")
+
+            if tl_id == "cluster_9740157181_9740483933": # For this TL, add 4 small 'g's after the first letter
+                mb_phase_string = mb_phase_string[0] + "g"*5 + mb_phase_string[1:]
+
+            #print(f"Setting phase: {mb_phase_string} for {tl_id}")
             traci.trafficlight.setRedYellowGreenState(tl_id, mb_phase_string)
 
         return current_phase
