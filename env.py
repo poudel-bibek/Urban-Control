@@ -661,7 +661,7 @@ class ControlEnv(gym.Env):
 
         * It does not matter what phases are specified in the Tlogic in net file, we override it from here.
         """
-        print(f"Action: {action}, switch_state: {switch_state}, type: {type(switch_state)}")
+        #print(f"Action: {action}, switch_state: {switch_state}, type: {type(switch_state)}")
         current_phase = []
 
         # Intersection

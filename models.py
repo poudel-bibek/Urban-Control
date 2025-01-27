@@ -147,7 +147,7 @@ class CNNActorCritic(nn.Module):
     
         * Advanced Action: 
         """
-        print(f"State: shape: {state.shape}, type: {type(state)}")
+        #print(f"State: shape: {state.shape}, type: {type(state)}")
         state_tensor = state.reshape(1, self.in_channels, self.action_duration, self.per_timestep_state_dim) # 1= batch size
         action_logits = self.actor(state_tensor)
         #print(f"\nAction logits: {action_logits}")
@@ -205,17 +205,13 @@ class CNNActorCritic(nn.Module):
         midblock_probs = torch.sigmoid(midblock_logits)
         midblock_dist = Bernoulli(midblock_probs)
 
-        # 2.1 Convert binary intersection actions to decimal
-        intersection_bits = actions[:, :2]  # (batch_size, 2)
-        intersection_int = (2 * intersection_bits[:, 0] + intersection_bits[:, 1]).long()
-        midblock_bits = actions[:, 2:].float() # (batch_size, 7)
-        # print(f"\nIntersection bits: {intersection_bits}, shape: {intersection_bits.shape}")
-        # print(f"\nIntersection int: {intersection_int}, shape: {intersection_int.shape}")
-        # print(f"\nMidblock bits: {midblock_bits}, shape: {midblock_bits.shape}")
-
-        # 2.2 Get log probs
-        intersection_log_probs = intersection_dist.log_prob(intersection_int)
-        midblock_log_probs = midblock_dist.log_prob(midblock_bits)
+        # 2. Get log probs
+        intersection_action = actions[:, :1].float()  # (batch_size, 1)
+        midblock_actions = actions[:, 1:].float() # (batch_size, 7)
+        # print(f"\nIntersection action: {intersection_action}, shape: {intersection_action.shape}")
+        # print(f"\nMidblock actions: {midblock_actions}, shape: {midblock_actions.shape}")
+        intersection_log_probs = intersection_dist.log_prob(intersection_action)
+        midblock_log_probs = midblock_dist.log_prob(midblock_actions)
         # print(f"\nIntersection log probs: {intersection_log_probs}, shape: {intersection_log_probs.shape}")
         # print(f"\nMidblock log probs: {midblock_log_probs}, shape: {midblock_log_probs.shape}")
 
