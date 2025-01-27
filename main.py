@@ -6,6 +6,7 @@ import wandb
 import torch
 import random
 import numpy as np
+from copy import deepcopy
 from datetime import datetime
 from ppo import PPO, Memory
 from config import get_config
@@ -70,8 +71,8 @@ def parallel_worker(rank, shared_policy_old, control_args, queue, global_seed, w
 
         if steps_since_update >= memory_transfer_freq or done or truncated:
             # Put local memory in the queue for the main process to collect
-            time.sleep(1)
-            queue.put((rank, local_memory))
+            queue.put((rank, deepcopy(local_memory)))
+            time.sleep(1) # prevent Empty queue error.
             local_memory = Memory()  # Reset local memory
             steps_since_update = 0
 
@@ -170,8 +171,6 @@ def train(train_config, is_sweep=False, sweep_config=None):
     best_reward = float('-inf')
 
     for iteration in range(0, total_iterations): # Starting from 1 to prevent policy update in the very first iteration.
-        
-        global_step = iteration * train_config['num_processes']*control_args['total_action_timesteps_per_episode']*train_config['action_duration']
         print(f"\nStarting iteration: {iteration + 1}/{total_iterations} with {global_step} total steps so far\n")
 
         queue = mp.Queue()
@@ -210,9 +209,12 @@ def train(train_config, is_sweep=False, sweep_config=None):
 
                 # Update PPO every n times (or close) action has been taken 
                 if action_timesteps >= control_args['update_freq']:
+                    global_step += action_timesteps * train_config['action_duration']
                     action_timesteps = 0 
-                    print(f"Updating PPO with {len(all_memories)} memories HERE")
+
+                    print(f"Updating PPO with {len(all_memories)} memories")
                     loss = control_ppo.update(all_memories)
+
                     # Update shared policy with new weights after PPO update
                     shared_policy_old.model.load_state_dict(control_ppo.policy_old.state_dict())
 
@@ -221,7 +223,6 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     print(f"\nAverage Reward per process: {avg_reward:.2f}\n")
                     
                     all_memories = [] # reset memories
-
                     # logging after update
                     if loss is not None:
                         if is_sweep: # Wandb for hyperparameter tuning
@@ -266,7 +267,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
 
     wandb.finish() if is_sweep else writer.close()
 
-def evaluate(config, design_env):
+def eval(config, design_env):
     """
     Evaluate "RL agents (design + control)" vs "real-world (original design + TL)".
     TODO: Make the evaluation run N number of times each with different seed. 
