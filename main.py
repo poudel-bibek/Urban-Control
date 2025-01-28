@@ -127,7 +127,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
     config_path = os.path.join(log_dir, f'config_{current_time}.json')
     save_config(train_config, SEED, config_path)
     print(f"Configuration saved to {config_path}")
-    
+
     control_args, ppo_args = classify_and_return_args(train_config, worker_device)
 
     # Print stats from dummy environment
@@ -309,7 +309,7 @@ def main(config):
             pass
 
     elif config['sweep']:
-        tuner = HyperParameterTuner(config)
+        tuner = HyperParameterTuner(config, train)
         tuner.start()
     else:
         train(config)

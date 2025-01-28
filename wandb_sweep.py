@@ -1,21 +1,20 @@
-import os
 import wandb
 class HyperParameterTuner: 
-    def __init__(self, args):
-        self.args = args
+    def __init__(self, config, train_function):
+        self.config = config
         self.project = "ppo-urban-control"
-
-    def start(self):
+        self.train_function = train_function
+        
+    def start(self, ):
         sweep_id = self.create_sweep_config()
-        wandb.agent(sweep_id, function= self.hyperparameter_tune_main, count= self.args["total_sweep_trials"]) 
+        wandb.agent(sweep_id, function= self.hyperparameter_tune_main, count= self.config["total_sweep_trials"]) 
 
     def hyperparameter_tune_main(self):
         wandb.init(project=self.project) 
         config = wandb.config
-        from main import train # Importing here to avoid circular import error.
-        train(self.args, is_sweep=True, sweep_config=config)
+        self.train_function(self.config, is_sweep=True, sweep_config=config)
 
-    def create_sweep_config(self):
+    def create_sweep_config(self, ):
         """
         If using random, max and min values are required.
         We do not want to get weird weights such as 0.192 for various params. Hence not using random search.
@@ -52,11 +51,11 @@ class HyperParameterTuner:
             'kernel_size': {'values': [3, 5]},
             'dropout_rate': {'values': [0.1, 0.2, 0.3]},
             # Reward related lambda
-            'l1': {'values': [-0.33, -0.5, -1]},
-            'l2': {'values': [-0.33, -0.5, -1]},
-            'l3': {'values': [-0.33, -0.5, -1]},
-            'l4': {'values': [-0.33, -0.5, -1]},
-            'l5': {'values': [-0.33, -0.5, -1]},
+            'l1': {'values': [-0.33, -0.5, -1]}, # intersection vehicle pressure weight
+            'l2': {'values': [-0.33, -0.5, -1]}, # intersection pedestrian pressure weight 
+            'l3': {'values': [-0.33, -0.5, -1]}, # midblock vehicle pressure weight
+            'l4': {'values': [-0.33, -0.5, -1]}, # midblock pedestrian pressure weight
+            'l5': {'values': [-0.33, -0.5, -1]}, # switch penalty weight
             }
         }
         sweep_id = wandb.sweep(sweep_config, entity="fluidic-city", project=self.project)
