@@ -48,6 +48,13 @@ def get_config():
         "action_dim": 7 + 4,  # 7 + 4 for simple action. Number of action logits (not the same as number of actions. think)
         "in_channels": 1, # in_channels for cnn
 
+        # PPO reward weights
+        "l1": -0.33,  # intersection vehicle pressure weight
+        "l2": -0.33,  # intersection pedestrian pressure weight 
+        "l3": -0.33,  # midblock vehicle pressure weight
+        "l4": -0.33,  # midblock pedestrian pressure weight
+        "l5": -0.33,  # switch penalty weight
+
         # Evaluation
         "evaluate": None,  # Evaluation mode: 'tl' (traffic light), 'ppo', or None
         "model_path": None,  # Path to the saved PPO model for evaluation
@@ -83,6 +90,11 @@ def classify_and_return_args(train_config, worker_device):
         'num_processes': train_config['num_processes'],
         'anneal_lr': train_config['anneal_lr'],
         'update_freq': train_config['update_freq'],
+        'l1': train_config['l1'],
+        'l2': train_config['l2'],
+        'l3': train_config['l3'],
+        'l4': train_config['l4'],
+        'l5': train_config['l5'],
     }
 
     model_kwargs = { # This is not to be returned on its own

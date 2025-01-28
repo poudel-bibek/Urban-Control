@@ -113,6 +113,21 @@ def train(train_config, is_sweep=False, sweep_config=None):
 
     worker_device = torch.device("cuda") if train_config['gpu'] and torch.cuda.is_available() else torch.device("cpu")
     print(f"Using device: {worker_device}")
+
+    # Set and save hyperparameters 
+    if is_sweep:
+        for key, value in sweep_config.items():
+            train_config[key] = value
+
+    os.makedirs('runs', exist_ok=True)
+    current_time = datetime.now().strftime('%b%d_%H-%M-%S')
+    log_dir = os.path.join('runs', current_time)
+    os.makedirs(log_dir, exist_ok=True)
+
+    config_path = os.path.join(log_dir, f'config_{current_time}.json')
+    save_config(train_config, SEED, config_path)
+    print(f"Configuration saved to {config_path}")
+    
     control_args, ppo_args = classify_and_return_args(train_config, worker_device)
 
     # Print stats from dummy environment
@@ -139,19 +154,9 @@ def train(train_config, is_sweep=False, sweep_config=None):
     )
 
     shared_policy_old.model.load_state_dict(control_ppo.policy_old.state_dict())
-
-    # TensorBoard setup
-    current_time = datetime.now().strftime('%b%d_%H-%M-%S')
-    log_dir = os.path.join('runs', current_time)
-    os.makedirs('runs', exist_ok=True)
-    writer = SummaryWriter(log_dir=log_dir)
     
-    # Save hyperparameters 
-    config_path = os.path.join(log_dir, f'config_{current_time}.json')
-    save_config(train_config, SEED, config_path)
-    print(f"Configuration saved to {config_path}")
-
-    # Model saving setup
+    # Model saving and tensorboard 
+    writer = SummaryWriter(log_dir=log_dir)
     save_dir = os.path.join('saved_models', current_time)
     os.makedirs(save_dir, exist_ok=True)
     control_args.update({

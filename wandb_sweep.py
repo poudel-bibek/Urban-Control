@@ -4,17 +4,16 @@ class HyperParameterTuner:
     def __init__(self, args):
         self.args = args
         self.project = "ppo-urban-control"
-        wandb.login(key="75fd76d4675a1868cd6ae899d1fbfb2eadaea843")
 
     def start(self):
         sweep_id = self.create_sweep_config()
-        wandb.agent(sweep_id, function= self.hyperparameter_tune_main, count= self.args.total_sweep_trials) 
+        wandb.agent(sweep_id, function= self.hyperparameter_tune_main, count= self.args["total_sweep_trials"]) 
 
     def hyperparameter_tune_main(self):
         wandb.init(project=self.project) 
         config = wandb.config
         from main import train # Importing here to avoid circular import error.
-        train(self.args, is_sweep=True, config=config)
+        train(self.args, is_sweep=True, sweep_config=config)
 
     def create_sweep_config(self):
         """
@@ -60,5 +59,5 @@ class HyperParameterTuner:
             'l5': {'values': [-0.33, -0.5, -1]},
             }
         }
-        sweep_id = wandb.sweep(sweep_config, entity="matmul", project=self.project)
+        sweep_id = wandb.sweep(sweep_config, entity="fluidic-city", project=self.project)
         return sweep_id
