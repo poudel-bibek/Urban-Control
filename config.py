@@ -13,7 +13,7 @@ def get_config():
         "vehicle_output_trips": "./SUMO_files/scaled_trips/scaled_vehtrips.xml",  # Output trips file
         "pedestrian_input_trips": "./SUMO_files/original_pedtrips.xml",  # Original Input pedestrian trips file
         "pedestrian_output_trips": "./SUMO_files/scaled_trips/scaled_pedtrips.xml",  # Output pedestrian trips file
-        "original_net_file": "./SUMO_files/Craver_traffic_lights.net.xml",  # Original net file
+        "original_net_file": "./SUMO_files/Craver_traffic_lights_wide.net.xml",  # Original net file
 
         # Demand scaling
         "manual_demand_veh": None,  # Manually scale vehicle demand before starting the simulation (veh/hr)

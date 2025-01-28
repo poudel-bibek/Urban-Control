@@ -229,8 +229,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     print(f"\nAverage Reward per process: {avg_reward:.2f}\n")
                     
                     all_memories = [] # reset memories
-                    # logging after update
-                    if loss is not None:
+                    if loss is not None: # logging after update
                         if is_sweep: # Wandb for hyperparameter tuning
                             wandb.log({ "iteration": iteration,
                                             "avg_reward": avg_reward, # Set as maximize in the sweep config
@@ -249,8 +248,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                             writer.add_scalar('Value_Loss', loss['value_loss'], global_step)
                             writer.add_scalar('Entropy_Loss', loss['entropy_loss'], global_step)
                             writer.add_scalar('Total_Loss', loss['total_loss'], global_step)
-                            writer.add_scalar('Current_LR', current_lr, global_step)
-                            print(f"Logged agent data at step {global_step}")
+                            writer.add_scalar('Current_LR', current_lr if control_args['anneal_lr'] else control_args['lr'], global_step)
 
                             # Save model every n times it has been updated (may not every iteration)
                             if control_args['save_freq'] > 0 and total_updates % control_args['save_freq'] == 0:
@@ -260,18 +258,19 @@ def train(train_config, is_sweep=False, sweep_config=None):
                             if avg_reward > best_reward:
                                 torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], 'best_control_model.pth'))
                                 best_reward = avg_reward
-                    
+                        
+                        print(f"Logged agent data at step {global_step}")
                     else: # For some reason..
                         print("Warning: loss is None")
-        
+
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-
         # Clean up. The join() method ensures that the main program waits for all processes to complete before continuing.
         for p in processes:
             p.join() 
 
-    wandb.finish() if is_sweep else writer.close()
+    if not is_sweep:
+        writer.close()
 
 def eval(config, design_env):
     """

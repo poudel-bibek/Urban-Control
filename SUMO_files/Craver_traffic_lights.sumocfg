@@ -1,6 +1,6 @@
 <configuration>
     <input>
-        <net-file value="Craver_traffic_lights.net.xml"/>
+        <net-file value="Craver_traffic_lights_wide.net.xml"/>
     </input>
     <output>
         <log value="sumo_logfile.txt"/>

@@ -778,14 +778,11 @@ class ControlEnv(gym.Env):
 
         # Switch penalty (already normalized by max possible switches)
         norm_switch_penalty = sum(switch_state) / self.max_switches
-
-        # Calculate final reward
         reward = (self.l1 * norm_int_veh_pressure + 
                  self.l2 * norm_int_ped_pressure + 
                  self.l3 * norm_mb_veh_pressure + 
                  self.l4 * norm_mb_ped_pressure + 
                  self.l5 * norm_switch_penalty)
-
         return reward
 
     def _get_mwaq_reward(self, pressure_dict, switch_state):
