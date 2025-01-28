@@ -1,8 +1,10 @@
+import os
 import wandb
 class HyperParameterTuner: 
     def __init__(self, args):
         self.args = args
-        self.project = "ppo_urban_control"
+        self.project = "ppo-urban-control"
+        wandb.login(key="75fd76d4675a1868cd6ae899d1fbfb2eadaea843")
 
     def start(self):
         sweep_id = self.create_sweep_config()
@@ -58,5 +60,5 @@ class HyperParameterTuner:
             'l5': {'values': [-0.33, -0.5, -1]},
             }
         }
-        sweep_id = wandb.sweep(sweep_config, project=self.project)
+        sweep_id = wandb.sweep(sweep_config, entity="matmul", project=self.project)
         return sweep_id
