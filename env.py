@@ -5,7 +5,7 @@ import torch
 import random
 import gymnasium as gym
 import numpy as np
-from utils import convert_demand_to_scale_factor, scale_demand
+from utils import convert_demand_to_scale_factor, scale_demand, visualize_observation
 from sim_config import get_direction_lookup, get_related_lanes_edges, get_intersection_phase_groups
 
 class ControlEnv(gym.Env):
@@ -59,6 +59,7 @@ class ControlEnv(gym.Env):
         self.previous_action = None
         # Number of simulation steps that should occur for each action. 
         self.steps_per_action = int(self.action_duration / self.step_length) # This is also one of the dimensions of the size of the observation buffer
+        self.per_timestep_state_dim = control_args['per_timestep_state_dim']
         print(f"Steps per action: {self.steps_per_action}")
 
         self.current_action_step = 0 # To track where we are within the curret action's duration
@@ -470,7 +471,7 @@ class ControlEnv(gym.Env):
         * Observation space is defined per action step (i.e. accumulated over action duration)
         """
         # Simple observation
-        return gym.spaces.Box(low=0, high=1, shape=(self.steps_per_action, 97), dtype=np.float32)
+        return gym.spaces.Box(low=0, high=1, shape=(self.steps_per_action, self.per_timestep_state_dim), dtype=np.float32)
     
         # Advanced observation
         # TODO: Implement
@@ -501,7 +502,7 @@ class ControlEnv(gym.Env):
 
             # Do before reward calculation
             pressure_dict = self._get_pressure_dict(self.corrected_occupancy_map)
-            reward += self._get_reward(pressure_dict, switch_state)
+            reward += self._get_reward(pressure_dict, self.corrected_occupancy_map, switch_state)
 
         # outside the loop
         self.previous_action = action
@@ -511,6 +512,8 @@ class ControlEnv(gym.Env):
             done = True
 
         observation = np.asarray(observation_buffer, dtype=np.float32) 
+        #print(f"\nObservation shape: {observation.shape}, type: {type(observation)}, value: {observation}")
+        #visualize_observation(observation)
         return observation, reward, done, False, {} # info is empty
     
     def _detect_switch(self, current_action, previous_action):
@@ -552,9 +555,9 @@ class ControlEnv(gym.Env):
 
     def _get_simple_observation(self, current_phase, print_map=False):
         """
-        * Per step observation size = 97
+        * Per step observation size = 96
         * Composed of: 
-            - Current phase information (9 elements that transitions throughout the action duration)
+            - Current phase information (8 elements that transitions throughout the action duration)
             - Intersection (32 elements):
                 - Vehicles: 
                     - Incoming (12 directions)
@@ -571,7 +574,7 @@ class ControlEnv(gym.Env):
                 - Pedestrians
                     - Incoming (1 direction)
                     - Outgoing (1 direction)
-            - 9 + 32 + 56 = 97
+            - 8 + 32 + 56 = 96
 
         * Each action persists for a number of timesteps (transitioning though phases); observation is collected at each timestep.
         * Pressure itself is not a part of the observation (only used for reward calculation).
@@ -640,7 +643,7 @@ class ControlEnv(gym.Env):
             observation.append(len(self.corrected_occupancy_map[tl_id]["pedestrian"]["outgoing"]["north"]["main"]))
         # print(f"\nObservation before normalization: {observation}")
         observation = np.asarray(observation, dtype=np.float32)/ 10.0 # max normalizer
-        #print(f"\nObservation: shape: {observation.shape}, value: {observation}") 
+        #print(f"\nObservation: shape: {observation.shape}, value: {observation}, type: {type(observation)}") 
         return observation
 
     def _get_advanced_observation(self, current_phase, print_map=False):
@@ -729,10 +732,11 @@ class ControlEnv(gym.Env):
         """
         pass
 
-    def _get_reward(self, pressure_dict, switch_state):
+    def _get_reward(self, pressure_dict, corrected_occupancy_map, switch_state):
         """ 
         """
-        return self._get_pressure_based_reward(pressure_dict, switch_state)
+        # return self._get_pressure_based_reward(pressure_dict, switch_state)
+        return self._get_mwaq_reward(corrected_occupancy_map, switch_state)
     
     def _get_pressure_based_reward(self, pressure_dict, switch_state):
         """
@@ -785,13 +789,89 @@ class ControlEnv(gym.Env):
                  self.l5 * norm_switch_penalty)
         return reward
 
-    def _get_mwaq_reward(self, pressure_dict, switch_state):
+    def _get_mwaq_reward(self, corrected_occupancy_map, switch_state):
         """
-        Maximum wait aggregated queue (mwaq)
-        mwaq = (sum of queue lengths of all directions) x maximum waiting time among all 
-        Can be used for both vehicle and pedestrian. Penalize high mwaq.
+        * Maximum wait aggregated queue (MWAQ)
+        * MWAQ = For each TL, For both veh and ped: [sum of queue lengths of all directions x maximum waiting time among all]
+        * Penalize high MWAQ, i.e. make it negative.
+        * Individually normalize MWAQ for each TL.
+        Other components: 
+            - Penalize frequent changes of action based on switch_state 
+
+        Vehicles:
+        - getWaitingTime: The waiting time (in seconds) of a vehicle spent with speed below 0.1 m/s. Reset to 0 every time it moves.
+        - getAccumulatedWaitingTime: The accumulated waiting time (in seconds) of a vehicle over a certain time interval (interval length is set with --waiting-time-memory)
+        Pedestrians:
+        - getWaitingTime: The waiting time (in seconds) of a pedestrian spent with speed below 0.1 m/s. Reset to 0 every time it moves.
+
+        # TODO: Should we consider vicinity for pedestrians as well?
         """
-        pass
+        MWAQ_VEH_NORMALIZER = 100
+        MWAQ_PED_NORMALIZER = 100
+
+        # Intersection 
+        # Vehicle
+        int_veh_mwaq = 0
+        max_wait_time_veh_int = 0
+        for direction_turn in self.direction_turn_intersection_incoming:
+            int_vehicles = corrected_occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"][direction_turn]
+            veh_queue_length = len(int_vehicles)
+            for veh_id in int_vehicles:
+                wait_time = traci.vehicle.getWaitingTime(veh_id)
+                if wait_time > max_wait_time_veh_int:
+                    max_wait_time_veh_int = wait_time
+            int_veh_mwaq += veh_queue_length * max_wait_time_veh_int
+        norm_int_veh_mwaq = int_veh_mwaq / (MWAQ_VEH_NORMALIZER * len(self.direction_turn_intersection_incoming))
+
+        # Pedestrian
+        int_ped_mwaq = 0
+        max_wait_time_ped_int = 0
+        for direction in self.directions:
+            int_pedestrians = corrected_occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["pedestrian"]["incoming"][direction]["main"]
+            ped_queue_length = len(int_pedestrians)
+            for ped_id in int_pedestrians:
+                wait_time = traci.person.getWaitingTime(ped_id)
+                if wait_time > max_wait_time_ped_int:
+                    max_wait_time_ped_int = wait_time
+            int_ped_mwaq += ped_queue_length * max_wait_time_ped_int
+        norm_int_ped_mwaq = int_ped_mwaq / (MWAQ_PED_NORMALIZER * len(self.directions))
+
+        # Midblock
+        # Vehicle
+        mb_veh_mwaq = 0
+        for tl_id in self.tl_ids[1:]:
+            max_wait_time_veh_mb = 0
+            for direction in self.direction_turn_midblock:
+                mb_vehicles = corrected_occupancy_map[tl_id]["vehicle"]["incoming"][direction]
+                veh_queue_length = len(mb_vehicles)
+                for veh_id in mb_vehicles:
+                    wait_time = traci.vehicle.getWaitingTime(veh_id)
+                    if wait_time > max_wait_time_veh_mb:
+                        max_wait_time_veh_mb = wait_time
+                mb_veh_mwaq += veh_queue_length * max_wait_time_veh_mb
+        norm_mb_veh_mwaq = mb_veh_mwaq / (MWAQ_VEH_NORMALIZER * len(self.tl_ids[1:]) * len(self.direction_turn_midblock))
+
+        # Pedestrian    
+        mb_ped_mwaq = 0
+        for tl_id in self.tl_ids[1:]:
+            max_wait_time_ped_mb = 0
+            mb_pedestrians = corrected_occupancy_map[tl_id]["pedestrian"]["incoming"]["north"]["main"] # only one direction # 
+            ped_queue_length = len(mb_pedestrians)
+            for ped_id in mb_pedestrians:
+                wait_time = traci.person.getWaitingTime(ped_id)
+                if wait_time > max_wait_time_ped_mb:
+                    max_wait_time_ped_mb = wait_time
+            mb_ped_mwaq += ped_queue_length * max_wait_time_ped_mb
+        norm_mb_ped_mwaq = mb_ped_mwaq / (MWAQ_PED_NORMALIZER * len(self.tl_ids[1:]))
+
+        # Frequency of switch state changes
+        norm_switch_penalty = sum(switch_state) / len(self.tl_ids)
+        reward = (self.l1 * norm_int_veh_mwaq + 
+                 self.l2 * norm_int_ped_mwaq + 
+                 self.l3 * norm_mb_veh_mwaq + 
+                 self.l4 * norm_mb_ped_mwaq + 
+                 self.l5 * norm_switch_penalty)
+        return reward
 
     def _check_done(self):
         """

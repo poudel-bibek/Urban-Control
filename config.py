@@ -4,7 +4,7 @@ def get_config():
     """
     config = {
         # Simulation
-        "sweep": True,  # Use wandb sweeps for hyperparameter tuning
+        "sweep": False,  # Use wandb sweeps for hyperparameter tuning
         "gui": True,  # Use SUMO GUI (default: False)
         "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
         "action_duration": 10,  # Duration of each action (default: 10.0)
@@ -28,6 +28,7 @@ def get_config():
         "max_timesteps": 640,  # Maximum number of steps in one episode (make this multiple of 16*10)
         "total_sweep_trials": 128,  # Total number of trials for the wandb sweep
         "memory_transfer_freq": 16,  # Frequency of memory transfer from worker to main process 
+        "per_timestep_state_dim": 96,  # Number of features per timestep
 
         # PPO
         "anneal_lr": True,  # Anneal learning rate
@@ -76,6 +77,7 @@ def classify_and_return_args(train_config, worker_device):
         'manual_demand_ped': train_config['manual_demand_ped'],
         'step_length': train_config['step_length'],
         'action_duration': train_config['action_duration'],
+        'per_timestep_state_dim': train_config['per_timestep_state_dim'], 
         'gui': train_config['gui'],
         'auto_start': train_config['auto_start'],
         'max_timesteps': train_config['max_timesteps'],
@@ -102,7 +104,7 @@ def classify_and_return_args(train_config, worker_device):
         'model_size': train_config['model_size'],
         'kernel_size': train_config['kernel_size'],
         'dropout_rate': train_config['dropout_rate'],
-        'per_timestep_state_dim': 96, # Circular dependency, hardcoded here. For simple state space
+        'per_timestep_state_dim': train_config['per_timestep_state_dim'],
     }
 
     ppo_args = {

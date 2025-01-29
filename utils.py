@@ -1,13 +1,13 @@
 import os
-import time
 import xml
-import xml.etree.ElementTree as ET
-import logging
-import matplotlib.pyplot as plt
-import seaborn as sns
+import time
 import random
-import networkx as nx
+import logging
 import numpy as np
+import networkx as nx
+import seaborn as sns
+import matplotlib.pyplot as plt
+import xml.etree.ElementTree as ET
 
 def convert_demand_to_scale_factor(demand, demand_type, input_file):
     """
@@ -151,3 +151,31 @@ def scale_demand(input_file, output_file, scale_factor, demand_type):
     
     # Wait for the file writing operations to finish (it could be large)
     time.sleep(2)
+    
+def visualize_observation(observation):
+    """
+    Visualize each timestep observation as image (save as png).
+    Observation shape is (96, action_timesteps) containing normalized values between 0-1 representing:
+    - Intersection vehicle counts (incoming, inside, outgoing) for each direction
+    - Intersection pedestrian counts (incoming, outgoing) for each direction  
+    - Midblock vehicle counts (incoming, inside, outgoing) for each direction
+    - Midblock pedestrian counts (incoming, outgoing) for each direction
+    """
+    
+    fig, ax = plt.subplots(figsize=(12, 8))
+    n_timesteps = observation.shape[0] 
+    n_features = observation.shape[1]
+    
+    im = ax.imshow(observation, cmap='YlOrRd', interpolation='nearest', vmin=0, vmax=1)
+    ax.set_title('Observation')
+    ax.set_xlabel('Features')
+    ax.set_ylabel('Timesteps')
+    
+    # Add grid lines at feature boundaries
+    ax.set_xticks(np.arange(-.5, n_features, 1), minor=True)
+    ax.set_yticks(np.arange(-.5, n_timesteps , 1), minor=True)
+    ax.grid(which="minor", color="black", linestyle='-', linewidth=0.5)
+    
+    plt.colorbar(im, location='right', shrink=0.25, aspect=10)
+    plt.savefig('observation.png', bbox_inches='tight', dpi=200)
+    plt.close()
