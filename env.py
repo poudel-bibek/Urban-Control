@@ -904,7 +904,6 @@ class ControlEnv(gym.Env):
     def reset(self):
         """
         """
-        super().reset()
         if self.sumo_running:
             time.sleep(5) # Wait until the process really finishes 
             traci.close(False) #https://sumo.dlr.de/docs/TraCI/Interfacing_TraCI_from_Python.html

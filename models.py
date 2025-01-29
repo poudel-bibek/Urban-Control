@@ -14,8 +14,7 @@ class CNNActorCritic(nn.Module):
             Medium: 6 Conv layers, 5 Linear layers
 
         Regularization: Dropout and Batch Norm (mitigation of internal covariate shift)
-        Conservatively using pooling layers. Every piece of information is important, however we also want to avoid overfitting and keep parameters modest. 
-        Dilation: For the first layer, experiment with dilation. (Disabled for now)
+        Using strided convolutions instead of pooling layers.
 
         During hyper-param sweep, the model size changes based on one of the dimension of the input (action_duration). 
         Even at high action durations, the model size is around 4.1M parameters. 
@@ -36,14 +35,15 @@ class CNNActorCritic(nn.Module):
                 nn.Conv2d(in_channels, 16, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(16),
                 nn.LeakyReLU(),
-                nn.MaxPool2d(kernel_size=2, stride=2),  # Added pooling layer
-                nn.Conv2d(16, 32, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.Conv2d(16, 32, kernel_size=kernel_size, stride=2, padding=padding),  # Strided Conv 
                 nn.BatchNorm2d(32),
                 nn.LeakyReLU(),
                 nn.Conv2d(32, 64, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(64),
                 nn.LeakyReLU(),
-                nn.MaxPool2d(kernel_size=2, stride=2),  # Added pooling layer
+                nn.Conv2d(64, 64, kernel_size=kernel_size, stride=2, padding=padding),  # Strided Conv 
+                nn.BatchNorm2d(64),
+                nn.LeakyReLU(),
                 nn.Conv2d(64, 64, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(64),
                 nn.LeakyReLU(),
@@ -57,21 +57,21 @@ class CNNActorCritic(nn.Module):
                 nn.Conv2d(in_channels, 16, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(16),
                 nn.LeakyReLU(),
-                nn.MaxPool2d(kernel_size=2, stride=2),  # Added pooling layer
-                nn.Conv2d(16, 32, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.Conv2d(16, 32, kernel_size=kernel_size, stride=2, padding=padding),  # Strided Conv 
                 nn.BatchNorm2d(32),
                 nn.LeakyReLU(),
                 nn.Conv2d(32, 64, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(64),
                 nn.LeakyReLU(),
-                nn.MaxPool2d(kernel_size=2, stride=2),  # Added pooling layer
-                nn.Conv2d(64, 128, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.Conv2d(64, 128, kernel_size=kernel_size, stride=2, padding=padding), # Strided Conv 
                 nn.BatchNorm2d(128),
                 nn.LeakyReLU(),
                 nn.Conv2d(128, 128, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(128),
                 nn.LeakyReLU(),
-                nn.MaxPool2d(kernel_size=2, stride=2),  # Added pooling layer
+                nn.Conv2d(128, 128, kernel_size=kernel_size, stride=2, padding=padding), # Strided Conv 
+                nn.BatchNorm2d(128),
+                nn.LeakyReLU(),
                 nn.Conv2d(128, 128, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(128),
                 nn.LeakyReLU(),
