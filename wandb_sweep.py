@@ -57,11 +57,11 @@ class HyperParameterTuner:
                 'kernel_size': {'values': [3, 5]},
                 'dropout_rate': {'values': [0.1, 0.2, 0.3]},
                 # Reward related lambda
-                'l1': {'values': [-0.33, -0.5, -1]}, # intersection vehicle pressure weight
-                'l2': {'values': [-0.33, -0.5, -1]}, # intersection pedestrian pressure weight 
-                'l3': {'values': [-0.33, -0.5, -1]}, # midblock vehicle pressure weight
-                'l4': {'values': [-0.33, -0.5, -1]}, # midblock pedestrian pressure weight
-                'l5': {'values': [-0.33, -0.5, -1]}, # switch penalty weight
+                'l1': {'values': [-0.20, -0.33, -0.5]}, # intersection vehicle 
+                'l2': {'values': [-0.20, -0.33, -0.5]}, # intersection pedestrian 
+                'l3': {'values': [-0.20, -0.33, -0.5]}, # midblock vehicle 
+                'l4': {'values': [-0.20, -0.33, -0.5]}, # midblock pedestrian
+                'l5': {'values': [-0.10, -0.20, -0.33, -0.5]}, # switch penalty 
                 }
             }
         
@@ -84,7 +84,7 @@ class HyperParameterTuner:
                     'distribution': 'uniform'
                 },
                 'update_freq': {
-                    'values': [64, 128, 256, 512]
+                    'values': [16, 32, 64, 128]
                 },
                 'gamma': {
                     'min': 0.90,
@@ -129,27 +129,27 @@ class HyperParameterTuner:
                 # Reward-related lambdas: continuous range 
                 'l1': {
                     'min': -1.0,
-                    'max': 0.0,
+                    'max': -0.1,
                     'distribution': 'uniform'
                 },
                 'l2': {
                     'min': -1.0,
-                    'max': 0.0,
+                    'max': -0.1,
                     'distribution': 'uniform'
                 },
                 'l3': {
                     'min': -1.0,
-                    'max': 0.0,
+                    'max': -0.1,
                     'distribution': 'uniform'
                 },
                 'l4': {
                     'min': -1.0,
-                    'max': 0.0,
+                    'max': -0.1,
                     'distribution': 'uniform'
                 },
                 'l5': {
                     'min': -1.0,
-                    'max': 0.0,
+                    'max': -0.1,
                     'distribution': 'uniform'
                 }
             }

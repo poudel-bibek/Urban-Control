@@ -1,0 +1,38 @@
+***Starting server on port 37513 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (15ms).
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_3.xml'
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_3.xml'
+Loading done.
+Simulation started with time: 0.00.
+Warning: Person '57' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=443.00.
+Warning: Person '2039' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=489.00.
+Warning: Person '1948' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=491.00.
+Warning: Person '1941' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=499.00.
+Warning: Person '56' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=550.00.
+Error: tcpip::Socket::recvAndCheck @ recv: Connection reset by peer
+Quitting (on error).
+Simulation ended at time: 603.00.
+Performance:
+ Duration: 304.53s
+ TraCI-Duration: 278.53s
+ Real time factor: 1.98013
+ UPS: 23.712261
+ UPS-Persons: 850.163861
+Vehicles:
+ Inserted: 36 (Loaded: 37)
+ Running: 12
+ Waiting: 0
+Persons:
+ Inserted: 1306
+ Running: 630
+ Jammed: 5
+DijkstraRouter answered 23327 queries and explored 5.56 edges on average.
+DijkstraRouter spent 0.02s answering queries (0.00ms on average).
+DijkstraRouter answered 1305 queries and explored 474.27 edges on average.
+DijkstraRouter spent 0.06s answering queries (0.05ms on average).
+DijkstraRouter answered 36 queries and explored 57.47 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.03ms on average).
+ and explored 57.61 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.00ms on average).
+outer answered 80 queries and explored 57.77 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.05ms on average).

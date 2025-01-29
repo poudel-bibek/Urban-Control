@@ -73,7 +73,6 @@ def parallel_worker(rank, shared_policy_old, control_args, queue, global_seed, w
             # Put local memory in the queue for the main process to collect
             memory_copy = deepcopy(local_memory)
             queue.put((rank, memory_copy))
-            time.sleep(2) # prevent Empty queue error.
             local_memory = Memory()  # Reset local memory
             steps_since_update = 0
 
@@ -84,7 +83,7 @@ def parallel_worker(rank, shared_policy_old, control_args, queue, global_seed, w
     # In PPO, we do not make use of the total reward. We only use the rewards collected in the memory.
     print(f"Worker {rank} finished. Total reward: {ep_reward}")
     worker_env.close()
-    time.sleep(5) # Essential
+    time.sleep(10) # Essential
     queue.put((rank, None))  # Signal that this worker is done
 
 def save_config(config, SEED, save_path):
@@ -174,6 +173,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
     control_ppo.total_iterations = total_iterations
     global_step = 0
     action_timesteps = 0
+    total_updates = 0
     best_reward = float('-inf')
 
     for iteration in range(0, total_iterations): # Starting from 1 to prevent policy update in the very first iteration.
@@ -217,6 +217,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                 if action_timesteps >= control_args['update_freq']:
                     global_step += action_timesteps * train_config['action_duration']
                     action_timesteps = 0 
+                    total_updates += 1
 
                     print(f"Updating PPO with {len(all_memories)} memories")
                     loss = control_ppo.update(all_memories)
@@ -241,14 +242,13 @@ def train(train_config, is_sweep=False, sweep_config=None):
                                             "global_step": global_step          })
                             
                         else: # Tensorboard for regular training
-                            total_updates = int(action_timesteps / control_args['update_freq'])
-                            writer.add_scalar('Average_Reward', avg_reward, global_step)
-                            writer.add_scalar('Total_Policy_Updates', total_updates, global_step)
-                            writer.add_scalar('Policy_Loss', loss['policy_loss'], global_step)
-                            writer.add_scalar('Value_Loss', loss['value_loss'], global_step)
-                            writer.add_scalar('Entropy_Loss', loss['entropy_loss'], global_step)
-                            writer.add_scalar('Total_Loss', loss['total_loss'], global_step)
-                            writer.add_scalar('Current_LR', current_lr if control_args['anneal_lr'] else control_args['lr'], global_step)
+                            writer.add_scalar('Training/Average_Reward', avg_reward, global_step)
+                            writer.add_scalar('Training/Total_Policy_Updates', total_updates, global_step)
+                            writer.add_scalar('Training/Policy_Loss', loss['policy_loss'], global_step)
+                            writer.add_scalar('Training/Value_Loss', loss['value_loss'], global_step)
+                            writer.add_scalar('Training/Entropy_Loss', loss['entropy_loss'], global_step)
+                            writer.add_scalar('Training/Total_Loss', loss['total_loss'], global_step)
+                            writer.add_scalar('Training/Current_LR', current_lr if control_args['anneal_lr'] else control_args['lr'], global_step)
 
                             # Save model every n times it has been updated (may not every iteration)
                             if control_args['save_freq'] > 0 and total_updates % control_args['save_freq'] == 0:

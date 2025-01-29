@@ -18,15 +18,15 @@ def get_config():
         # Demand scaling
         "manual_demand_veh": None,  # Manually scale vehicle demand before starting the simulation (veh/hr)
         "manual_demand_ped": None,  # Manually scale pedestrian demand before starting the simulation (ped/hr)
-        "demand_scale_min": 0.5,  # Minimum demand scaling factor for automatic scaling
-        "demand_scale_max": 4.0,  # Maximum demand scaling factor for automatic scaling
+        "demand_scale_min": 1.0,  # Minimum demand scaling factor for automatic scaling
+        "demand_scale_max": 3.5,  # Maximum demand scaling factor for automatic scaling
 
         # PPO (general params)
         "seed": None,  # Random seed (default: None)
         "gpu": True,  # Use GPU if available (default: use CPU)
         "total_timesteps": 1500000,  # Total number of timesteps the simulation will run
         "max_timesteps": 640,  # Maximum number of steps in one episode (make this multiple of 16*10)
-        "total_sweep_trials": 128,  # Total number of trials for the wandb sweep
+        "total_sweep_trials": 256,  # Total number of trials for the wandb sweep
         "memory_transfer_freq": 16,  # Frequency of memory transfer from worker to main process 
         "per_timestep_state_dim": 96,  # Number of features per timestep
 
@@ -34,11 +34,11 @@ def get_config():
         "anneal_lr": True,  # Anneal learning rate
         "gae_lambda": 0.95,  # GAE lambda
         "update_freq": 128,  # Number of action timesteps between each policy update
-        "lr": 0.002,  # Learning rate
+        "lr": 0.0001,  # Learning rate
         "gamma": 0.99,  # Discount factor
-        "K_epochs": 4,  # Number of epochs to update policy
+        "K_epochs": 2,  # Number of epochs to update policy
         "eps_clip": 0.2,  # Clip parameter for PPO
-        "save_freq": 2,  # Save model after every n updates (0 to disable), for both design and control agents
+        "save_freq": 2,  # Save model after every n updates (0 to disable)
         "ent_coef": 0.01,  # Entropy coefficient
         "vf_coef": 0.5,  # Value function coefficient
         "batch_size": 32,  # Batch size
@@ -50,11 +50,11 @@ def get_config():
         "in_channels": 1, # in_channels for cnn
 
         # PPO reward weights
-        "l1": -0.33,  # intersection vehicle pressure weight
-        "l2": -0.33,  # intersection pedestrian pressure weight 
-        "l3": -0.33,  # midblock vehicle pressure weight
-        "l4": -0.33,  # midblock pedestrian pressure weight
-        "l5": -0.33,  # switch penalty weight
+        "l1": -0.20,  # intersection vehicle
+        "l2": -0.20,  # intersection pedestrian 
+        "l3": -0.20,  # midblock vehicle 
+        "l4": -0.20,  # midblock pedestrian 
+        "l5": -0.1,  # switch penalty weight
 
         # Evaluation
         "evaluate": None,  # Evaluation mode: 'tl' (traffic light), 'ppo', or None
