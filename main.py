@@ -27,7 +27,7 @@ class SharedPolicy:
                                  **model_args['kwargs']).to(device)
         self.model.share_memory()  # Makes the model parameters shared across processes
         
-def parallel_worker(rank, shared_policy_old, control_args, queue, global_seed, worker_device):
+def parallel_train_worker(rank, shared_policy_old, control_args, queue, global_seed, worker_device):
     """
     At every iteration, a number of workers will each parallelly carry out one episode in control environment.
     - Worker environment runs in CPU (SUMO runs in CPU).
@@ -184,7 +184,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
         active_workers = []
         for rank in range(control_args['num_processes']):
             p = mp.Process(
-                target=parallel_worker,
+                target=parallel_train_worker,
                 args=(
                     rank,
                     shared_policy_old,
@@ -272,12 +272,124 @@ def train(train_config, is_sweep=False, sweep_config=None):
     if not is_sweep:
         writer.close()
 
-def eval(config, design_env):
+def parallel_eval_worker(rank, eval_worker_config):
     """
-    Evaluate "RL agents (design + control)" vs "real-world (original design + TL)".
-    TODO: Make the evaluation run N number of times each with different seed. 
+    - For the same demand, each worker runs n_iterations number of episodes and measures performance metrics at each iteration.
+    - Each episode runs on a different random seed.
+    - Performance metrics: 
+        - Average waiting time (Veh, Ped)
+        - Average travel time (Veh, Ped)
+    - Returns a dictionary with performance metrics
+    - For PPO: 
+        - Each worker create a copy of the policy and run it
     """
-    pass
+    ppo_args = eval_worker_config['policy_args']
+    eval_control_ppo = PPO(**ppo_args)
+    eval_control_ppo.policy.load_state_dict(torch.load(eval_worker_config['policy_path']))
+    
+    worker_demand = eval_worker_config['worker_demand']
+    env_args = eval_worker_config['control_env_args']
+
+    # We set the demand manually (so that automatic scaling does not happen)
+    env_args['manual_demand_veh'] = worker_demand
+    env_args['manual_demand_ped'] = worker_demand
+    env = ControlEnv(env_args, worker_id=rank)
+
+    worker_result = {}
+    worker_result['demand'] = worker_demand
+    # Run the worker
+    for i in range(eval_worker_config['n_iterations']):
+        worker_result[i] = {}
+        SEED = random.randint(0, 1000000)
+        random.seed(SEED)
+        np.random.seed(SEED)
+        torch.manual_seed(SEED)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(SEED)
+
+        worker_result[i]['SEED'] = SEED
+
+        # Run the worker
+        state, _ = env.reset()
+        veh_waiting_time_this_episode = 0
+        ped_waiting_time_this_episode = 0
+
+        for _ in range(eval_worker_config['n_timesteps']):
+            action, _ = eval_control_ppo.policy.act(state)
+            state, reward, done, truncated, _ = env.step(action)
+
+            # During this step, get all vehicles and pedestrians
+            veh_waiting_time_this_step = env.get_vehicle_waiting_time()
+            ped_waiting_time_this_step = env.get_pedestrian_waiting_time()
+
+            veh_waiting_time_this_episode += veh_waiting_time_this_step
+            ped_waiting_time_this_episode += ped_waiting_time_this_step
+
+        # gather performance metrics
+        worker_result[i]['veh_total_waiting_time'] = veh_waiting_time_this_episode
+        worker_result[i]['ped_total_waiting_time'] = ped_waiting_time_this_episode
+
+def eval(config):
+    """
+    Evaluate RL agent vs real-world TL
+    - Each demand is run on a different worker
+    - First eval trained ppo policy, then TL
+    - Results are put in a json and saved
+
+    """
+    n_workers = config['eval_n_workers']
+    eval_worker_device = config['eval_worker_device']
+    n_iterations = config['eval_n_iterations']
+    n_timesteps = config['eval_n_timesteps']
+    
+    policy_path = config['eval_model_path']
+    env_args, ppo_args = classify_and_return_args(config, "gpu")
+    eval_demands = config['eval_demands']
+
+    # PPO
+    # number of times the n_workers have to be repeated to cover all eval demands
+    num_times_workers_recycle = len(eval_demands) if len(eval_demands) < n_workers else (len(eval_demands) // n_workers) + 1
+    for i in range(num_times_workers_recycle):
+        start = n_workers * i   
+        end = n_workers * (i + 1)
+        demands_evaluated_current_cycle = eval_demands[start: end]
+
+        queue = mp.Queue()
+        processes = []  
+        active_workers = []
+        for j, demand in enumerate(demands_evaluated_current_cycle): 
+            rank = i * len(demands_evaluated_current_cycle) + j # This j goes from 0 to len(demands_evaluated_current_cycle) - 1
+            worker_config = {
+                'n_iterations': n_iterations,
+                'n_timesteps': n_timesteps,
+                'worker_demand': demand,
+                'policy_path': policy_path,
+                'policy_args': ppo_args,
+                'control_env_args': env_args,
+                'worker_device': eval_worker_device
+            }
+            p = mp.Process(
+                target=parallel_eval_worker,
+                args=(rank, worker_config))
+            
+            p.start()
+            processes.append(p)
+            active_workers.append(rank)
+
+        all_results = {}
+        while active_workers:
+            rank, result = queue.get(timeout=60) # Result is obtained after all iterations are complete
+            print(f"Result from worker {rank}: {result}")
+            all_results[rank] = result
+            active_workers.remove(rank)
+
+        for p in processes:
+            p.join()
+
+        print(f"All results: {all_results}")    
+        current_time = datetime.now().strftime('%b%d_%H-%M-%S')
+        with open(os.path.join(config['save_dir'], f'eval_results_{current_time}.json'), 'w') as f:
+            json.dump(all_results, f, indent=4)
 
 def calculate_performance(run_data,):
     """

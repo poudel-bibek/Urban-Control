@@ -975,3 +975,20 @@ class ControlEnv(gym.Env):
         if self.sumo_running:
             traci.close(False) #https://sumo.dlr.de/docs/TraCI/Interfacing_TraCI_from_Python.html
             self.sumo_running = False
+
+    # Eval specific methods
+    def get_vehicle_waiting_time(self):
+        """
+        """
+        veh_waiting_time = 0
+        for veh_id in self.vehicles:
+            veh_waiting_time += traci.vehicle.getWaitingTime(veh_id)
+        return veh_waiting_time
+    
+    def get_pedestrian_waiting_time(self):
+        """
+        """
+        ped_waiting_time = 0
+        for ped_id in self.pedestrians:
+            ped_waiting_time += traci.person.getWaitingTime(ped_id)
+        return ped_waiting_time
