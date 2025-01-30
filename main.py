@@ -238,7 +238,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                                             "value_loss": loss['value_loss'], 
                                             "entropy_loss": loss['entropy_loss'],
                                             "total_loss": loss['total_loss'],
-                                            "current_lr": current_lr if control_args['anneal_lr'] else control_args['lr'],
+                                            "current_lr": current_lr if control_args['anneal_lr'] else ppo_args['lr'],
                                             "global_step": global_step          })
                             
                         else: # Tensorboard for regular training
@@ -248,7 +248,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                             writer.add_scalar('Training/Value_Loss', loss['value_loss'], global_step)
                             writer.add_scalar('Training/Entropy_Loss', loss['entropy_loss'], global_step)
                             writer.add_scalar('Training/Total_Loss', loss['total_loss'], global_step)
-                            writer.add_scalar('Training/Current_LR', current_lr if control_args['anneal_lr'] else control_args['lr'], global_step)
+                            writer.add_scalar('Training/Current_LR', current_lr if control_args['anneal_lr'] else ppo_args['lr'], global_step)
 
                             # Save model every n times it has been updated (may not every iteration)
                             if control_args['save_freq'] > 0 and total_updates % control_args['save_freq'] == 0:

@@ -84,7 +84,7 @@ class HyperParameterTuner:
                     'distribution': 'uniform'
                 },
                 'update_freq': {
-                    'values': [16, 32, 64, 128]
+                    'values': [64, 128, 256, 512]
                 },
                 'gamma': {
                     'min': 0.90,
@@ -99,9 +99,9 @@ class HyperParameterTuner:
                     'max': 0.30,
                     'distribution': 'uniform'
                 },
-                'ent_coef': { # Entropy coefficient: a small positive range in log-scale
-                    'min': 1e-4,
-                    'max': 0.01,
+                'ent_coef': { # Entropy coefficient: a small positive range in log-scale # force the agent to explore for a much longer duration.
+                    'min': 1e-4,  # Keep the lower bound for some fine-tuning at low entropy
+                    'max': 1.0,   # **Increase max to 1.0** (or even higher, like 2.0 or 5.0 if needed)
                     'distribution': 'log_uniform_values'
                 },
                 'vf_coef': {
@@ -125,7 +125,6 @@ class HyperParameterTuner:
                     'max': 0.3,
                     'distribution': 'uniform'
                 },
-
                 # Reward-related lambdas: continuous range 
                 'l1': {
                     'min': -1.0,
