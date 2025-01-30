@@ -547,14 +547,14 @@ class ControlEnv(gym.Env):
         # print(f"Switch state: {switch_state}")
         return switch_state
 
-    def _get_observation(self, current_phase, print_map=False):
+    def _get_observation(self, current_phase, print_map=True):
         """
         wrapper
         """
         return self._get_simple_observation(current_phase, print_map)
         # return self._get_advanced_observation(current_phase, print_map)
 
-    def _get_simple_observation(self, current_phase, print_map=False):
+    def _get_simple_observation(self, current_phase, print_map):
         """
         * Per step observation size = 96
         * Composed of: 
@@ -583,10 +583,12 @@ class ControlEnv(gym.Env):
         * Spatial locality: TLs are arranged from left to right. Information about incoming, inside, and outgoing is kept next to each other.
         * Temporal locality: Observations are stacked verticalled one timestep to the next.
         * Normalize everything with a max normalizer.
+
+        * Main and vicinity are given equal weightage (1). A single person in observation areas should represent same val.
         """
         
         self.corrected_occupancy_map = self._step_operations(self._get_occupancy_map(), print_map=print_map, cutoff_distance=100)
-        observation = list(current_phase) # 9 elements
+        observation = list(current_phase) # 8 elements
 
         # Intersection
         # - vehicles
@@ -610,12 +612,12 @@ class ControlEnv(gym.Env):
         for direction in self.directions:
             main = len(self.corrected_occupancy_map['cluster_172228464_482708521_9687148201_9687148202_#5more']["pedestrian"]["incoming"][direction]["main"])
             vicinity = len(self.corrected_occupancy_map['cluster_172228464_482708521_9687148201_9687148202_#5more']["pedestrian"]["incoming"][direction]["vicinity"])
-            int_incoming_ped.append(0.7*main + 0.3*vicinity)
+            int_incoming_ped.append(main + vicinity)
         observation.extend(int_incoming_ped)
 
         int_outgoing_ped = [] # 4 directions
         for direction in self.directions:
-            int_outgoing_ped.append(len(self.corrected_occupancy_map['cluster_172228464_482708521_9687148201_9687148202_#5more']["pedestrian"]["outgoing"][direction]))
+            int_outgoing_ped.append(len(self.corrected_occupancy_map['cluster_172228464_482708521_9687148201_9687148202_#5more']["pedestrian"]["outgoing"][direction]["main"]))
         observation.extend(int_outgoing_ped)
 
         # Midblock (7 TLs)
@@ -644,7 +646,7 @@ class ControlEnv(gym.Env):
             observation.append(len(self.corrected_occupancy_map[tl_id]["pedestrian"]["outgoing"]["north"]["main"]))
         # print(f"\nObservation before normalization: {observation}")
         observation = np.asarray(observation, dtype=np.float32)/ 10.0 # max normalizer
-        #print(f"\nObservation: shape: {observation.shape}, value: {observation}, type: {type(observation)}") 
+        print(f"\nObservation: shape: {observation.shape}, value: {observation}, type: {type(observation)}") 
         return observation
 
     def _get_advanced_observation(self, current_phase, print_map=False):
@@ -973,7 +975,7 @@ class ControlEnv(gym.Env):
                 observation_buffer.append(obs)
                 # No reward calculation
                 # self.step_count += 1 # We are not counting the warmup steps in the total simulation steps
-                
+
         print(f"Ended Warmup. Buffer length: {len(observation_buffer)}")
         observation_buffer = observation_buffer[-self.steps_per_action:] # Only keep the observation of thelast action
         observation = np.asarray(observation_buffer, dtype=np.float32)

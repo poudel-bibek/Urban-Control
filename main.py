@@ -178,7 +178,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
 
     for iteration in range(0, total_iterations): # Starting from 1 to prevent policy update in the very first iteration.
         print(f"\nStarting iteration: {iteration + 1}/{total_iterations} with {global_step} total steps so far\n")
-        print(f"Shared policy weights: {shared_policy_old.model.state_dict()}")
+        #print(f"Shared policy weights: {shared_policy_old.model.state_dict()}")
 
         queue = mp.Queue()
         processes = []
@@ -205,7 +205,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
         while active_workers:
             print(f"Active workers: {active_workers}")
 
-            rank, memory = queue.get(timeout=60) # Add a timeout to prevent infinite waiting
+            rank, memory = queue.get() #timeout=60) # Add a timeout to prevent infinite waiting
             if memory is None:
                 active_workers.remove(rank)
             else:
