@@ -952,23 +952,30 @@ class ControlEnv(gym.Env):
         self.step_count = 0 # This counts the timesteps in an episode. Needs reset.
         self.tl_lane_dict = get_related_lanes_edges()
 
-        # Randomly initialize actions (1 digit for intersection, 7 bits for crosswalks)
-        initial_action = np.concatenate([np.random.randint(4, size=1), np.random.randint(2, size=7)]).astype(np.int32)
-        initial_switch_state = np.zeros(8)
-        print(f"\nInitial action: {initial_action}\n")
+        # Warmup period
+        # How many actions to take during warmup?
+        num_actions_warmup = self.warmup_steps // self.steps_per_action
+        print(f"Number of actions during warmup: {num_actions_warmup}")
         observation_buffer = []
+        for i in range(num_actions_warmup):
+            # Randomly initialize actions (1 digit for intersection, 7 bits for crosswalks)
+            action = np.concatenate([np.random.randint(4, size=1), np.random.randint(2, size=7)]).astype(np.int32)
+            print(f"\nWarmup action {i}: {action}\n")
+            if i==0:
+                prev_action = action
+            switch_state = self._detect_switch(action, prev_action)
 
-        print(f"Starting {self.warmup_steps} warmup steps")
-        for i in range(self.warmup_steps):
-            current_phase = self._apply_action(initial_action, i, initial_switch_state)
-            traci.simulationStep() 
-            self.step_count += 1
-            obs = self._get_observation(current_phase)
-            pressure_dict = self._get_pressure_dict(self.corrected_occupancy_map)
-            observation_buffer.append(obs)
-        
+            for j in range(self.steps_per_action):
+                current_phase = self._apply_action(action, j, switch_state)
+                traci.simulationStep() 
+                obs = self._get_observation(current_phase)
+                _ = self._get_pressure_dict(self.corrected_occupancy_map)
+                observation_buffer.append(obs)
+                # No reward calculation
+                # self.step_count += 1 # We are not counting the warmup steps in the total simulation steps
+                
         print(f"Ended Warmup. Buffer length: {len(observation_buffer)}")
-        observation_buffer = observation_buffer[-self.steps_per_action:]
+        observation_buffer = observation_buffer[-self.steps_per_action:] # Only keep the observation of thelast action
         observation = np.asarray(observation_buffer, dtype=np.float32)
         print(f"\nObservation (in reset): {observation.shape}")
         return observation, {} # info is empty

@@ -8,7 +8,7 @@ def get_config():
         "gui": False,  # Use SUMO GUI (default: False)
         "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
         "action_duration": 10,  # Duration of each action (default: 10.0)
-        "warmup_steps": 50,  # Number of steps to run before collecting data
+        "warmup_steps": 100,  # Number of steps to run before collecting data
         "auto_start": True,  # Automatically start the simulation
         "vehicle_input_trips": "./SUMO_files/original_vehtrips.xml",  # Original Input trips file
         "vehicle_output_trips": "./SUMO_files/scaled_trips/scaled_vehtrips.xml",  # Output trips file
