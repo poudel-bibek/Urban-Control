@@ -1,37 +1,36 @@
-***Starting server on port 46695 ***
-Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (13ms).
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_3.xml'
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_3.xml'
+***Starting server on port 47197 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (23ms).
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_5.xml'
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_5.xml'
 Loading done.
 Simulation version UNKNOWN started with time: 0.00.
-Warning: Person '1945' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=445.00.
-Warning: Person '2039' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=462.00.
-Warning: Person '57' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=471.00.
-Warning: Person '1948' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=503.00.
-Warning: Person '56' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=555.00.
+Warning: Person '1945' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=461.00.
+Warning: Person '57' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=470.00.
+Warning: Person '1941' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=494.00.
+Warning: Person '2039' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=504.00.
+Warning: Person '56' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=545.00.
+Warning: Person '1502' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=621.00.
+Warning: Person '13' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=621.00.
 Simulation ended at time: 640.00.
 Reason: TraCI requested termination.
 Performance:
- Duration: 306.41s
- TraCI-Duration: 305.32s
- Real time factor: 2.08869
- UPS: 51.600460
- UPS-Persons: 764.999413
+ Duration: 350.62s
+ TraCI-Duration: 349.41s
+ Real time factor: 1.82534
+ UPS: 58.932916
+ UPS-Persons: 785.487951
 Vehicles:
- Inserted: 72 (Loaded: 89)
- Running: 35
+ Inserted: 95 (Loaded: 120)
+ Running: 40
  Waiting: 0
 Persons:
- Inserted: 1456
- Running: 541
- Jammed: 5
-DijkstraRouter answered 21260 queries and explored 5.56 edges on average.
+ Inserted: 1728
+ Running: 600
+ Jammed: 7
+DijkstraRouter answered 24474 queries and explored 5.52 edges on average.
 DijkstraRouter spent 0.02s answering queries (0.00ms on average).
-DijkstraRouter answered 1166 queries and explored 474.92 edges on average.
-DijkstraRouter spent 0.06s answering queries (0.05ms on average).
-DijkstraRouter answered 72 queries and explored 57.64 edges on average.
+DijkstraRouter answered 1361 queries and explored 478.33 edges on average.
+DijkstraRouter spent 0.07s answering queries (0.05ms on average).
+DijkstraRouter answered 95 queries and explored 57.84 edges on average.
 DijkstraRouter spent 0.00s answering queries (0.04ms on average).
-ored 476.53 edges on average.
-DijkstraRouter spent 0.07s answering queries (0.06ms on average).
-DijkstraRouter answered 83 queries and explored 57.70 edges on average.
-DijkstraRouter spent 0.01s answering queries (0.06ms on average).
+.

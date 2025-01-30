@@ -23,6 +23,10 @@ wandb/
 ./SUMO_files/scaled_trips/scaled_pedtrips_6.xml
 ./SUMO_files/scaled_trips/scaled_pedtrips_7.xml
 ./SUMO_files/scaled_trips/scaled_pedtrips_8.xml
+./SUMO_files/scaled_trips/scaled_pedtrips_9.xml
+./SUMO_files/scaled_trips/scaled_pedtrips_10.xml
+./SUMO_files/scaled_trips/scaled_pedtrips_11.xml
+
 
 ./SUMO_files/scaled_trips/scaled_vehtrips_0.xml
 ./SUMO_files/scaled_trips/scaled_vehtrips_1.xml
@@ -33,6 +37,9 @@ wandb/
 ./SUMO_files/scaled_trips/scaled_vehtrips_6.xml
 ./SUMO_files/scaled_trips/scaled_vehtrips_7.xml
 ./SUMO_files/scaled_trips/scaled_vehtrips_8.xml
+./SUMO_files/scaled_trips/scaled_vehtrips_9.xml
+./SUMO_files/scaled_trips/scaled_vehtrips_10.xml
+./SUMO_files/scaled_trips/scaled_vehtrips_11.xml
 
 /SUMO_files/scaled_trips/scaled_pedtrips_0.xml
 /SUMO_files/scaled_trips/scaled_pedtrips_1.xml
@@ -43,6 +50,9 @@ wandb/
 /SUMO_files/scaled_trips/scaled_pedtrips_6.xml
 /SUMO_files/scaled_trips/scaled_pedtrips_7.xml
 /SUMO_files/scaled_trips/scaled_pedtrips_8.xml
+/SUMO_files/scaled_trips/scaled_pedtrips_9.xml
+/SUMO_files/scaled_trips/scaled_pedtrips_10.xml
+/SUMO_files/scaled_trips/scaled_pedtrips_11.xml
 
 /SUMO_files/scaled_trips/scaled_vehtrips_0.xml
 /SUMO_files/scaled_trips/scaled_vehtrips_1.xml
@@ -53,3 +63,6 @@ wandb/
 /SUMO_files/scaled_trips/scaled_vehtrips_6.xml
 /SUMO_files/scaled_trips/scaled_vehtrips_7.xml
 /SUMO_files/scaled_trips/scaled_vehtrips_8.xml
+/SUMO_files/scaled_trips/scaled_vehtrips_9.xml
+/SUMO_files/scaled_trips/scaled_vehtrips_10.xml
+/SUMO_files/scaled_trips/scaled_vehtrips_11.xml

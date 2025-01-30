@@ -31,9 +31,10 @@ class ControlEnv(gym.Env):
         self.max_timesteps = control_args['max_timesteps']
         self.use_gui = control_args['gui']
         self.auto_start = control_args['auto_start']
+        self.warmup_steps = control_args['warmup_steps']
         self.sumo_running = False
         self.step_count = 0
-
+        
         # Modify file paths to include the unique suffix. Each worker has their own environment and hence their own copy of the trips file.
         self.unique_suffix = f"_{worker_id}" if worker_id is not None else ""
         self.vehicle_output_trips = self.vehicle_output_trips.replace('.xml', f'{self.unique_suffix}.xml')
@@ -877,8 +878,8 @@ class ControlEnv(gym.Env):
         reward = (self.l1 * norm_int_veh_mwaq + 
                  self.l2 * norm_int_ped_mwaq + 
                  self.l3 * norm_mb_veh_mwaq + 
-                 self.l4 * norm_mb_ped_mwaq + 
-                 self.l5 * norm_switch_penalty)
+                 self.l4 * norm_mb_ped_mwaq) 
+                 # self.l5 * norm_switch_penalty
 
         if print_reward:
             print(f"Intersection Reward Components:\n"
@@ -956,17 +957,18 @@ class ControlEnv(gym.Env):
         initial_switch_state = np.zeros(8)
         print(f"\nInitial action: {initial_action}\n")
         observation_buffer = []
-        for i in range(self.steps_per_action):
 
+        print(f"Starting {self.warmup_steps} warmup steps")
+        for i in range(self.warmup_steps):
             current_phase = self._apply_action(initial_action, i, initial_switch_state)
             traci.simulationStep() 
             self.step_count += 1
             obs = self._get_observation(current_phase)
             pressure_dict = self._get_pressure_dict(self.corrected_occupancy_map)
             observation_buffer.append(obs)
-            
-            # TODO: Should there be a reward calculation in reset?
-
+        
+        print(f"Ended Warmup. Buffer length: {len(observation_buffer)}")
+        observation_buffer = observation_buffer[-self.steps_per_action:]
         observation = np.asarray(observation_buffer, dtype=np.float32)
         print(f"\nObservation (in reset): {observation.shape}")
         return observation, {} # info is empty

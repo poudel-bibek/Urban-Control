@@ -178,6 +178,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
 
     for iteration in range(0, total_iterations): # Starting from 1 to prevent policy update in the very first iteration.
         print(f"\nStarting iteration: {iteration + 1}/{total_iterations} with {global_step} total steps so far\n")
+        print(f"Shared policy weights: {shared_policy_old.model.state_dict()}")
 
         queue = mp.Queue()
         processes = []
@@ -234,6 +235,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                         if is_sweep: # Wandb for hyperparameter tuning
                             wandb.log({ "iteration": iteration,
                                             "avg_reward": avg_reward, # Set as maximize in the sweep config
+                                            "total_updates": total_updates,
                                             "policy_loss": loss['policy_loss'],
                                             "value_loss": loss['value_loss'], 
                                             "entropy_loss": loss['entropy_loss'],

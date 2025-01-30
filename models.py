@@ -25,9 +25,9 @@ class CNNActorCritic(nn.Module):
         self.action_duration = kwargs.get('action_duration')
         self.per_timestep_state_dim = kwargs.get('per_timestep_state_dim')
 
-        model_size = kwargs.get('model_size', 'medium')
-        kernel_size = kwargs.get('kernel_size', 3)
-        dropout_rate = kwargs.get('dropout_rate', 0.2)
+        model_size = kwargs.get('model_size')
+        kernel_size = kwargs.get('kernel_size')
+        dropout_rate = kwargs.get('dropout_rate')
         padding = kernel_size // 2
 
         if model_size == 'small':
@@ -48,7 +48,7 @@ class CNNActorCritic(nn.Module):
                 nn.BatchNorm2d(64),
                 nn.LeakyReLU(),
                 nn.Flatten(),
-                nn.Dropout(dropout_rate)
+                #nn.Dropout(dropout_rate)
             )
             hidden_dim = 128
 
@@ -76,7 +76,7 @@ class CNNActorCritic(nn.Module):
                 nn.BatchNorm2d(128),
                 nn.LeakyReLU(),
                 nn.Flatten(),
-                nn.Dropout(dropout_rate)
+                #nn.Dropout(dropout_rate)
             )
             hidden_dim = 256
 
@@ -89,10 +89,10 @@ class CNNActorCritic(nn.Module):
         # Actor-specific layers
         self.actor_layers = nn.Sequential(
             nn.Linear(cnn_output_size, hidden_dim),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim, hidden_dim // 2),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim // 2, self.action_dim)
         )
@@ -100,10 +100,10 @@ class CNNActorCritic(nn.Module):
         # Critic-specific layers
         self.critic_layers = nn.Sequential(
             nn.Linear(cnn_output_size, hidden_dim),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim, hidden_dim // 2),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim // 2, 1)
         )

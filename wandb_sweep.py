@@ -121,36 +121,36 @@ class HyperParameterTuner:
                     'values': [3, 5]
                 },
                 'dropout_rate': {
-                    'min': 0.1,
+                    'min': 0.05,
                     'max': 0.3,
                     'distribution': 'uniform'
                 },
                 # Reward-related lambdas: continuous range 
-                'l1': {
-                    'min': -1.0,
-                    'max': -0.1,
-                    'distribution': 'uniform'
-                },
-                'l2': {
-                    'min': -1.0,
-                    'max': -0.1,
-                    'distribution': 'uniform'
-                },
-                'l3': {
-                    'min': -1.0,
-                    'max': -0.1,
-                    'distribution': 'uniform'
-                },
-                'l4': {
-                    'min': -1.0,
-                    'max': -0.1,
-                    'distribution': 'uniform'
-                },
-                'l5': {
-                    'min': -1.0,
-                    'max': -0.1,
-                    'distribution': 'uniform'
-                }
+                # 'l1': {
+                #     'min': -1.0,
+                #     'max': -0.1,
+                #     'distribution': 'uniform'
+                # },
+                # 'l2': {
+                #     'min': -1.0,
+                #     'max': -0.1,
+                #     'distribution': 'uniform'
+                # },
+                # 'l3': {
+                #     'min': -1.0,
+                #     'max': -0.1,
+                #     'distribution': 'uniform'
+                # },
+                # 'l4': {
+                #     'min': -1.0,
+                #     'max': -0.1,
+                #     'distribution': 'uniform'
+                # },
+                # 'l5': {
+                #     'min': -1.0,
+                #     'max': -0.1,
+                #     'distribution': 'uniform'
+                # }
             }
             }  
         sweep_id = wandb.sweep(sweep_config, entity="fluidic-city", project=self.project)
