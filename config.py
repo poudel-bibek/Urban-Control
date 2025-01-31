@@ -5,7 +5,7 @@ def get_config():
     config = {
         # Simulation
         "sweep": True,  # Use wandb sweeps for hyperparameter tuning
-        "gui": True,  # Use SUMO GUI (default: False)
+        "gui": False,  # Use SUMO GUI (default: False)
         "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
         "action_duration": 10,  # Duration of each action (default: 10.0)
         "warmup_steps": 100,  # Number of steps to run before collecting data
@@ -26,45 +26,47 @@ def get_config():
         "seed": None,  # Random seed (default: None)
         "gpu": True,  # Use GPU if available (default: use CPU)
         "total_timesteps": 100000,  # Total number of timesteps the simulation will run
-        "max_timesteps": 640,  # Maximum number of steps in one episode (make this multiple of 16*10)
+        "max_timesteps": 480,  # Maximum number of steps in one episode (make this multiple of 16*10)
         "total_sweep_trials": 256,  # Total number of trials for the wandb sweep
-        "memory_transfer_freq": 16,  # Frequency of memory transfer from worker to main process 
+        "memory_transfer_freq": 32,  # Increased from 16 to reduce transfer overhead
         "per_timestep_state_dim": 96,  # Number of features per timestep
+        "model_type": "mlp",  # Model type: 'cnn' or 'mlp'
 
         # PPO
-        "anneal_lr": False,  # Anneal learning rate
+        "anneal_lr": True,  # Enable learning rate annealing
         "gae_lambda": 0.95,  # GAE lambda
-        "update_freq": 128,  # Number of action timesteps between each policy update
-        "lr": 0.0001,  # Learning rate
+        "max_grad_norm": 0.5,  # Maximum gradient norm for gradient clipping
+        "update_freq": 64,  # Reduced from 128 for more frequent updates
+        "lr": 0.0003,  # Increased learning rate
         "gamma": 0.99,  # Discount factor
-        "K_epochs": 2,  # Number of epochs to update policy
+        "K_epochs": 4,  # Increased from 2 for better policy optimization
         "eps_clip": 0.2,  # Clip parameter for PPO
         "save_freq": 2,  # Save model after every n updates (0 to disable)
         "ent_coef": 0.01,  # Entropy coefficient
-        "vf_coef": 0.5,  # Value function coefficient
-        "batch_size": 32,  # Batch size
-        "num_processes": 1,  # Number of parallel processes to use (agent has multiple workers)
+        "vf_coef": 1.0,  # Increased from 0.5 to prioritize value function learning
+        "batch_size": 64,  # Increased from 32 for more stable updates
+        "num_processes": 12,  # Number of parallel processes to use
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.2,  # Dropout rate for CNN
-        "action_dim": 7 + 4,  # 7 + 4 for simple action. Number of action logits (not the same as number of actions. think)
+        "action_dim": 7 + 4,  # 7 + 4 for simple action
         "in_channels": 1, # in_channels for cnn
 
-        # PPO reward weights
-        "l1": -0.20,  # intersection vehicle
-        "l2": -0.20,  # intersection pedestrian 
-        "l3": -0.20,  # midblock vehicle 
-        "l4": -0.20,  # midblock pedestrian 
-        "l5": -0.1,  # switch penalty weight
+        # PPO reward weights (adjusted to be less negative)
+        "l1": -0.15,  # intersection vehicle
+        "l2": -0.15,  # intersection pedestrian 
+        "l3": -0.15,  # midblock vehicle 
+        "l4": -0.15,  # midblock pedestrian 
+        "l5": -0.05,  # switch penalty weight
 
         # Evaluation
         "evaluate": False,  
-        "eval_model_path": "./saved_models/Jan29_13-22-53/best_control_model.pth",  # Path to the saved PPO model for evaluation
-        "eval_n_iterations": 10,  # Number of iterations to repeat for each demand
-        "eval_n_timesteps": 640,  # Number of timesteps to each episode
-        "eval_n_workers": 8,  # Parallelizes how many demands can be evaluated at the same time.
-        "eval_worker_device": "gpu",  # Policy during eval can be run in GPU
-        "eval_demands": [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 3.75, 4.0, 4.25], # Includes demand outside the training range
+        "eval_model_path": "./saved_models/Jan29_13-22-53/best_control_model.pth",  
+        "eval_n_iterations": 10,  
+        "eval_n_timesteps": 640,  
+        "eval_n_workers": 8,  
+        "eval_worker_device": "gpu",  
+        "eval_demands": [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 3.75, 4.0, 4.25], 
     }
 
     return config
@@ -104,6 +106,7 @@ def classify_and_return_args(train_config, worker_device):
         'l3': train_config['l3'],
         'l4': train_config['l4'],
         'l5': train_config['l5'],
+        'model_type': train_config['model_type'],
     }
 
     model_kwargs = { # This is not to be returned on its own
@@ -126,6 +129,8 @@ def classify_and_return_args(train_config, worker_device):
         'vf_coef': train_config['vf_coef'],
         'batch_size': train_config['batch_size'],
         'gae_lambda': train_config['gae_lambda'],
+        'max_grad_norm': train_config['max_grad_norm'],
+        'model_type': train_config['model_type'],
         'model_kwargs': model_kwargs
     }
 

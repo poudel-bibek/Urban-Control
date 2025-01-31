@@ -1,7 +1,7 @@
 import torch
 import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader
-from models import CNNActorCritic
+from models import CNNActorCritic, MLPActorCritic
 
 class Memory:
     """
@@ -46,6 +46,8 @@ class PPO:
                  vf_coef, 
                  batch_size, 
                  gae_lambda, 
+                 max_grad_norm,
+                 model_type,
                  model_kwargs):
         
         self.model_dim = model_dim
@@ -58,9 +60,17 @@ class PPO:
         self.vf_coef = vf_coef
         self.batch_size = batch_size
         self.gae_lambda = gae_lambda
-        self.policy = CNNActorCritic(self.model_dim, self.action_dim, **model_kwargs).to(self.device)
-        self.policy_old = CNNActorCritic(self.model_dim, self.action_dim, **model_kwargs).to(self.device) # old policy network (used for importance sampling)
+        self.max_grad_norm = max_grad_norm
 
+        if model_type == "cnn":
+            self.policy = CNNActorCritic(self.model_dim, self.action_dim, **model_kwargs).to(self.device)
+            self.policy_old = CNNActorCritic(self.model_dim, self.action_dim, **model_kwargs).to(self.device) # old policy network (used for importance sampling)
+        elif model_type == "mlp":
+            self.policy = MLPActorCritic(self.model_dim, self.action_dim, **model_kwargs).to(self.device)
+            self.policy_old = MLPActorCritic(self.model_dim, self.action_dim, **model_kwargs).to(self.device) # old policy network (used for importance sampling)
+        else:
+            raise ValueError(f"Invalid model type: {self.model_type}. Must be 'cnn' or 'mlp'.")
+        
         param_counts = self.policy.param_count()
         print(f"\tActor parameters: {param_counts['actor_total']}")
         print(f"\tCritic parameters: {param_counts['critic_total']}")
@@ -98,24 +108,28 @@ class PPO:
         For the last step (step == len(rewards) - 1), we use the value estimate of the current state. 
 
         """ 
-        advantages = []
-        gae = 0
+        advantages = [0] * len(rewards)
+        gae = 0.0
+        next_value = 0.0
 
         # First, we iterate through the rewards in reverse order.
         for step in reversed(range(len(rewards))):
 
             # If its the terminal step (which has no future) or if its the last step in our collected experiences (which may not be terminal).
-            if is_terminals[step] or step == len(rewards) - 1:
-                next_value = 0
-                gae = 0
-            else:
-                next_value = values[step + 1]
+            if is_terminals[step]:
+                next_value = 0.0
+                gae = 0.0
+
             # For each step, we calculate the TD error (delta). Equation 12 in the paper. delta = r + γV(s') - V(s)
-            delta = rewards[step] + gamma * next_value * (1 - is_terminals[step]) - values[step]
+            delta = rewards[step] + gamma * next_value * (1 - int(is_terminals[step])) - values[step]
 
             # Equation 11 in the paper. GAE(t) = δ(t) + (γλ)δ(t+1) + (γλ)²δ(t+2) + ...
-            gae = delta + gamma * gae_lambda * (1 - is_terminals[step]) * gae # (1 - dones[step]) term ensures that the advantage calculation stops at episode boundaries.
-            advantages.insert(0, gae) # Insert the advantage at the beginning of the list so that it is in the same order as the rewards.
+            gae = delta + gamma * gae_lambda * (1 - int(is_terminals[step])) * gae 
+            advantages[step] = gae
+
+            # Update the next value for the next step
+            next_value = values[step]
+
         #print(f"\nAdvantages: {advantages}, shape: {len(advantages)}")
         return torch.tensor(advantages, dtype=torch.float32).to(self.device)
 
@@ -140,12 +154,12 @@ class PPO:
             combined_memory.is_terminals.extend(memory.is_terminals)
 
         old_states = torch.stack(combined_memory.states).to(self.device)
-        # From [128, 10, 40] to [128, 1, 10, 40]
-        old_states = old_states.unsqueeze(1) # Reshape states to have batch size first
-
         with torch.no_grad():
-            values = self.policy.critic(old_states).squeeze()
+            values = self.policy.critic(old_states)
 
+        # From [128, 10, 96] to [128, 1, 10, 96]
+        old_states = old_states.unsqueeze(1) # Reshape states to have batch size first
+        
         print(f"\nStates: {old_states.shape}")
         print(f"\nActions: {len(combined_memory.actions)}")
         print(f"\nLogprobs: {len(combined_memory.logprobs)}")
@@ -182,7 +196,7 @@ class PPO:
                 logprobs, state_values, dist_entropy = self.policy.evaluate(states_batch, actions_batch)
 
                 # Finding the ratio (pi_theta / pi_theta_old) for importance sampling (we want to use the samples obtained from old policy to get the new policy)
-                ratios = torch.exp(logprobs.detach() - old_logprobs_batch)
+                ratios = torch.exp(logprobs - old_logprobs_batch) # New log probs need to remain attached to the graph.
 
                 # Finding Surrogate Loss
                 surr1 = ratios * advantages_batch
@@ -192,7 +206,7 @@ class PPO:
                 # TODO: Is the mean necessary here? In policy loss and entropy loss. Probably yes, for averaging across the batch.
                 policy_loss = -torch.min(surr1, surr2).mean() # Equation 7 in the paper
                 # The negative sign ensures that the optimizer maximizes the PPO objective by minimizing the loss function. It is correct and necessary.
-                value_loss = ((state_values - returns_batch) ** 2).mean() # MSE 
+                value_loss = 0.5 * ((state_values - returns_batch) ** 2).mean() # MSE. Value loss is clipped 
                 entropy_loss = dist_entropy.mean()
                 
                 # Total loss
@@ -201,6 +215,7 @@ class PPO:
                 # Take gradient step
                 self.optimizer.zero_grad()
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.policy.parameters(), self.max_grad_norm) # Clipping to prevent exploding gradients
                 self.optimizer.step()
 
                 # Accumulate losses

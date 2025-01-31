@@ -18,7 +18,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from utils import *
 from env import ControlEnv
-from models import CNNActorCritic
+from models import CNNActorCritic, MLPActorCritic
 
 class SharedPolicy:
     def __init__(self, model_class, model_args, device):
@@ -144,8 +144,9 @@ def train(train_config, is_sweep=False, sweep_config=None):
 
     # Old policy is used for importance sampling.
     shared_policy_old = SharedPolicy(
-        model_class=CNNActorCritic,
-        model_args={'model_dim': control_ppo.policy.in_channels,
+        model_class= CNNActorCritic if train_config['model_type'] == "cnn" else MLPActorCritic,
+        model_args={
+                    'model_dim': control_ppo.policy.in_channels,
                     'action_dim': control_ppo.action_dim,
                     'kwargs': ppo_args['model_kwargs']
                     },

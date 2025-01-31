@@ -161,12 +161,12 @@ class CNNActorCritic(nn.Module):
         intersection_probs = torch.softmax(intersection_logits, dim=1)
         intersection_dist = Categorical(intersection_probs)
         intersection_action = intersection_dist.sample() # This predicts 0, 1, 2, or 3
-        # print(f"Intersection action: {intersection_action}")
+        # print(f"Intersection action: {intersection_action}, shape: {intersection_action.shape}")
 
         midblock_probs = torch.sigmoid(midblock_logits)
         midblock_dist = Bernoulli(midblock_probs)
         midblock_actions = midblock_dist.sample() # This predicts 0 or 1
-        # print(f"Midblock actions: {midblock_actions}")
+        # print(f"Midblock actions: {midblock_actions}, shape: {midblock_actions.shape}")
         
         combined_action = torch.cat([intersection_action, midblock_actions.squeeze(0)], dim=0)
         log_prob = intersection_dist.log_prob(intersection_action) + midblock_dist.log_prob(midblock_actions).sum()
@@ -238,6 +238,176 @@ class CNNActorCritic(nn.Module):
         critic_params = sum(p.numel() for p in self.critic_layers.parameters())
         shared_params = sum(p.numel() for p in self.shared_cnn.parameters())
         
+        return {
+            "actor_total": actor_params + shared_params,
+            "critic_total": critic_params + shared_params,
+            "total": actor_params + critic_params + shared_params,
+            "shared": shared_params
+        }
+
+class MLPActorCritic(nn.Module):
+    def __init__(self, in_channels, action_dim, **kwargs):
+        """
+        MLP Actor-Critic network with two "sizes" (small, medium) 
+        Expects inputs of shape (B, in_channels, action_duration, per_timestep_state_dim),
+        then flattens to (B, -1).
+        """
+        super(MLPActorCritic, self).__init__()
+
+        self.in_channels = in_channels
+        self.action_dim = action_dim
+
+        self.action_duration = kwargs.get('action_duration')
+        self.per_timestep_state_dim = kwargs.get('per_timestep_state_dim')
+
+        model_size = kwargs.get('model_size')
+        dropout_rate = kwargs.get('dropout_rate')
+
+        with torch.no_grad():
+            sample_input = torch.zeros(
+                1, self.in_channels, self.action_duration, self.per_timestep_state_dim
+            )
+            input_dim = sample_input.numel()  # total number of features, e.g. 1 * c * d * s
+
+        if model_size == 'small':
+            hidden_dim = 128
+            self.shared_mlp = nn.Sequential(
+                nn.Linear(input_dim, 256),
+                nn.LeakyReLU(),
+                nn.Dropout(dropout_rate),
+                nn.Linear(256, 256),
+                nn.LeakyReLU(),
+                nn.Dropout(dropout_rate),
+            )
+        else:  # 'medium'
+            hidden_dim = 256
+            self.shared_mlp = nn.Sequential(
+                nn.Linear(input_dim, 512),
+                nn.LeakyReLU(),
+                nn.Dropout(dropout_rate),
+                nn.Linear(512, 512),
+                nn.LeakyReLU(),
+                nn.Dropout(dropout_rate),
+                nn.Linear(512, 512),
+                nn.LeakyReLU(),
+                nn.Dropout(dropout_rate),
+            )
+
+        # Actor head
+        self.actor_layers = nn.Sequential(
+            nn.Linear(256 if model_size == 'small' else 512, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(hidden_dim, hidden_dim // 2),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(hidden_dim // 2, self.action_dim)
+        )
+
+        # Critic head
+        self.critic_layers = nn.Sequential(
+            nn.Linear(256 if model_size == 'small' else 512, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(hidden_dim, hidden_dim // 2),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(hidden_dim // 2, 1)
+        )
+
+    def forward_shared(self, state: torch.Tensor) -> torch.Tensor:
+        """
+        Flatten the input from (B, C, D, S) to (B, -1) and pass through the shared MLP trunk.
+        """
+        # Flatten from 4D to 2D
+        bsz = state.size(0)
+        flat = state.view(bsz, -1)  # shape: (B, in_channels*action_duration*per_timestep_state_dim)
+        return self.shared_mlp(flat)
+
+    def actor(self, state):
+        """
+        Returns the raw action logits from the actor head.
+        """
+        shared_features = self.forward_shared(state)
+        action_logits = self.actor_layers(shared_features)
+        return action_logits
+
+    def critic(self, state):
+        """
+        Returns the scalar state-value V(s).
+        """
+        shared_features = self.forward_shared(state)
+        return self.critic_layers(shared_features)
+
+    def act(self, state):
+        """
+        Sample an action exactly like in the CNN version:
+          - intersection action from first 4 logits (Categorical)
+          - midblock from next 7 logits (Bernoulli)
+        """
+        # Reshape to (1, c, d, s) 
+        # but we flatten inside forward_shared anyway.
+        state_tensor = state.reshape(
+            1, self.in_channels, self.action_duration, self.per_timestep_state_dim
+        )
+        action_logits = self.actor(state_tensor)
+
+        # The first 4 logits => intersection (Categorical)
+        intersection_logits = action_logits[:, :4]
+        intersection_probs = torch.softmax(intersection_logits, dim=1)
+        intersection_dist = Categorical(intersection_probs)
+        intersection_action = intersection_dist.sample()  # [1]
+
+        # The next 7 logits => midblock (Bernoulli)
+        midblock_logits = action_logits[:, 4:]
+        midblock_probs = torch.sigmoid(midblock_logits)
+        midblock_dist = Bernoulli(midblock_probs)
+        midblock_actions = midblock_dist.sample()  # shape [1,7]
+
+        combined_action = torch.cat([intersection_action, midblock_actions.squeeze(0)], dim=0)
+        log_prob = intersection_dist.log_prob(intersection_action) + \
+                   midblock_dist.log_prob(midblock_actions).sum()
+
+        return combined_action.int(), log_prob
+
+    def evaluate(self, states, actions):
+        """
+        Evaluate a batch of states and pre-sampled actions. Same logic as the CNN version.
+        """
+        action_logits = self.actor(states)
+        intersection_logits = action_logits[:, :4]
+        midblock_logits = action_logits[:, 4:]
+
+        # Distributions
+        intersection_probs = torch.softmax(intersection_logits, dim=1)
+        intersection_dist = Categorical(intersection_probs)
+        midblock_probs = torch.sigmoid(midblock_logits)
+        midblock_dist = Bernoulli(midblock_probs)
+
+        # Actions in shape (B,1) for intersection, (B,7) for midblock
+        intersection_action = actions[:, :1].float()
+        midblock_actions = actions[:, 1:].float()
+
+        intersection_log_probs = intersection_dist.log_prob(intersection_action)
+        midblock_log_probs = midblock_dist.log_prob(midblock_actions)
+
+        action_log_probs = intersection_log_probs + midblock_log_probs.sum(dim=1)
+
+        # Entropies
+        total_entropy = intersection_dist.entropy() + midblock_dist.entropy().sum(dim=1)
+
+        # Critic value
+        state_values = self.critic(states)
+        return action_log_probs, state_values, total_entropy
+
+    def param_count(self):
+        """
+        Return a dict describing the parameter counts, mirroring the CNN version.
+        """
+        actor_params = sum(p.numel() for p in self.actor_layers.parameters())
+        critic_params = sum(p.numel() for p in self.critic_layers.parameters())
+        shared_params = sum(p.numel() for p in self.shared_mlp.parameters())
+
         return {
             "actor_total": actor_params + shared_params,
             "critic_total": critic_params + shared_params,

@@ -547,7 +547,7 @@ class ControlEnv(gym.Env):
         # print(f"Switch state: {switch_state}")
         return switch_state
 
-    def _get_observation(self, current_phase, print_map=True):
+    def _get_observation(self, current_phase, print_map=False):
         """
         wrapper
         """
@@ -646,7 +646,7 @@ class ControlEnv(gym.Env):
             observation.append(len(self.corrected_occupancy_map[tl_id]["pedestrian"]["outgoing"]["north"]["main"]))
         # print(f"\nObservation before normalization: {observation}")
         observation = np.asarray(observation, dtype=np.float32)/ 10.0 # max normalizer
-        print(f"\nObservation: shape: {observation.shape}, value: {observation}, type: {type(observation)}") 
+        #print(f"\nObservation: shape: {observation.shape}, value: {observation}, type: {type(observation)}") 
         return observation
 
     def _get_advanced_observation(self, current_phase, print_map=False):

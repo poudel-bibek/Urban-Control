@@ -52,7 +52,8 @@ class HyperParameterTuner:
                 'ent_coef': {'values': [0.0001, 0.001, 0.005, 0.01]},
                 'vf_coef': {'values': [0.25, 0.5, 0.75, 1.0]},
                 'batch_size': {'values': [15, 32, 64, 128]},
-                # CNN policy specific
+                # policy specific
+                'model_type': {'values': ['cnn', 'mlp']},
                 'size': {'values': ['small', 'medium']},
                 'kernel_size': {'values': [3, 5]},
                 'dropout_rate': {'values': [0.1, 0.2, 0.3]},
@@ -74,8 +75,8 @@ class HyperParameterTuner:
                 },
             'parameters': {
                 'lr': {
-                    'min': 1e-5,
-                    'max': 0.01,
+                    'min': 1e-6,
+                    'max': 0.1,
                     'distribution': 'log_uniform_values'
                 },
                 'gae_lambda': {
@@ -112,12 +113,14 @@ class HyperParameterTuner:
                 'batch_size': {
                     'values': [16, 32, 64, 128]
                 },
-
-                # CNN policy:
+                # policy:
+                'model_type': {
+                    'values': ['cnn', 'mlp']
+                },
                 'size': {
                     'values': ['small', 'medium']
                 },
-                'kernel_size': {
+                'kernel_size': { 
                     'values': [3, 5]
                 },
                 'dropout_rate': {
