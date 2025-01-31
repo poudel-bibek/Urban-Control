@@ -1,35 +1,34 @@
-***Starting server on port 59465 ***
-Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (14ms).
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_0.xml'
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_0.xml'
+***Starting server on port 56903 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (21ms).
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_3.xml'
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_3.xml'
 Loading done.
 Simulation version UNKNOWN started with time: 0.00.
-Warning: Person '1945' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=454.00.
-Warning: Person '1941' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=462.00.
-Warning: Person '2039' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=491.00.
-Warning: Person '1948' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=503.00.
-Warning: Person '57' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=512.00.
-Warning: Person '13' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=555.00.
+Warning: Person '2039' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=488.00.
+Warning: Person '57' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=504.00.
+Warning: Person '1941' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=518.00.
+Warning: Person '1945' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=523.00.
 Simulation ended at time: 580.00.
 Reason: TraCI requested termination.
 Performance:
- Duration: 314.97s
- TraCI-Duration: 313.82s
- Real time factor: 1.84142
- UPS: 68.256428
- UPS-Persons: 740.769079
+ Duration: 233.27s
+ TraCI-Duration: 232.38s
+ Real time factor: 2.48638
+ UPS: 78.985386
+ UPS-Persons: 689.138384
 Vehicles:
- Inserted: 97 (Loaded: 103)
- Running: 53
+ Inserted: 85 (Loaded: 89)
+ Running: 42
  Waiting: 0
 Persons:
- Inserted: 1251
- Running: 596
- Jammed: 6
-DijkstraRouter answered 21406 queries and explored 5.57 edges on average.
+ Inserted: 864
+ Running: 418
+ Jammed: 4
+DijkstraRouter answered 15224 queries and explored 5.61 edges on average.
 DijkstraRouter spent 0.01s answering queries (0.00ms on average).
-DijkstraRouter answered 1211 queries and explored 471.95 edges on average.
-DijkstraRouter spent 0.06s answering queries (0.05ms on average).
-DijkstraRouter answered 97 queries and explored 57.94 edges on average.
-DijkstraRouter spent 0.00s answering queries (0.01ms on average).
-ring queries (0.01ms on average).
+DijkstraRouter answered 837 queries and explored 475.57 edges on average.
+DijkstraRouter spent 0.05s answering queries (0.06ms on average).
+DijkstraRouter answered 85 queries and explored 57.74 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.05ms on average).
+wered 97 queries and explored 57.92 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.02ms on average).

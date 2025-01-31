@@ -115,7 +115,7 @@ class HyperParameterTuner:
                 },
                 # policy:
                 'model_type': {
-                    'values': ['cnn', 'mlp']
+                    'values': ['mlp']
                 },
                 'size': {
                     'values': ['small', 'medium']

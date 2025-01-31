@@ -32,7 +32,7 @@ class CNNActorCritic(nn.Module):
 
         if model_size == 'small':
             self.shared_cnn = nn.Sequential(
-                nn.Conv2d(in_channels, 16, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.Conv2d(self.in_channels, 16, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(16),
                 nn.LeakyReLU(),
                 nn.Conv2d(16, 32, kernel_size=kernel_size, stride=2, padding=padding),  # Strided Conv 
@@ -54,7 +54,7 @@ class CNNActorCritic(nn.Module):
 
         else:  # medium
             self.shared_cnn = nn.Sequential(
-                nn.Conv2d(in_channels, 16, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.Conv2d(self.in_channels, 16, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(16),
                 nn.LeakyReLU(),
                 nn.Conv2d(16, 32, kernel_size=kernel_size, stride=2, padding=padding),  # Strided Conv 
