@@ -20,13 +20,6 @@ from utils import *
 from env import ControlEnv
 from models import CNNActorCritic, MLPActorCritic
 
-class SharedPolicy:
-    def __init__(self, model_class, model_args, device):
-        self.model = model_class(in_channels=model_args['model_dim'], 
-                                 action_dim=model_args['action_dim'], 
-                                 **model_args['kwargs']).to(device)
-        self.model.share_memory()  # Makes the model parameters shared across processes
-        
 def parallel_train_worker(rank, shared_policy_old, control_args, queue, global_seed, worker_device):
     """
     At every iteration, a number of workers will each parallelly carry out one episode in control environment.
@@ -55,7 +48,7 @@ def parallel_train_worker(rank, shared_policy_old, control_args, queue, global_s
         state = torch.FloatTensor(state)
         # Select action
         with torch.no_grad():
-            action, logprob = shared_policy_old.model.act(state.to(worker_device)) # sim runs in CPU, state will initially always be in CPU.
+            action, logprob = shared_policy_old.act(state.to(worker_device)) # sim runs in CPU, state will initially always be in CPU.
             state = state.detach().cpu()
             action = action.detach().cpu()
             logprob = logprob.detach().cpu()
@@ -141,23 +134,14 @@ def train(train_config, is_sweep=False, sweep_config=None):
     # Initialize control agent
     print(f"\nControl agent: \n\tState dimension: {dummy_env.observation_space.shape}, Action dimension: {train_config['action_dim']}")
     control_ppo = PPO(**ppo_args)
-
-    # Old policy is used for importance sampling.
-    shared_policy_old = SharedPolicy(
-        model_class= CNNActorCritic if train_config['model_type'] == "cnn" else MLPActorCritic,
-        model_args={
-                    'model_dim': control_ppo.policy.in_channels,
-                    'action_dim': control_ppo.action_dim,
-                    'kwargs': ppo_args['model_kwargs']
-                    },
-        device=worker_device
-    )
-
-    shared_policy_old.model.load_state_dict(control_ppo.policy_old.state_dict())
+    control_ppo.policy.share_memory() # share across processes
+    control_ppo.policy_old.share_memory() # Since workers share the old policy (used for importance sampling), they get the new one after each update. Policy is not stale. Verify.
+    control_ppo.policy_old.load_state_dict(control_ppo.policy.state_dict())
     
     # Model saving and tensorboard 
     writer = SummaryWriter(log_dir=log_dir)
     save_dir = os.path.join('saved_models', current_time)
+
     os.makedirs(save_dir, exist_ok=True)
     control_args.update({
         'writer': writer,
@@ -179,7 +163,8 @@ def train(train_config, is_sweep=False, sweep_config=None):
 
     for iteration in range(0, total_iterations): # Starting from 1 to prevent policy update in the very first iteration.
         print(f"\nStarting iteration: {iteration + 1}/{total_iterations} with {global_step} total steps so far\n")
-        #print(f"Shared policy weights: {shared_policy_old.model.state_dict()}")
+        #print(f"Shared policy weights: {control_ppo.policy_old.state_dict()}")
+
 
         queue = mp.Queue()
         processes = []
@@ -189,7 +174,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                 target=parallel_train_worker,
                 args=(
                     rank,
-                    shared_policy_old,
+                    control_ppo.policy_old,
                     control_args_worker,
                     queue,
                     control_args['global_seed'],
@@ -225,7 +210,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     loss = control_ppo.update(all_memories)
 
                     # Update shared policy with new weights after PPO update
-                    shared_policy_old.model.load_state_dict(control_ppo.policy_old.state_dict())
+                    control_ppo.policy_old.load_state_dict(control_ppo.policy.state_dict())
 
                     total_reward = sum(sum(mem.rewards) for mem in all_memories)
                     avg_reward = total_reward / control_args['num_processes'] # Average reward per process in this iteration

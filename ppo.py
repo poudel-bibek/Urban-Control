@@ -154,8 +154,11 @@ class PPO:
             combined_memory.is_terminals.extend(memory.is_terminals)
 
         old_states = torch.stack(combined_memory.states).to(self.device)
+        # print(f"\nOld states before reshape: {old_states.shape}")
+
         # From [128, 10, 96] to [128, 1, 10, 96]
         old_states = old_states.unsqueeze(1) # Reshape states to have batch size first
+        # print(f"\nOld states after reshape: {old_states.shape}")
 
         with torch.no_grad():
             values = self.policy.critic(old_states)

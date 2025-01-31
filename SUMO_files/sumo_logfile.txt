@@ -1,34 +1,30 @@
-***Starting server on port 56903 ***
-Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (21ms).
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_3.xml'
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_3.xml'
+***Starting server on port 34713 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (12ms).
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_2.xml'
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_2.xml'
 Loading done.
 Simulation version UNKNOWN started with time: 0.00.
-Warning: Person '2039' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=488.00.
-Warning: Person '57' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=504.00.
-Warning: Person '1941' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=518.00.
-Warning: Person '1945' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=523.00.
+Warning: Person '1945' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=485.00.
+Warning: Person '2039' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=555.00.
 Simulation ended at time: 580.00.
 Reason: TraCI requested termination.
 Performance:
- Duration: 233.27s
- TraCI-Duration: 232.38s
- Real time factor: 2.48638
- UPS: 78.985386
- UPS-Persons: 689.138384
+ Duration: 124.93s
+ TraCI-Duration: 124.32s
+ Real time factor: 4.64245
+ UPS: 141.778859
+ UPS-Persons: 592.752974
 Vehicles:
- Inserted: 85 (Loaded: 89)
- Running: 42
+ Inserted: 73 (Loaded: 74)
+ Running: 44
  Waiting: 0
 Persons:
- Inserted: 864
- Running: 418
- Jammed: 4
-DijkstraRouter answered 15224 queries and explored 5.61 edges on average.
-DijkstraRouter spent 0.01s answering queries (0.00ms on average).
-DijkstraRouter answered 837 queries and explored 475.57 edges on average.
-DijkstraRouter spent 0.05s answering queries (0.06ms on average).
-DijkstraRouter answered 85 queries and explored 57.74 edges on average.
-DijkstraRouter spent 0.00s answering queries (0.05ms on average).
-wered 97 queries and explored 57.92 edges on average.
-DijkstraRouter spent 0.00s answering queries (0.02ms on average).
+ Inserted: 391
+ Running: 183
+ Jammed: 2
+DijkstraRouter answered 6960 queries and explored 5.62 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.00ms on average).
+DijkstraRouter answered 373 queries and explored 481.85 edges on average.
+DijkstraRouter spent 0.04s answering queries (0.10ms on average).
+DijkstraRouter answered 73 queries and explored 57.67 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.07ms on average).

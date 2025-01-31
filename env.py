@@ -957,12 +957,12 @@ class ControlEnv(gym.Env):
         # Warmup period
         # How many actions to take during warmup?
         num_actions_warmup = self.warmup_steps // self.steps_per_action
-        print(f"Number of actions during warmup: {num_actions_warmup}")
+        #print(f"Number of actions during warmup: {num_actions_warmup}")
         observation_buffer = []
         for i in range(num_actions_warmup):
             # Randomly initialize actions (1 digit for intersection, 7 bits for crosswalks)
             action = np.concatenate([np.random.randint(4, size=1), np.random.randint(2, size=7)]).astype(np.int32)
-            print(f"\nWarmup action {i}: {action}\n")
+            #print(f"\nWarmup action {i}: {action}\n")
             if i==0:
                 prev_action = action
             switch_state = self._detect_switch(action, prev_action)

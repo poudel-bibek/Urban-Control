@@ -383,7 +383,7 @@ class MLPActorCritic(nn.Module):
         intersection_dist = Categorical(intersection_probs)
         midblock_probs = torch.sigmoid(midblock_logits)
         midblock_dist = Bernoulli(midblock_probs)
-
+        
         # Actions in shape (B,1) for intersection, (B,7) for midblock
         intersection_action = actions[:, :1].float()
         midblock_actions = actions[:, 1:].float()
