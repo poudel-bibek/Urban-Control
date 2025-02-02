@@ -1,25 +1,11 @@
-Warning: Teleporting vehicle '27'; waited too long (yield), lane='1078803478#0_1', time=388.00.
-Warning: Vehicle '27' ends teleporting on edge '16666012#2', time=388.00.
-Warning: Teleporting vehicle '147'; waited too long (jam), lane='-16666012#16_0', time=403.00.
-Warning: Teleporting vehicle '106'; waited too long (yield), lane='-16666012#14_0', time=403.00.
-Warning: Vehicle '106' ends teleporting on edge '-16666012#13', time=403.00.
-Warning: Teleporting vehicle '62'; waited too long (yield), lane='16666012#2_0', time=405.00.
-Warning: Vehicle '62' ends teleporting on edge '16666012#3', time=405.00.
-Warning: Vehicle '147' ends teleporting on edge '-16666012#15', time=405.00.
-Warning: Teleporting vehicle '63'; waited too long (yield), lane='16666012#4_0', time=407.00.
-Warning: Teleporting vehicle '137'; waited too long (yield), lane='-16666012#13_0', time=407.00.
-Warning: Vehicle '63' ends teleporting on edge '16666012#5', time=407.00.
-Warning: Vehicle '137' ends teleporting on edge '-16666012#12', time=407.00.
-Warning: Teleporting vehicle '88'; waited too long (yield), lane='16666012#12_0', time=409.00.
-Warning: Vehicle '88' ends teleporting on edge '16666012#13', time=409.00.
-Warning: Teleporting vehicle '198'; waited too long (yield), lane='-16666012#7_0', time=411.00.
-Warning: Vehicle '198' ends teleporting on edge '-16666012#6', time=411.00.
-Warning: Teleporting vehicle '49'; waited too long (yield), lane='773672648#0_2', time=423.00.
-Warning: Vehicle '49' ends teleporting on edge '16666012#2', time=430.00.
-Warning: Person '1943' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w2', time=447.00.
-Warning: Person '1945' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=481.00.
-Warning: Person '1941' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=532.00.
-Warning: Person '19' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w1', time=547.00.
-Warning: Person '2039' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=563.00.
-Warning: Person '1948' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=578.00.
-time=578.00.
+Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
+Quitting (on error).
+201_9687148202_#5more_w3', time=486.00.
+Warning: Person '2039' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=517.00.
+Warning: Person '1948' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=532.00.
+Warning: Person '1941' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=535.00.
+Warning: Person '57' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=541.00.
+Warning: Person '56' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=600.00.
+Warning: Person '13' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=676.00.
+Error: tcpip::Socket::recvAndCheck @ recv: Connection reset by peer
+Quitting (on error).

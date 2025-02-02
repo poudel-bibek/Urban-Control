@@ -75,6 +75,7 @@ def parallel_train_worker(rank, shared_policy_old, control_args, queue, global_s
     print(f"Worker {rank} finished. Total reward: {ep_reward}")
     worker_env.close()
     time.sleep(10) # Essential
+    del worker_env
     queue.put((rank, None))  # Signal that this worker is done
 
 def save_config(config, SEED, save_path):
@@ -265,14 +266,14 @@ def train(train_config, is_sweep=False, sweep_config=None):
     if not is_sweep:
         writer.close()
 
-def parallel_eval_worker(rank, eval_worker_config):
+def parallel_eval_worker(rank, eval_worker_config, queue):
     """
     - For the same demand, each worker runs n_iterations number of episodes and measures performance metrics at each iteration.
     - Each episode runs on a different random seed.
     - Performance metrics: 
         - Average waiting time (Veh, Ped)
         - Average travel time (Veh, Ped)
-    - Returns a dictionary with performance metrics
+    - Returns a dictionary with performance metrics in all iterations.
     - For PPO: 
         - Each worker create a copy of the policy and run it
     """
@@ -280,16 +281,17 @@ def parallel_eval_worker(rank, eval_worker_config):
     eval_control_ppo = PPO(**ppo_args)
     eval_control_ppo.policy.load_state_dict(torch.load(eval_worker_config['policy_path']))
     
-    worker_demand = eval_worker_config['worker_demand']
-    env_args = eval_worker_config['control_env_args']
+    worker_demand_scale = eval_worker_config['worker_demand_scale']
+    control_args = eval_worker_config['control_args']
 
     # We set the demand manually (so that automatic scaling does not happen)
-    env_args['manual_demand_veh'] = worker_demand
-    env_args['manual_demand_ped'] = worker_demand
-    env = ControlEnv(env_args, worker_id=rank)
+    control_args['manual_demand_veh'] = worker_demand_scale
+    control_args['manual_demand_ped'] = worker_demand_scale
+    env = ControlEnv(control_args, worker_id=rank)
 
     worker_result = {}
-    worker_result['demand'] = worker_demand
+    worker_result['demand_scale'] = worker_demand_scale
+
     # Run the worker
     for i in range(eval_worker_config['n_iterations']):
         worker_result[i] = {}
@@ -306,21 +308,32 @@ def parallel_eval_worker(rank, eval_worker_config):
         state, _ = env.reset()
         veh_waiting_time_this_episode = 0
         ped_waiting_time_this_episode = 0
+        veh_unique_ids_this_episode = 0
+        ped_unique_ids_this_episode = 0
 
-        for _ in range(eval_worker_config['n_timesteps']):
-            action, _ = eval_control_ppo.policy.act(state)
-            state, reward, done, truncated, _ = env.step(action)
+        with torch.no_grad():
+            for _ in range(eval_worker_config['total_action_timesteps_per_episode']):
+            
 
-            # During this step, get all vehicles and pedestrians
-            veh_waiting_time_this_step = env.get_vehicle_waiting_time()
-            ped_waiting_time_this_step = env.get_pedestrian_waiting_time()
+                state = torch.FloatTensor(state).to(ppo_args['device'])
+                action, _ = eval_control_ppo.policy.act(state)
+                action = action.detach().cpu() # sim runs in CPU
+                state, reward, done, truncated, _ = env.step(action)
 
-            veh_waiting_time_this_episode += veh_waiting_time_this_step
-            ped_waiting_time_this_episode += ped_waiting_time_this_step
+                # During this step, get all vehicles and pedestrians
+                veh_waiting_time_this_step = env.get_vehicle_waiting_time()
+                ped_waiting_time_this_step = env.get_pedestrian_waiting_time()
+
+                veh_waiting_time_this_episode += veh_waiting_time_this_step
+                ped_waiting_time_this_episode += ped_waiting_time_this_step
+
+                veh_unique_ids_this_episode, ped_unique_ids_this_episode = env.total_unique_ids()
 
         # gather performance metrics
-        worker_result[i]['veh_total_waiting_time'] = veh_waiting_time_this_episode
-        worker_result[i]['ped_total_waiting_time'] = ped_waiting_time_this_episode
+        worker_result[i]['veh_avg_waiting_time'] = veh_waiting_time_this_episode / veh_unique_ids_this_episode
+        worker_result[i]['ped_avg_waiting_time'] = ped_waiting_time_this_episode / ped_unique_ids_this_episode
+    # After all iterations are complete. 
+    queue.put((rank, worker_result))
 
 def eval(config):
     """
@@ -333,37 +346,39 @@ def eval(config):
     n_workers = config['eval_n_workers']
     eval_worker_device = config['eval_worker_device']
     n_iterations = config['eval_n_iterations']
-    n_timesteps = config['eval_n_timesteps']
-    
+
     policy_path = config['eval_model_path']
-    env_args, ppo_args = classify_and_return_args(config, "gpu")
-    eval_demands = config['eval_demands']
+    eval_device = torch.device("cuda") if config['gpu'] and torch.cuda.is_available() else torch.device("cpu")
+    control_args, ppo_args = classify_and_return_args(config, eval_device)
+    eval_demand_scales = config['eval_demand_scales']
 
     # PPO
     # number of times the n_workers have to be repeated to cover all eval demands
-    num_times_workers_recycle = len(eval_demands) if len(eval_demands) < n_workers else (len(eval_demands) // n_workers) + 1
+    num_times_workers_recycle = len(eval_demand_scales) if len(eval_demand_scales) < n_workers else (len(eval_demand_scales) // n_workers) + 1
     for i in range(num_times_workers_recycle):
         start = n_workers * i   
         end = n_workers * (i + 1)
-        demands_evaluated_current_cycle = eval_demands[start: end]
+        demand_scales_evaluated_current_cycle = eval_demand_scales[start: end]
+
 
         queue = mp.Queue()
         processes = []  
         active_workers = []
-        for j, demand in enumerate(demands_evaluated_current_cycle): 
-            rank = i * len(demands_evaluated_current_cycle) + j # This j goes from 0 to len(demands_evaluated_current_cycle) - 1
+        for j, demand_scale in enumerate(demand_scales_evaluated_current_cycle): 
+            print(f"For demand: {demand_scale}")    
+            rank = i * len(demand_scales_evaluated_current_cycle) + j # This j goes from 0 to len(demand_scales_evaluated_current_cycle) - 1
             worker_config = {
                 'n_iterations': n_iterations,
-                'n_timesteps': n_timesteps,
-                'worker_demand': demand,
+                'total_action_timesteps_per_episode': config['eval_n_timesteps'] // control_args['action_duration'], # Each time
+                'worker_demand_scale': demand_scale,
                 'policy_path': policy_path,
                 'policy_args': ppo_args,
-                'control_env_args': env_args,
-                'worker_device': eval_worker_device
+                'control_args': control_args,
+                'worker_device': eval_worker_device,
             }
             p = mp.Process(
                 target=parallel_eval_worker,
-                args=(rank, worker_config))
+                args=(rank, worker_config, queue))
             
             p.start()
             processes.append(p)
@@ -371,7 +386,7 @@ def eval(config):
 
         all_results = {}
         while active_workers:
-            rank, result = queue.get(timeout=60) # Result is obtained after all iterations are complete
+            rank, result = queue.get()#timeout=60) # Result is obtained after all iterations are complete
             print(f"Result from worker {rank}: {result}")
             all_results[rank] = result
             active_workers.remove(rank)
@@ -381,36 +396,22 @@ def eval(config):
 
         print(f"All results: {all_results}")    
         current_time = datetime.now().strftime('%b%d_%H-%M-%S')
-        with open(os.path.join(config['save_dir'], f'eval_results_{current_time}.json'), 'w') as f:
+        result_json_path = os.path.join(config['save_dir'], f'eval_results_{current_time}.json')
+        with open(result_json_path, 'w') as f:
             json.dump(all_results, f, indent=4)
 
-def calculate_performance(run_data,):
-    """
-    Evaluation generates run_data files. Calculate performance metrics.
-    Average results over N runs.
-    """
-    pass
+        plot_consolidated_results(result_json_path)
 
 def main(config):
     """
     Cannot create a bunch of connections in main and then pass them around. 
     Because each new worker needs a separate pedestrian and vehicle trips file.
     """
-
     # Set the start method for multiprocessing. It does not create a process itself but sets the method for creating a process.
     # Spawn means create a new process. There is a fork method as well which will create a copy of the current process.
     mp.set_start_method('spawn') 
-
     if config['evaluate']: 
-        if config['manual_demand_veh'] is None or config['manual_demand_ped'] is None:
-            print("Manual demand is None. Please specify a demand for both vehicles and pedestrians.")
-            return None
-        else: 
-            # env = ControlEnv(config, is_eval=True) 
-            # run_data = evaluate(config, env)
-            # calculate_performance(run_data)
-            # env.close()
-            pass
+        eval(config)
 
     elif config['sweep']:
         tuner = HyperParameterTuner(config, train)

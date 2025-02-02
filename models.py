@@ -345,9 +345,7 @@ class MLPActorCritic(nn.Module):
         """
         # Reshape to (1, c, d, s) 
         # but we flatten inside forward_shared anyway.
-        state_tensor = state.reshape(
-            1, self.in_channels, self.action_duration, self.per_timestep_state_dim
-        )
+        state_tensor = state.reshape(1, self.in_channels, self.action_duration, self.per_timestep_state_dim)
         action_logits = self.actor(state_tensor)
 
         # The first 4 logits => intersection (Categorical)

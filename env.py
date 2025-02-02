@@ -37,17 +37,11 @@ class ControlEnv(gym.Env):
         
         # Modify file paths to include the unique suffix. Each worker has their own environment and hence their own copy of the trips file.
         self.unique_suffix = f"_{worker_id}" if worker_id is not None else ""
+        self.total_unique_ids_veh = []
+        self.total_unique_ids_ped = []
         self.vehicle_output_trips = self.vehicle_output_trips.replace('.xml', f'{self.unique_suffix}.xml')
+
         self.pedestrian_output_trips = self.pedestrian_output_trips.replace('.xml', f'{self.unique_suffix}.xml')
-        
-        if self.manual_demand_veh is not None :
-            scaling = convert_demand_to_scale_factor(self.manual_demand_veh, "vehicle", self.vehicle_input_trips) # Convert the demand to scaling factor first
-            scale_demand(self.vehicle_input_trips, self.vehicle_output_trips, scaling, demand_type="vehicle")
-
-        if self.manual_demand_ped is not None:
-            scaling = convert_demand_to_scale_factor(self.manual_demand_ped, "pedestrian", self.pedestrian_input_trips)
-            scale_demand(self.pedestrian_input_trips, self.pedestrian_output_trips, scaling, demand_type="pedestrian")
-
         self.tl_ids = ['cluster_172228464_482708521_9687148201_9687148202_#5more', # Intersection
                        '9727816850', # Mid block TL + crosswalks from left to right
                        '9727816623',
@@ -911,12 +905,20 @@ class ControlEnv(gym.Env):
             time.sleep(5) # Wait until the process really finishes 
             traci.close(False) #https://sumo.dlr.de/docs/TraCI/Interfacing_TraCI_from_Python.html
         
-        # Automatically scale demand (separately for pedestrian and vehicle)
-        scale_factor_vehicle = random.uniform(self.demand_scale_min, self.demand_scale_max)
-        scale_factor_pedestrian = random.uniform(self.demand_scale_min, self.demand_scale_max)
+        if self.manual_demand_veh is not None :
+            #scaling = convert_demand_to_scale_factor(self.manual_demand_veh, "vehicle", self.vehicle_input_trips) # Convert the demand to scaling factor first
+            scale_demand(self.vehicle_input_trips, self.vehicle_output_trips, self.manual_demand_veh, demand_type="vehicle") # directly scaling factor given
+        else: 
+            # Automatically scale demand 
+            scale_factor_vehicle = random.uniform(self.demand_scale_min, self.demand_scale_max)
+            scale_demand(self.vehicle_input_trips, self.vehicle_output_trips, scale_factor_vehicle, demand_type="vehicle")
 
-        scale_demand(self.vehicle_input_trips, self.vehicle_output_trips, scale_factor_vehicle, demand_type="vehicle")
-        scale_demand(self.pedestrian_input_trips, self.pedestrian_output_trips, scale_factor_pedestrian, demand_type="pedestrian")
+        if self.manual_demand_ped is not None:
+            # scaling = convert_demand_to_scale_factor(self.manual_demand_ped, "pedestrian", self.pedestrian_input_trips)
+            scale_demand(self.pedestrian_input_trips, self.pedestrian_output_trips, self.manual_demand_ped, demand_type="pedestrian") # directly scaling factor given
+        else: 
+            scale_factor_pedestrian = random.uniform(self.demand_scale_min, self.demand_scale_max)
+            scale_demand(self.pedestrian_input_trips, self.pedestrian_output_trips, scale_factor_pedestrian, demand_type="pedestrian")
 
         if self.auto_start:
             sumo_cmd = ["sumo-gui" if self.use_gui else "sumo", 
@@ -992,14 +994,27 @@ class ControlEnv(gym.Env):
         """
         """
         veh_waiting_time = 0
-        for veh_id in self.vehicles:
+        for veh_id in traci.vehicle.getIDList():
             veh_waiting_time += traci.vehicle.getWaitingTime(veh_id)
+            if veh_id not in self.total_unique_ids_veh:
+                self.total_unique_ids_veh.append(veh_id)
         return veh_waiting_time
     
+
     def get_pedestrian_waiting_time(self):
         """
         """
         ped_waiting_time = 0
-        for ped_id in self.pedestrians:
+        for ped_id in traci.person.getIDList():
             ped_waiting_time += traci.person.getWaitingTime(ped_id)
+            if ped_id not in self.total_unique_ids_ped:
+                self.total_unique_ids_ped.append(ped_id)
         return ped_waiting_time
+    
+    def total_unique_ids(self):
+        """
+        So far in the simulation, how many total unique ids were seen. 
+        Call it once in the end.
+        """
+        return len(self.total_unique_ids_veh),  len(self.total_unique_ids_ped)
+

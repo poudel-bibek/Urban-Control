@@ -1,53 +1,52 @@
-***Starting server on port 60861 ***
-Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (13ms).
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_1.xml'
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_1.xml'
+***Starting server on port 55981 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (14ms).
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_10.xml'
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_10.xml'
 Loading done.
-Simulation version UNKNOWN started with time: 0.00.
-Warning: Teleporting vehicle '27'; waited too long (yield), lane='1078803478#0_1', time=388.00.
-Warning: Vehicle '27' ends teleporting on edge '16666012#2', time=388.00.
-Warning: Teleporting vehicle '147'; waited too long (jam), lane='-16666012#16_0', time=403.00.
-Warning: Teleporting vehicle '106'; waited too long (yield), lane='-16666012#14_0', time=403.00.
-Warning: Vehicle '106' ends teleporting on edge '-16666012#13', time=403.00.
-Warning: Teleporting vehicle '62'; waited too long (yield), lane='16666012#2_0', time=405.00.
-Warning: Vehicle '62' ends teleporting on edge '16666012#3', time=405.00.
-Warning: Vehicle '147' ends teleporting on edge '-16666012#15', time=405.00.
-Warning: Teleporting vehicle '63'; waited too long (yield), lane='16666012#4_0', time=407.00.
-Warning: Teleporting vehicle '137'; waited too long (yield), lane='-16666012#13_0', time=407.00.
-Warning: Vehicle '63' ends teleporting on edge '16666012#5', time=407.00.
-Warning: Vehicle '137' ends teleporting on edge '-16666012#12', time=407.00.
-Warning: Teleporting vehicle '88'; waited too long (yield), lane='16666012#12_0', time=409.00.
-Warning: Vehicle '88' ends teleporting on edge '16666012#13', time=409.00.
-Warning: Teleporting vehicle '198'; waited too long (yield), lane='-16666012#7_0', time=411.00.
-Warning: Vehicle '198' ends teleporting on edge '-16666012#6', time=411.00.
-Warning: Teleporting vehicle '49'; waited too long (yield), lane='773672648#0_2', time=423.00.
-Warning: Vehicle '49' ends teleporting on edge '16666012#2', time=430.00.
-Warning: Person '1943' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w2', time=447.00.
-Warning: Person '1945' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=481.00.
-Warning: Person '1941' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=532.00.
-Warning: Person '19' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w1', time=547.00.
-Warning: Person '2039' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=563.00.
-Warning: Person '1948' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=578.00.
-Simulation ended at time: 580.00.
-Reason: TraCI requested termination.
+Simulation started with time: 0.00.
+Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
+Quitting (on error).
+Simulation ended at time: 148.00.
 Performance:
- Duration: 101.22s
- TraCI-Duration: 100.65s
- Real time factor: 5.73026
- UPS: 296.303981
- UPS-Persons: 1193.011055
+ Duration: 16.35s
+ TraCI-Duration: 14.32s
+ Real time factor: 9.0531
+ UPS: 124.235380
+ UPS-Persons: 1028.137999
 Vehicles:
- Inserted: 82 (Loaded: 117)
- Running: 82
- Waiting: 29
- Teleports: 9 (Jam: 1, Yield: 8)
+ Inserted: 30 (Loaded: 37)
+ Running: 30
+ Waiting: 0
 Persons:
- Inserted: 630
- Running: 304
- Jammed: 6
-DijkstraRouter answered 13445 queries and explored 6.19 edges on average.
-DijkstraRouter spent 0.01s answering queries (0.00ms on average).
-DijkstraRouter answered 611 queries and explored 482.38 edges on average.
-DijkstraRouter spent 0.03s answering queries (0.04ms on average).
-DijkstraRouter answered 115 queries and explored 57.65 edges on average.
+ Inserted: 338
+ Running: 220
+DijkstraRouter answered 1025 queries and explored 4.44 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.00ms on average).
+DijkstraRouter answered 243 queries and explored 500.39 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.03ms on average).
+DijkstraRouter answered 30 queries and explored 57.60 edges on average.
 DijkstraRouter spent 0.00s answering queries (0.03ms on average).
+2228464_482708521_9687148201_9687148202_#5more_w4', time=676.00.
+Error: tcpip::Socket::recvAndCheck @ recv: Connection reset by peer
+Quitting (on error).
+Simulation ended at time: 684.00.
+Performance:
+ Duration: 187.75s
+ TraCI-Duration: 169.82s
+ Real time factor: 3.64314
+ UPS: 123.051931
+ UPS-Persons: 1039.723036
+Vehicles:
+ Inserted: 90 (Loaded: 107)
+ Running: 32
+ Waiting: 0
+Persons:
+ Inserted: 1099
+ Running: 406
+ Jammed: 7
+DijkstraRouter answered 17780 queries and explored 5.57 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.00ms on average).
+DijkstraRouter answered 947 queries and explored 475.03 edges on average.
+DijkstraRouter spent 0.05s answering queries (0.05ms on average).
+DijkstraRouter answered 91 queries and explored 57.91 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.01ms on average).

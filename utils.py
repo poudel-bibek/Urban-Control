@@ -1,7 +1,7 @@
 import os
 import xml
 import time
-import random
+import json
 import logging
 import numpy as np
 import networkx as nx
@@ -179,3 +179,13 @@ def visualize_observation(observation):
     plt.colorbar(im, location='right', shrink=0.25, aspect=10)
     plt.savefig('observation.png', bbox_inches='tight', dpi=200)
     plt.close()
+
+def plot_consolidated_results(result_json_path):
+    """
+    Plot the consolidated results of the evaluation.
+    """
+    with open(result_json_path, 'r') as f:
+        results = json.load(f)
+
+
+
