@@ -11,7 +11,7 @@ class HyperParameterTuner:
 
     def hyperparameter_tune_main(self):
         try:
-            wandb.init(project=self.project)
+            wandb.init(project=self.project, settings=wandb.Settings(disable_git=True))
             config = wandb.config
             self.train_function(self.config, is_sweep=True, sweep_config=config)
         finally:

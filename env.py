@@ -976,10 +976,10 @@ class ControlEnv(gym.Env):
                 # No reward calculation
                 # self.step_count += 1 # We are not counting the warmup steps in the total simulation steps
 
-        print(f"Ended Warmup. Buffer length: {len(observation_buffer)}")
+        #print(f"Ended Warmup. Buffer length: {len(observation_buffer)}")
         observation_buffer = observation_buffer[-self.steps_per_action:] # Only keep the observation of thelast action
         observation = np.asarray(observation_buffer, dtype=np.float32)
-        print(f"\nObservation (in reset): {observation.shape}")
+        #print(f"\nObservation (in reset): {observation.shape}")
         return observation, {} # info is empty
 
     def close(self):

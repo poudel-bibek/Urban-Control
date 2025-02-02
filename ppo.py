@@ -78,10 +78,6 @@ class PPO:
 
         # Copy the parameters from the current policy to the old policy
         self.policy_old.load_state_dict(self.policy.state_dict())
-
-        # self.policy.share_memory() # Share the policy network across all processes. Any tensor can be shared across processes by calling this.
-        # self.policy_old.share_memory() # Share the old policy network across all processes. 
-
         # Set up the optimizer for the current policy network
         self.initial_lr = lr
         self.optimizer = optim.Adam(self.policy.parameters(), lr=self.initial_lr)
@@ -144,16 +140,7 @@ class PPO:
         Therefore, we need to convert the graph to a tensor.
         """
 
-        print(f"\nUpdating policy")
-        combined_memory = Memory()
-        for memory in memories:
-            combined_memory.actions.extend(memory.actions)
-            combined_memory.states.extend(memory.states)
-            combined_memory.logprobs.extend(memory.logprobs)
-            combined_memory.rewards.extend(memory.rewards)
-            combined_memory.is_terminals.extend(memory.is_terminals)
-
-        old_states = torch.stack(combined_memory.states).to(self.device)
+        old_states = torch.stack(memories.states).to(self.device)
         # print(f"\nOld states before reshape: {old_states.shape}")
 
         # From [128, 10, 96] to [128, 1, 10, 96]
@@ -161,15 +148,15 @@ class PPO:
         # print(f"\nOld states after reshape: {old_states.shape}")
 
         with torch.no_grad():
-            values = self.policy.critic(old_states)
+            values = self.policy_old.critic(old_states) # Use the old policy to get the value estimate.
         
         print(f"\nStates: {old_states.shape}")
-        print(f"\nActions: {len(combined_memory.actions)}")
-        print(f"\nLogprobs: {len(combined_memory.logprobs)}")
+        print(f"\nActions: {len(memories.actions)}")
+        print(f"\nLogprobs: {len(memories.logprobs)}")
         print(f"\nValues: {values.shape}")
 
         # Compute GAE
-        advantages = self.compute_gae(combined_memory.rewards, values, combined_memory.is_terminals, self.gamma, self.gae_lambda)
+        advantages = self.compute_gae(memories.rewards, values, memories.is_terminals, self.gamma, self.gae_lambda)
 
         # Advantage = how much better is it to take a specific action compared to the average action. 
         # GAE = difference between the empirical return and the value function estimate.
@@ -180,8 +167,8 @@ class PPO:
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8) # Small constant to prevent division by zero
         
         # Process actions and logprobs
-        old_actions = torch.stack(combined_memory.actions).to(self.device)
-        old_logprobs = torch.stack(combined_memory.logprobs).to(self.device)
+        old_actions = torch.stack(memories.actions).to(self.device)
+        old_logprobs = torch.stack(memories.logprobs).to(self.device)
 
         # Create a dataloader for mini-batching 
         dataset = TensorDataset(old_states, old_actions, old_logprobs, advantages, returns)

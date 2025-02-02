@@ -264,9 +264,7 @@ class MLPActorCritic(nn.Module):
         dropout_rate = kwargs.get('dropout_rate')
 
         with torch.no_grad():
-            sample_input = torch.zeros(
-                1, self.in_channels, self.action_duration, self.per_timestep_state_dim
-            )
+            sample_input = torch.zeros(1, self.in_channels, self.action_duration, self.per_timestep_state_dim)
             input_dim = sample_input.numel()  # total number of features, e.g. 1 * c * d * s
 
         if model_size == 'small':
@@ -385,7 +383,7 @@ class MLPActorCritic(nn.Module):
         midblock_dist = Bernoulli(midblock_probs)
         
         # Actions in shape (B,1) for intersection, (B,7) for midblock
-        intersection_action = actions[:, :1].float()
+        intersection_action = actions[:, :1].long() # Categorical expects long
         midblock_actions = actions[:, 1:].float()
 
         intersection_log_probs = intersection_dist.log_prob(intersection_action)
