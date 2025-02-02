@@ -4,8 +4,8 @@ def get_config():
     """
     config = {
         # Simulation
-        "sweep": False,  # Use wandb sweeps for hyperparameter tuning
-        "gui": True,  # Use SUMO GUI (default: False)
+        "sweep": True,  # Use wandb sweeps for hyperparameter tuning
+        "gui": False,  # Use SUMO GUI (default: False)
         "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
         "action_duration": 10,  # Duration of each action (default: 10.0)
         "warmup_steps": 100,  # Number of steps to run before collecting data
@@ -45,7 +45,7 @@ def get_config():
         "ent_coef": 0.01,  # Entropy coefficient
         "vf_coef": 0.5,  # Value function coefficient
         "batch_size": 32,  # Batch size
-        "num_processes": 12,  # Number of parallel processes to use (agent has multiple workers)
+        "num_processes": 8,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.2,  # Dropout rate for CNN
@@ -60,7 +60,7 @@ def get_config():
         "l5": -0.1,  # switch penalty weight
 
         # Evaluation
-        "evaluate": True,  
+        "evaluate": False,  
         "eval_model_path": "./saved_models/Feb02_12-19-49/best_control_model.pth",  # Path to the saved PPO model for evaluation
         "eval_n_iterations": 5,  # Number of iterations to repeat for each demand
         "eval_n_timesteps": 480,  # Number of timesteps to each episode. Warmup not counted.

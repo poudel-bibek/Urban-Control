@@ -189,7 +189,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
         while active_workers:
             print(f"Active workers: {active_workers}")
 
-            rank, memory = queue.get() #timeout=60) # Add a timeout to prevent infinite waiting
+            rank, memory = queue.get(timeout=60) # Add a timeout to prevent infinite waiting
             if memory is None:
                 print(f"Worker {rank} finished")
                 active_workers.remove(rank)
@@ -201,22 +201,18 @@ def train(train_config, is_sweep=False, sweep_config=None):
                 all_memories.logprobs.extend(memory.logprobs)
                 all_memories.rewards.extend(memory.rewards)
                 all_memories.is_terminals.extend(memory.is_terminals)
-                print(f"Size of all memories: {len(all_memories.actions)}")
 
                 action_timesteps += current_action_timesteps
                 global_step += current_action_timesteps * train_config['action_duration'] 
                 print(f"Action timesteps: {action_timesteps}, global step: {global_step}")
                 del memory #https://pytorch.org/docs/stable/multiprocessing.html
 
+
                 # Update PPO every n times (or close) action has been taken 
                 if action_timesteps >= control_args['update_freq']:
                     total_updates += 1
                     print(f"Updating PPO with {len(all_memories.actions)} memories")
                     loss = control_ppo.update(deepcopy(all_memories))
-
-                    # Update shared policy with new weights after PPO update
-                    control_ppo.policy_old.load_state_dict(control_ppo.policy.state_dict())
-
                     avg_reward = sum(all_memories.rewards) / control_args['num_processes'] # Average reward per process in this iteration
                     print(f"\nAverage Reward per process: {avg_reward:.2f}\n")
                     

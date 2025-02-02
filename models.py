@@ -206,7 +206,7 @@ class CNNActorCritic(nn.Module):
         midblock_dist = Bernoulli(midblock_probs)
 
         # 2. Get log probs
-        intersection_action = actions[:, :1].float()  # (batch_size, 1)
+        intersection_action = actions[:, :1].squeeze(1).long()  # (batch_size, 1) # Categorical expects long
         midblock_actions = actions[:, 1:].float() # (batch_size, 7)
         # print(f"\nIntersection action: {intersection_action}, shape: {intersection_action.shape}")
         # print(f"\nMidblock actions: {midblock_actions}, shape: {midblock_actions.shape}")
@@ -381,12 +381,11 @@ class MLPActorCritic(nn.Module):
         midblock_dist = Bernoulli(midblock_probs)
         
         # Actions in shape (B,1) for intersection, (B,7) for midblock
-        intersection_action = actions[:, :1].long() # Categorical expects long
+        intersection_action = actions[:, :1].squeeze(1).long() # Categorical expects long
         midblock_actions = actions[:, 1:].float()
 
         intersection_log_probs = intersection_dist.log_prob(intersection_action)
         midblock_log_probs = midblock_dist.log_prob(midblock_actions)
-
         action_log_probs = intersection_log_probs + midblock_log_probs.sum(dim=1)
 
         # Entropies
@@ -395,6 +394,7 @@ class MLPActorCritic(nn.Module):
         # Critic value
         state_values = self.critic(states)
         return action_log_probs, state_values, total_entropy
+
 
     def param_count(self):
         """
