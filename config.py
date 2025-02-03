@@ -35,7 +35,7 @@ def get_config():
         # PPO
         "anneal_lr": False,  # Anneal learning rate
         "gae_lambda": 0.95,  # GAE lambda
-        "max_grad_norm": 0.5,  # Maximum gradient norm for gradient clipping
+        "max_grad_norm": 1.0,  # Maximum gradient norm for gradient clipping
         "update_freq": 128,  # Number of action timesteps between each policy update
         "lr": 0.0001,  # Learning rate
         "gamma": 0.99,  # Discount factor
@@ -45,7 +45,7 @@ def get_config():
         "ent_coef": 0.01,  # Entropy coefficient
         "vf_coef": 0.5,  # Value function coefficient
         "batch_size": 32,  # Batch size
-        "num_processes": 8,  # Number of parallel processes to use (agent has multiple workers)
+        "num_processes": 10,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.2,  # Dropout rate for CNN

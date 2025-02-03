@@ -189,7 +189,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
         while active_workers:
             print(f"Active workers: {active_workers}")
 
-            rank, memory = queue.get(timeout=60) # Add a timeout to prevent infinite waiting
+            rank, memory = queue.get() #timeout=60) # Add a timeout to prevent infinite waiting
             if memory is None:
                 print(f"Worker {rank} finished")
                 active_workers.remove(rank)
@@ -207,15 +207,33 @@ def train(train_config, is_sweep=False, sweep_config=None):
                 print(f"Action timesteps: {action_timesteps}, global step: {global_step}")
                 del memory #https://pytorch.org/docs/stable/multiprocessing.html
 
-
                 # Update PPO every n times (or close) action has been taken 
                 if action_timesteps >= control_args['update_freq']:
                     total_updates += 1
                     print(f"Updating PPO with {len(all_memories.actions)} memories")
+
+                    # Compute average original reward for logging
+                    # avg_original_reward = sum(all_memories.rewards) / control_args['num_processes'] # Averaged across processes.
+                    # print(f"\nAverage Reward per process (unnormalized): {avg_original_reward:.2f}\n")
+
+                    # Normalize rewards
+                    rewards_tensor = torch.tensor(all_memories.rewards, dtype=torch.float32)
+                    print(f"\nRewards tensor: {rewards_tensor.shape}")
+                    reward_mean = rewards_tensor.mean()
+                    print(f"\nReward mean: {reward_mean}")
+                    reward_std = rewards_tensor.std() + 1e-8
+                    print(f"\nReward std: {reward_std}")
+                    normalized_rewards = (rewards_tensor - reward_mean) / reward_std
+                    print(f"\nNormalized rewards: {normalized_rewards.shape}, normalized rewards: {normalized_rewards}")
+
+                    avg_reward = torch.mean(normalized_rewards).item() # Averaged across size of all memories.
+                    print(f"\nAverage Reward (normalized): {avg_reward}\n")
+
+                    all_memories.rewards = normalized_rewards.tolist()
+                    print(f"\nAll memories rewards: {all_memories.rewards}")
+
                     loss = control_ppo.update(deepcopy(all_memories))
-                    avg_reward = sum(all_memories.rewards) / control_args['num_processes'] # Average reward per process in this iteration
-                    print(f"\nAverage Reward per process: {avg_reward:.2f}\n")
-                    
+        
                     # Reset all memories
                     del all_memories
                     all_memories = Memory() 
@@ -225,6 +243,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     # logging
                     if is_sweep: # Wandb for hyperparameter tuning
                         wandb.log({ "iteration": iteration,
+                                        #"avg_unnormalized_reward": avg_original_reward, 
                                         "avg_reward": avg_reward, # Set as maximize in the sweep config
                                         "total_updates": total_updates,
                                         "policy_loss": loss['policy_loss'],
@@ -236,6 +255,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                         
                     else: # Tensorboard for regular training
                         writer.add_scalar('Training/Average_Reward', avg_reward, global_step)
+                        #writer.add_scalar('Training/Average_Unnormalized_Reward', avg_original_reward, global_step)
                         writer.add_scalar('Training/Total_Policy_Updates', total_updates, global_step)
                         writer.add_scalar('Training/Policy_Loss', loss['policy_loss'], global_step)
                         writer.add_scalar('Training/Value_Loss', loss['value_loss'], global_step)
@@ -258,6 +278,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
         # Clean up. The join() method ensures that the main program waits for all processes to complete before continuing.
         for p in processes:
             p.join() 
+        print(f"All processes joined\n\n")
 
     if not is_sweep:
         writer.close()
@@ -355,7 +376,6 @@ def eval(config):
         start = n_workers * i   
         end = n_workers * (i + 1)
         demand_scales_evaluated_current_cycle = eval_demand_scales[start: end]
-
 
         queue = mp.Queue()
         processes = []  

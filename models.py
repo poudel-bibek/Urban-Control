@@ -274,16 +274,19 @@ class MLPActorCritic(nn.Module):
                 nn.LeakyReLU(),
                 nn.Dropout(dropout_rate),
                 nn.Linear(256, 256),
+                nn.LayerNorm(256), # LN
                 nn.LeakyReLU(),
                 nn.Dropout(dropout_rate),
             )
         else:  # 'medium'
             hidden_dim = 256
+
             self.shared_mlp = nn.Sequential(
                 nn.Linear(input_dim, 512),
                 nn.LeakyReLU(),
                 nn.Dropout(dropout_rate),
                 nn.Linear(512, 512),
+                nn.LayerNorm(512), # LN
                 nn.LeakyReLU(),
                 nn.Dropout(dropout_rate),
                 nn.Linear(512, 512),
@@ -294,21 +297,22 @@ class MLPActorCritic(nn.Module):
         # Actor head
         self.actor_layers = nn.Sequential(
             nn.Linear(256 if model_size == 'small' else 512, hidden_dim),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim, hidden_dim // 2),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim // 2, self.action_dim)
+
         )
 
         # Critic head
         self.critic_layers = nn.Sequential(
             nn.Linear(256 if model_size == 'small' else 512, hidden_dim),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim, hidden_dim // 2),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim // 2, 1)
         )
@@ -394,7 +398,6 @@ class MLPActorCritic(nn.Module):
         # Critic value
         state_values = self.critic(states)
         return action_log_probs, state_values, total_entropy
-
 
     def param_count(self):
         """

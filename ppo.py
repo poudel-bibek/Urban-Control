@@ -108,6 +108,9 @@ class PPO:
         gae = 0.0
         next_value = 0.0
 
+        values = values.cpu().numpy()
+        print(f"\nValues 2: {values.shape}")
+
         # First, we iterate through the rewards in reverse order.
         for step in reversed(range(len(rewards))):
 
@@ -149,7 +152,8 @@ class PPO:
 
         with torch.no_grad():
             values = self.policy_old.critic(old_states) # Use the old policy to get the value estimate.
-        
+            values = values.squeeze() # Shape is [128]
+
         print(f"\nStates: {old_states.shape}")
         print(f"\nActions: {len(memories.actions)}")
         print(f"\nLogprobs: {len(memories.logprobs)}")
@@ -162,10 +166,13 @@ class PPO:
         # GAE = difference between the empirical return and the value function estimate.
         # advantages + val = Reconstruction of empirical returns. Because we want the critic to predict the empirical returns.
         returns = advantages + values
+        print(f"\nAdvantages: {advantages.shape}")
+        print(f"\nReturns: {returns.shape}")
 
         # Normalize the advantages (only for use in policy loss calculation) after they have been added to get returns.
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8) # Small constant to prevent division by zero
-        
+        print(f"\nAdvantages after normalization: {advantages.shape}")
+
         # Process actions and logprobs
         old_actions = torch.stack(memories.actions).to(self.device)
         old_logprobs = torch.stack(memories.logprobs).to(self.device)
@@ -186,7 +193,10 @@ class PPO:
                 logprobs, state_values, dist_entropy = self.policy.evaluate(states_batch, actions_batch)
 
                 # Finding the ratio (pi_theta / pi_theta_old) for importance sampling (we want to use the samples obtained from old policy to get the new policy)
-                ratios = torch.exp(logprobs - old_logprobs_batch) # New log probs need to remain attached to the graph.
+                ratios = torch.exp(logprobs - old_logprobs_batch.squeeze(-1)) # New log probs need to remain attached to the graph.
+                # print(f"\nLogprobs: {logprobs.shape}")
+                # print(f"\nOld logprobs: {old_logprobs_batch.squeeze(-1).shape}")
+                # print(f"\nRatios: {ratios.shape}")
 
                 # Finding Surrogate Loss
                 surr1 = ratios * advantages_batch
@@ -195,13 +205,20 @@ class PPO:
                 # Calculate policy and value losses
                 # TODO: Is the mean necessary here? In policy loss and entropy loss. Probably yes, for averaging across the batch.
                 policy_loss = -torch.min(surr1, surr2).mean() # Equation 7 in the paper
+                print(f"\nPolicy loss: {policy_loss.item()}")
+
                 # The negative sign ensures that the optimizer maximizes the PPO objective by minimizing the loss function. It is correct and necessary.
                 value_loss = 0.5 * ((state_values - returns_batch) ** 2).mean() # MSE. Value loss is clipped (0.5)
+                print(f"\nValue loss: {value_loss.item()}")
+
+                print(f"\nDist entropy: {dist_entropy.shape}, dist entropy: {dist_entropy}")
                 entropy_loss = dist_entropy.mean()
-                
+                print(f"\nEntropy loss: {entropy_loss.item()}")
+
                 # Total loss
                 loss = policy_loss + self.vf_coef * value_loss - self.ent_coef * entropy_loss # Equation 9 in the paper
-                
+                print(f"\nLoss: {loss.item()}")
+
                 # Take gradient step
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -218,11 +235,17 @@ class PPO:
         avg_value_loss /= num_batches
         avg_entropy_loss /= num_batches
 
+        # print("\nPolicy New params:")
+        # for name, param in self.policy.named_parameters():
+        #     print(f"{name}: {param.data}")
+
+        # print("\n\n\nPolicy Old params:")
+        # for name, param in self.policy_old.named_parameters():
+        #     print(f"{name}: {param.data}")
+
         # Copy new weights into old policy
         self.policy_old.load_state_dict(self.policy.state_dict())
         print(f"\nPolicy updated with avg_policy_loss: {avg_policy_loss}\n") 
-        print(f"Policy New params: {self.policy.parameters()}\n\n")
-        print(f"Policy Old params: {self.policy_old.parameters()}\n\n")
 
         # Return the average batch loss per epoch
         return {

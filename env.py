@@ -639,9 +639,15 @@ class ControlEnv(gym.Env):
             # Outgoing, 1 direction
             observation.append(len(self.corrected_occupancy_map[tl_id]["pedestrian"]["outgoing"]["north"]["main"]))
         # print(f"\nObservation before normalization: {observation}")
-        observation = np.asarray(observation, dtype=np.float32)/ 10.0 # max normalizer
-        #print(f"\nObservation: shape: {observation.shape}, value: {observation}, type: {type(observation)}") 
-        return observation
+
+        # Normalize with running mean and std
+        observation = np.asarray(observation, dtype=np.float32)
+        obs_mean = observation.mean()
+        obs_std = observation.std() + 1e-6  # avoid division by zero
+        normalized_observation = (observation - obs_mean) / obs_std
+        #print(f"\nObservation: shape: {normalized_observation.shape}, value: {normalized_observation}, type: {type(normalized_observation)}") 
+        return normalized_observation
+
 
     def _get_advanced_observation(self, current_phase, print_map=False):
         """
@@ -733,13 +739,27 @@ class ControlEnv(gym.Env):
         """ 
         """
         # return self._get_pressure_based_reward(pressure_dict, switch_state)
-        return self._get_mwaq_reward(corrected_occupancy_map, switch_state)
-    
+        # return self._get_mwaq_reward(corrected_occupancy_map, switch_state)
+        return self._get_vehicle_wait_time_reward(corrected_occupancy_map)
+
+    def _get_vehicle_wait_time_reward(self, corrected_occupancy_map):
+        """
+        For testing: Simple reward based only on vehicle waiting time at the intersection.
+        """
+        wait_time = 0
+        for direction_turn in self.direction_turn_intersection_incoming:
+            int_vehicles = corrected_occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"][direction_turn]
+            for veh_id in int_vehicles:
+                wait_time += traci.vehicle.getWaitingTime(veh_id)
+        reward = -wait_time/200.0 # There are 12 direction_turns. And since we are accumulating over 10 timesteps, wait values get repeated.
+        return reward
+
     def _get_pressure_based_reward(self, pressure_dict, switch_state):
         """
         * Normalized pressure-based
         * Reward is based on the alleviation of pressure (penalize high pressure)
         * Intersection:
+
             - Vehicle pressure = Incoming - Outgoing 
             - Pedestrian pressure = Incoming (upside + downside) - Outgoing (inside crosswalk)
         * Mid-block:
@@ -802,6 +822,7 @@ class ControlEnv(gym.Env):
         - getWaitingTime: The waiting time (in seconds) of a pedestrian spent with speed below 0.1 m/s. Reset to 0 every time it moves.
 
         # TODO: Should we consider vicinity for pedestrians as well?
+        # TODO: Vehicles are in a queue only if their speed is below 0.1 (waiting)
         """
         MWAQ_VEH_NORMALIZER = 100
         MWAQ_PED_NORMALIZER = 100
@@ -1014,7 +1035,6 @@ class ControlEnv(gym.Env):
     def total_unique_ids(self):
         """
         So far in the simulation, how many total unique ids were seen. 
-        Call it once in the end.
         """
         return len(self.total_unique_ids_veh),  len(self.total_unique_ids_ped)
 
