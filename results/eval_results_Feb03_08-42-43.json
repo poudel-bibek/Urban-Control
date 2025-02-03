@@ -1,0 +1,291 @@
+{
+    "0.25": {
+        "0": {
+            "SEED": 303533,
+            "veh_avg_waiting_time": 16.75,
+            "ped_avg_waiting_time": 0.8333333333333334
+        },
+        "1": {
+            "SEED": 894331,
+            "veh_avg_waiting_time": 63.5,
+            "ped_avg_waiting_time": 2.4444444444444446
+        },
+        "2": {
+            "SEED": 387699,
+            "veh_avg_waiting_time": 95.75,
+            "ped_avg_waiting_time": 0.5555555555555556
+        }
+    },
+    "0.5": {
+        "0": {
+            "SEED": 843005,
+            "veh_avg_waiting_time": 8.0,
+            "ped_avg_waiting_time": 0.1
+        },
+        "1": {
+            "SEED": 501608,
+            "veh_avg_waiting_time": 12.333333333333334,
+            "ped_avg_waiting_time": 3.6
+        },
+        "2": {
+            "SEED": 887119,
+            "veh_avg_waiting_time": 49.5,
+            "ped_avg_waiting_time": 0.675
+        }
+    },
+    "0.75": {
+        "0": {
+            "SEED": 81736,
+            "veh_avg_waiting_time": 46.57142857142857,
+            "ped_avg_waiting_time": 0.26865671641791045
+        },
+        "1": {
+            "SEED": 129779,
+            "veh_avg_waiting_time": 11.142857142857142,
+            "ped_avg_waiting_time": 0.08955223880597014
+        },
+        "2": {
+            "SEED": 693521,
+            "veh_avg_waiting_time": 15.571428571428571,
+            "ped_avg_waiting_time": 0.22388059701492538
+        }
+    },
+    "1.0": {
+        "0": {
+            "SEED": 479251,
+            "veh_avg_waiting_time": 22.875,
+            "ped_avg_waiting_time": 0.20689655172413793
+        },
+        "1": {
+            "SEED": 178958,
+            "veh_avg_waiting_time": 13.0,
+            "ped_avg_waiting_time": 0.25287356321839083
+        },
+        "2": {
+            "SEED": 998043,
+            "veh_avg_waiting_time": 23.75,
+            "ped_avg_waiting_time": 0.7701149425287356
+        }
+    },
+    "1.25": {
+        "0": {
+            "SEED": 65280,
+            "veh_avg_waiting_time": 27.75,
+            "ped_avg_waiting_time": 1.9259259259259258
+        },
+        "1": {
+            "SEED": 424264,
+            "veh_avg_waiting_time": 3.0,
+            "ped_avg_waiting_time": 1.1666666666666667
+        },
+        "2": {
+            "SEED": 323539,
+            "veh_avg_waiting_time": 61.916666666666664,
+            "ped_avg_waiting_time": 5.203703703703703
+        }
+    },
+    "1.5": {
+        "0": {
+            "SEED": 818635,
+            "veh_avg_waiting_time": 4.705882352941177,
+            "ped_avg_waiting_time": 1.0393700787401574
+        },
+        "1": {
+            "SEED": 392058,
+            "veh_avg_waiting_time": 40.8235294117647,
+            "ped_avg_waiting_time": 0.09448818897637795
+        },
+        "2": {
+            "SEED": 663138,
+            "veh_avg_waiting_time": 19.529411764705884,
+            "ped_avg_waiting_time": 0.14960629921259844
+        }
+    },
+    "1.75": {
+        "0": {
+            "SEED": 214388,
+            "veh_avg_waiting_time": 24.944444444444443,
+            "ped_avg_waiting_time": 5.701986754966887
+        },
+        "1": {
+            "SEED": 295659,
+            "veh_avg_waiting_time": 14.166666666666666,
+            "ped_avg_waiting_time": 0.25165562913907286
+        },
+        "2": {
+            "SEED": 504605,
+            "veh_avg_waiting_time": 18.61111111111111,
+            "ped_avg_waiting_time": 1.9205298013245033
+        }
+    },
+    "2.0": {
+        "0": {
+            "SEED": 883883,
+            "veh_avg_waiting_time": 91.36842105263158,
+            "ped_avg_waiting_time": 0.5
+        },
+        "1": {
+            "SEED": 643347,
+            "veh_avg_waiting_time": 52.36842105263158,
+            "ped_avg_waiting_time": 0.0783132530120482
+        },
+        "2": {
+            "SEED": 703143,
+            "veh_avg_waiting_time": 38.63157894736842,
+            "ped_avg_waiting_time": 0.9036144578313253
+        }
+    },
+    "2.25": {
+        "0": {
+            "SEED": 811687,
+            "veh_avg_waiting_time": 16.681818181818183,
+            "ped_avg_waiting_time": 0.19689119170984457
+        },
+        "1": {
+            "SEED": 43411,
+            "veh_avg_waiting_time": 39.36363636363637,
+            "ped_avg_waiting_time": 2.0103092783505154
+        },
+        "2": {
+            "SEED": 530659,
+            "veh_avg_waiting_time": 45.22727272727273,
+            "ped_avg_waiting_time": 0.788659793814433
+        }
+    },
+    "2.5": {
+        "0": {
+            "SEED": 756530,
+            "veh_avg_waiting_time": 42.888888888888886,
+            "ped_avg_waiting_time": 7.862385321100917
+        },
+        "1": {
+            "SEED": 658651,
+            "veh_avg_waiting_time": 102.0,
+            "ped_avg_waiting_time": 0.6559633027522935
+        },
+        "2": {
+            "SEED": 455665,
+            "veh_avg_waiting_time": 15.555555555555555,
+            "ped_avg_waiting_time": 0.16055045871559634
+        }
+    },
+    "2.75": {
+        "0": {
+            "SEED": 131145,
+            "veh_avg_waiting_time": 71.56666666666666,
+            "ped_avg_waiting_time": 0.7088607594936709
+        },
+        "1": {
+            "SEED": 554445,
+            "veh_avg_waiting_time": 46.3,
+            "ped_avg_waiting_time": 1.350210970464135
+        },
+        "2": {
+            "SEED": 591284,
+            "veh_avg_waiting_time": 10.366666666666667,
+            "ped_avg_waiting_time": 0.17721518987341772
+        }
+    },
+    "3.0": {
+        "0": {
+            "SEED": 176869,
+            "veh_avg_waiting_time": 8.0,
+            "ped_avg_waiting_time": 0.15355805243445692
+        },
+        "1": {
+            "SEED": 532125,
+            "veh_avg_waiting_time": 53.11764705882353,
+            "ped_avg_waiting_time": 0.599250936329588
+        },
+        "2": {
+            "SEED": 471104,
+            "veh_avg_waiting_time": 18.88235294117647,
+            "ped_avg_waiting_time": 0.48507462686567165
+        }
+    },
+    "3.25": {
+        "0": {
+            "SEED": 918715,
+            "veh_avg_waiting_time": 10.114285714285714,
+            "ped_avg_waiting_time": 5.054607508532423
+        },
+        "1": {
+            "SEED": 664898,
+            "veh_avg_waiting_time": 26.514285714285716,
+            "ped_avg_waiting_time": 0.3890784982935154
+        },
+        "2": {
+            "SEED": 107773,
+            "veh_avg_waiting_time": 27.514285714285716,
+            "ped_avg_waiting_time": 0.5767918088737202
+        }
+    },
+    "3.5": {
+        "0": {
+            "SEED": 764914,
+            "veh_avg_waiting_time": 15.38888888888889,
+            "ped_avg_waiting_time": 0.8643533123028391
+        },
+        "1": {
+            "SEED": 835394,
+            "veh_avg_waiting_time": 78.38888888888889,
+            "ped_avg_waiting_time": 0.2334384858044164
+        },
+        "2": {
+            "SEED": 354065,
+            "veh_avg_waiting_time": 24.0,
+            "ped_avg_waiting_time": 0.49842271293375395
+        }
+    },
+    "3.75": {
+        "0": {
+            "SEED": 606997,
+            "veh_avg_waiting_time": 38.30555555555556,
+            "ped_avg_waiting_time": 0.42857142857142855
+        },
+        "1": {
+            "SEED": 868850,
+            "veh_avg_waiting_time": 107.5,
+            "ped_avg_waiting_time": 0.4427710843373494
+        },
+        "2": {
+            "SEED": 40497,
+            "veh_avg_waiting_time": 17.333333333333332,
+            "ped_avg_waiting_time": 0.6325301204819277
+        }
+    },
+    "4.0": {
+        "0": {
+            "SEED": 360756,
+            "veh_avg_waiting_time": 42.95,
+            "ped_avg_waiting_time": 1.2735042735042734
+        },
+        "1": {
+            "SEED": 480439,
+            "veh_avg_waiting_time": 37.925,
+            "ped_avg_waiting_time": 1.3778409090909092
+        },
+        "2": {
+            "SEED": 137175,
+            "veh_avg_waiting_time": 35.3,
+            "ped_avg_waiting_time": 0.25
+        }
+    },
+    "4.25": {
+        "0": {
+            "SEED": 418915,
+            "veh_avg_waiting_time": 89.97435897435898,
+            "ped_avg_waiting_time": 3.1448087431693987
+        },
+        "1": {
+            "SEED": 926725,
+            "veh_avg_waiting_time": 45.0,
+            "ped_avg_waiting_time": 2.1444141689373297
+        },
+        "2": {
+            "SEED": 753189,
+            "veh_avg_waiting_time": 47.24390243902439,
+            "ped_avg_waiting_time": 0.3079019073569482
+        }
+    }
+}

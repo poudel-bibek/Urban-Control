@@ -289,13 +289,12 @@ def parallel_eval_worker(rank, eval_worker_config, queue):
     control_args['manual_demand_veh'] = worker_demand_scale
     control_args['manual_demand_ped'] = worker_demand_scale
     env = ControlEnv(control_args, worker_id=rank)
-
     worker_result = {}
-    worker_result['demand_scale'] = worker_demand_scale
-
+    
     # Run the worker
     for i in range(eval_worker_config['n_iterations']):
         worker_result[i] = {}
+
         SEED = random.randint(0, 1000000)
         random.seed(SEED)
         np.random.seed(SEED)
@@ -305,7 +304,7 @@ def parallel_eval_worker(rank, eval_worker_config, queue):
 
         worker_result[i]['SEED'] = SEED
 
-        # Run the worker
+        # Run the worker (reset includes warmup)
         state, _ = env.reset()
         veh_waiting_time_this_episode = 0
         ped_waiting_time_this_episode = 0
@@ -334,15 +333,14 @@ def parallel_eval_worker(rank, eval_worker_config, queue):
         worker_result[i]['veh_avg_waiting_time'] = veh_waiting_time_this_episode / veh_unique_ids_this_episode
         worker_result[i]['ped_avg_waiting_time'] = ped_waiting_time_this_episode / ped_unique_ids_this_episode
     # After all iterations are complete. 
-    queue.put((rank, worker_result))
+    queue.put((worker_demand_scale, worker_result))
 
 def eval(config):
     """
     Evaluate RL agent vs real-world TL
     - Each demand is run on a different worker
-    - First eval trained ppo policy, then TL
-    - Results are put in a json and saved
-
+    - First eval trained ppo policy, TODO: then TL
+    - Results savedd as json dict. 
     """
     n_workers = config['eval_n_workers']
     eval_worker_device = config['eval_worker_device']
@@ -352,6 +350,7 @@ def eval(config):
     eval_device = torch.device("cuda") if config['gpu'] and torch.cuda.is_available() else torch.device("cpu")
     control_args, ppo_args = classify_and_return_args(config, eval_device)
     eval_demand_scales = config['eval_demand_scales']
+    all_results = {}
 
     # PPO
     # number of times the n_workers have to be repeated to cover all eval demands
@@ -364,9 +363,10 @@ def eval(config):
         queue = mp.Queue()
         processes = []  
         active_workers = []
-        for j, demand_scale in enumerate(demand_scales_evaluated_current_cycle): 
+        demand_scale_to_rank = {}
+        for rank, demand_scale in enumerate(demand_scales_evaluated_current_cycle): 
+            demand_scale_to_rank[demand_scale] = rank
             print(f"For demand: {demand_scale}")    
-            rank = i * len(demand_scales_evaluated_current_cycle) + j # This j goes from 0 to len(demand_scales_evaluated_current_cycle) - 1
             worker_config = {
                 'n_iterations': n_iterations,
                 'total_action_timesteps_per_episode': config['eval_n_timesteps'] // control_args['action_duration'], # Each time
@@ -384,23 +384,25 @@ def eval(config):
             processes.append(p)
             active_workers.append(rank)
 
-        all_results = {}
         while active_workers:
-            rank, result = queue.get()#timeout=60) # Result is obtained after all iterations are complete
-            print(f"Result from worker {rank}: {result}")
-            all_results[rank] = result
-            active_workers.remove(rank)
+            worker_demand_scale, result = queue.get() #timeout=60) # Result is obtained after all iterations are complete
+            print(f"Result from worker with demand scale: {worker_demand_scale}: {result}")
+            all_results[worker_demand_scale] = result
+            active_workers.remove(demand_scale_to_rank[worker_demand_scale])
 
         for p in processes:
             p.join()
 
-        print(f"All results: {all_results}")    
-        current_time = datetime.now().strftime('%b%d_%H-%M-%S')
-        result_json_path = os.path.join(config['save_dir'], f'eval_results_{current_time}.json')
-        with open(result_json_path, 'w') as f:
-            json.dump(all_results, f, indent=4)
+    print(f"All results: {all_results}")    
+    current_time = datetime.now().strftime('%b%d_%H-%M-%S')
+    os.makedirs('./results', exist_ok=True)
+    result_json_path = os.path.join('./results', f'eval_results_{current_time}.json')
+    with open(result_json_path, 'w') as f:
+        json.dump(all_results, f, indent=4)
 
-        plot_consolidated_results(result_json_path)
+    in_range_demand_scales = [0.25, 0.5, 0.75, 3.75, 4.0, 4.25]
+    out_of_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5]
+    plot_consolidated_results(result_json_path, in_range_demand_scales, out_of_range_demand_scales)
 
 def main(config):
     """
