@@ -4,7 +4,7 @@ def get_config():
     """
     config = {
         # Simulation
-        "sweep": True,  # Use wandb sweeps for hyperparameter tuning
+        "sweep": False,  # Use wandb sweeps for hyperparameter tuning
         "gui": False,  # Use SUMO GUI (default: False)
         "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
         "action_duration": 10,  # Duration of each action (default: 10.0)
@@ -34,21 +34,21 @@ def get_config():
 
         # PPO
         "anneal_lr": False,  # Anneal learning rate
-        "gae_lambda": 0.95,  # GAE lambda
+        "gae_lambda": 0.92,  # GAE lambda
         "max_grad_norm": 1.0,  # Maximum gradient norm for gradient clipping
-        "update_freq": 128,  # Number of action timesteps between each policy update
-        "lr": 0.0001,  # Learning rate
+        "update_freq": 256,  # Number of action timesteps between each policy update
+        "lr": 0.00001,  # Learning rate
         "gamma": 0.99,  # Discount factor
-        "K_epochs": 2,  # Number of epochs to update policy
+        "K_epochs": 4,  # Number of epochs to update policy
         "eps_clip": 0.2,  # Clip parameter for PPO
         "save_freq": 2,  # Save model after every n updates (0 to disable)
-        "ent_coef": 0.01,  # Entropy coefficient
-        "vf_coef": 0.5,  # Value function coefficient
-        "batch_size": 32,  # Batch size
-        "num_processes": 10,  # Number of parallel processes to use (agent has multiple workers)
+        "ent_coef": 1.20,  # Entropy coefficient
+        "vf_coef": 0.70,  # Value function coefficient
+        "batch_size": 128,  # Batch size
+        "num_processes": 8,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
-        "dropout_rate": 0.2,  # Dropout rate for CNN
+        "dropout_rate": 0.25,  # Dropout rate for CNN
         "action_dim": 7 + 4,  # 7 + 4 for simple action. Number of action logits (not the same as number of actions. think)
         "in_channels": 1, # in_channels for cnn
 

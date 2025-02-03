@@ -45,7 +45,7 @@ class PPO:
                  ent_coef, 
                  vf_coef, 
                  batch_size, 
-                 gae_lambda, 
+                 gae_lambda,
                  max_grad_norm,
                  model_type,
                  model_kwargs):
