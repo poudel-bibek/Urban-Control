@@ -739,8 +739,8 @@ class ControlEnv(gym.Env):
         """ 
         """
         # return self._get_pressure_based_reward(pressure_dict, switch_state)
-        # return self._get_mwaq_reward(corrected_occupancy_map, switch_state)
-        return self._get_vehicle_wait_time_reward(corrected_occupancy_map)
+        return self._get_mwaq_reward(corrected_occupancy_map, switch_state)
+        #return self._get_vehicle_wait_time_reward(corrected_occupancy_map)
 
     def _get_vehicle_wait_time_reward(self, corrected_occupancy_map):
         """

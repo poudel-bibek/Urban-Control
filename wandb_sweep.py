@@ -85,7 +85,7 @@ class HyperParameterTuner:
                     'distribution': 'uniform'
                 },
                 'update_freq': {
-                    'values': [64, 128, 256, 512]
+                    'values': [64, 128, 256]
                 },
                 'gamma': {
                     'min': 0.90,
@@ -101,8 +101,8 @@ class HyperParameterTuner:
                     'distribution': 'uniform'
                 },
                 'ent_coef': { # Entropy coefficient: a small positive range in log-scale # force the agent to explore for a much longer duration.
-                    'min': 1e-4,  # Keep the lower bound for some fine-tuning at low entropy
-                    'max': 1.0,   # **Increase max to 1.0** (or even higher, like 2.0 or 5.0 if needed)
+                    'min': 0.05,  
+                    'max': 3.0,  
                     'distribution': 'log_uniform_values'
                 },
                 'vf_coef': {

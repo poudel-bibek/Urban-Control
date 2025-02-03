@@ -212,24 +212,10 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     total_updates += 1
                     print(f"Updating PPO with {len(all_memories.actions)} memories")
 
-                    # Compute average original reward for logging
-                    # avg_original_reward = sum(all_memories.rewards) / control_args['num_processes'] # Averaged across processes.
-                    # print(f"\nAverage Reward per process (unnormalized): {avg_original_reward:.2f}\n")
-
-                    # Normalize rewards
-                    rewards_tensor = torch.tensor(all_memories.rewards, dtype=torch.float32)
-                    print(f"\nRewards tensor: {rewards_tensor.shape}")
-                    reward_mean = rewards_tensor.mean()
-                    print(f"\nReward mean: {reward_mean}")
-                    reward_std = rewards_tensor.std() + 1e-8
-                    print(f"\nReward std: {reward_std}")
-                    normalized_rewards = (rewards_tensor - reward_mean) / reward_std
-                    print(f"\nNormalized rewards: {normalized_rewards.shape}, normalized rewards: {normalized_rewards}")
-
-                    avg_reward = torch.mean(normalized_rewards).item() # Averaged across size of all memories.
-                    print(f"\nAverage Reward (normalized): {avg_reward}\n")
-
-                    all_memories.rewards = normalized_rewards.tolist()
+                    # Un-normalized reward is useful to track performance whereas normalized reward is used for training (stability and convergence).
+                    # Compute average reward (un-normalized) across all processes (various demands) for logging and maximization in sweep (this is directly interpretable and indicative with the traffic performance we want)
+                    avg_reward = sum(all_memories.rewards) / control_args['num_processes'] # Averaged across processes.
+                    print(f"\nAverage Reward per process (unnormalized): {avg_reward:.2f}\n")
                     print(f"\nAll memories rewards: {all_memories.rewards}")
 
                     loss = control_ppo.update(deepcopy(all_memories))
@@ -243,7 +229,6 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     # logging
                     if is_sweep: # Wandb for hyperparameter tuning
                         wandb.log({ "iteration": iteration,
-                                        #"avg_unnormalized_reward": avg_original_reward, 
                                         "avg_reward": avg_reward, # Set as maximize in the sweep config
                                         "total_updates": total_updates,
                                         "policy_loss": loss['policy_loss'],
@@ -255,7 +240,6 @@ def train(train_config, is_sweep=False, sweep_config=None):
                         
                     else: # Tensorboard for regular training
                         writer.add_scalar('Training/Average_Reward', avg_reward, global_step)
-                        #writer.add_scalar('Training/Average_Unnormalized_Reward', avg_original_reward, global_step)
                         writer.add_scalar('Training/Total_Policy_Updates', total_updates, global_step)
                         writer.add_scalar('Training/Policy_Loss', loss['policy_loss'], global_step)
                         writer.add_scalar('Training/Value_Loss', loss['value_loss'], global_step)
