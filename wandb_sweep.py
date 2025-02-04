@@ -121,7 +121,7 @@ class HyperParameterTuner:
                     'values': ['small', 'medium']
                 },
                 # 'kernel_size': { 
-                #     'values': [3, 5]
+                #     'values': [3, 5, 7]
                 # },
 
                 'dropout_rate': {

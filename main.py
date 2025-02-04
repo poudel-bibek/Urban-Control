@@ -211,11 +211,9 @@ def train(train_config, is_sweep=False, sweep_config=None):
                 if action_timesteps >= control_args['update_freq']:
                     total_updates += 1
                     print(f"Updating PPO with {len(all_memories.actions)} memories")
-
-                    # Un-normalized reward is useful to track performance whereas normalized reward is used for training (stability and convergence).
-                    # Compute average reward (un-normalized) across all processes (various demands) for logging and maximization in sweep (this is directly interpretable and indicative with the traffic performance we want)
+                    
                     avg_reward = sum(all_memories.rewards) / control_args['num_processes'] # Averaged across processes.
-                    print(f"\nAverage Reward per process (unnormalized): {avg_reward:.2f}\n")
+                    print(f"\nAverage Reward (across processes): {avg_reward}\n")
                     print(f"\nAll memories rewards: {all_memories.rewards}")
 
                     loss = control_ppo.update(deepcopy(all_memories))

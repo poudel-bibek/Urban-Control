@@ -334,8 +334,8 @@ def plot_consolidated_results(result_json_path, in_range_demand_scales, out_of_r
     plt.savefig("consolidated_results.png", dpi=300)  
     plt.show()
 
-# Can be used separately.
-in_range_demand_scales = [0.25, 0.5, 0.75, 3.75, 4.0, 4.25]
-out_of_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5]
-result_json_path = './results/eval_results_Feb03_08-42-43.json'
-plot_consolidated_results(result_json_path, in_range_demand_scales, out_of_range_demand_scales)
+# # Can be used separately.
+# in_range_demand_scales = [0.25, 0.5, 0.75, 3.75, 4.0, 4.25]
+# out_of_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5]
+# result_json_path = './results/eval_results_Feb03_08-42-43.json'
+# plot_consolidated_results(result_json_path, in_range_demand_scales, out_of_range_demand_scales)

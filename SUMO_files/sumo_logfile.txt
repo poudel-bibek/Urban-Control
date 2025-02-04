@@ -1,14 +1,31 @@
-***Starting server on port 34511 ***
-Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (17ms).
+***Starting server on port 34709 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (21ms).
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_6.xml'
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_6.xml'
 Loading done.
-Simulation version 1.20.0 started with time: 0.00.
-Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
-Quitting (on error).
-DijkstraRouter answered 1842 queries and explored 4.74 edges on average.
-DijkstraRouter spent 0.00s answering queries (0.00ms on average).
-DijkstraRouter answered 377 queries and explored 477.91 edges on average.
-DijkstraRouter spent 0.02s answering queries (0.04ms on average).
-DijkstraRouter answered 41 queries and explored 58.39 edges on average.
-DijkstraRouter spent 0.00s answering queries (0.02ms on average).
-outer answered 36 queries and explored 58.36 edges on average.
-DijkstraRouter spent 0.00s answering queries (0.00ms on average).
+Simulation version UNKNOWN started with time: 0.00.
+Warning: Person '1941' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=544.00.
+Warning: Person '57' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=549.00.
+Simulation ended at time: 580.00.
+Reason: TraCI requested termination.
+Performance:
+ Duration: 116.12s
+ TraCI-Duration: 115.58s
+ Real time factor: 4.99492
+ UPS: 96.005787
+ UPS-Persons: 809.280215
+Vehicles:
+ Inserted: 51 (Loaded: 55)
+ Running: 31
+ Waiting: 0
+Persons:
+ Inserted: 502
+ Running: 237
+ Jammed: 2
+DijkstraRouter answered 8660 queries and explored 5.55 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.00ms on average).
+DijkstraRouter answered 485 queries and explored 477.10 edges on average.
+DijkstraRouter spent 0.03s answering queries (0.07ms on average).
+DijkstraRouter answered 51 queries and explored 57.65 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.04ms on average).
+age).

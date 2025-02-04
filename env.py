@@ -824,8 +824,8 @@ class ControlEnv(gym.Env):
         # TODO: Should we consider vicinity for pedestrians as well?
         # TODO: Vehicles are in a queue only if their speed is below 0.1 (waiting)
         """
-        MWAQ_VEH_NORMALIZER = 100
-        MWAQ_PED_NORMALIZER = 100
+        MWAQ_VEH_NORMALIZER = 1000
+        MWAQ_PED_NORMALIZER = 1000
 
         # Intersection 
         # Vehicle

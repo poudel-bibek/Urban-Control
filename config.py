@@ -4,7 +4,7 @@ def get_config():
     """
     config = {
         # Simulation
-        "sweep": False,  # Use wandb sweeps for hyperparameter tuning
+        "sweep": True,  # Use wandb sweeps for hyperparameter tuning
         "gui": False,  # Use SUMO GUI (default: False)
         "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
         "action_duration": 10,  # Duration of each action (default: 10.0)
@@ -60,10 +60,10 @@ def get_config():
         "l5": -0.1,  # switch penalty weight
 
         # Evaluation
-        "evaluate": True,  
-        "eval_model_path": "./saved_models/Feb03_07-24-52/best_control_model.pth",  # Path to the saved PPO model for evaluation
-        "eval_n_iterations": 3,  # Number of iterations to repeat for each demand
-        "eval_n_timesteps": 50,  # Number of timesteps to each episode. Warmup not counted.
+        "evaluate": False,  
+        "eval_model_path": "./saved_models/Feb03_07-18-33/best_control_model.pth",  # Path to the saved PPO model for evaluation
+        "eval_n_iterations": 4,  # Number of iterations to repeat for each demand
+        "eval_n_timesteps": 500,  # Number of timesteps to each episode. Warmup not counted.
         "eval_n_workers": 12,  # Parallelizes how many demands can be evaluated at the same time.
         "eval_worker_device": "gpu",  # Policy during eval can be run in GPU
         "eval_demand_scales": [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 3.75, 4.0, 4.25], # Includes demand outside the training range
