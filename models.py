@@ -18,6 +18,8 @@ class CNNActorCritic(nn.Module):
 
         During hyper-param sweep, the model size changes based on one of the dimension of the input (action_duration). 
         Even at high action durations, the model size is around 4.1M parameters. 
+
+        Shared CNN backbone useful because "feature extraction" is useful for both actor and critic.
         """
         super(CNNActorCritic, self).__init__()
         self.in_channels = in_channels
@@ -171,8 +173,6 @@ class CNNActorCritic(nn.Module):
         combined_action = torch.cat([intersection_action, midblock_actions.squeeze(0)], dim=0)
         log_prob = intersection_dist.log_prob(intersection_action) + midblock_dist.log_prob(midblock_actions).sum()
         # print(f"\nCombined action: {combined_action}, shape: {combined_action.shape}")
-        # print(f"\nLog probability: {log_prob}, shape: {log_prob.shape}")
-
         return combined_action.int(), log_prob
     
         # Advanced action
@@ -248,98 +248,76 @@ class CNNActorCritic(nn.Module):
 class MLPActorCritic(nn.Module):
     def __init__(self, in_channels, action_dim, **kwargs):
         """
-        MLP Actor-Critic network with two "sizes" (small, medium) 
-        Expects inputs of shape (B, in_channels, action_duration, per_timestep_state_dim),
-        then flattens to (B, -1).
+        - MLP Actor-Critic network in two sizes: small, medium. 
+        - Expects inputs of shape (B, in_channels, action_duration, per_timestep_state_dim) then flattens to (B, -1).
+        - No shared backbone as there is no feature extraction.
         """
         super(MLPActorCritic, self).__init__()
-
-        self.in_channels = in_channels
-        self.action_dim = action_dim
-
-        self.action_duration = kwargs.get('action_duration')
-        self.per_timestep_state_dim = kwargs.get('per_timestep_state_dim')
-
-        model_size = kwargs.get('model_size')
-        dropout_rate = kwargs.get('dropout_rate')
+        in_channels = in_channels
+        action_duration = kwargs.get('action_duration')
+        per_timestep_state_dim = kwargs.get('per_timestep_state_dim')
 
         with torch.no_grad():
-            sample_input = torch.zeros(1, self.in_channels, self.action_duration, self.per_timestep_state_dim)
-            input_dim = sample_input.numel()  # total number of features, e.g. 1 * c * d * s
+            sample_input = torch.zeros(1, in_channels, action_duration, per_timestep_state_dim)
+            self.input_dim = sample_input.numel()  # total number of features, e.g. 1 * c * d * s
 
+        if kwargs.get('activation') == "tanh":
+            activation = nn.Tanh
+        elif kwargs.get('activation') == "relu":
+            activation = nn.ReLU
+        elif kwargs.get('activation') == "leakyrelu":
+            activation = nn.LeakyReLU
+        # dropout_rate = kwargs.get('dropout_rate')
+
+        model_size = kwargs.get('model_size')
         if model_size == 'small':
-            hidden_dim = 128
-            self.shared_mlp = nn.Sequential(
-                nn.Linear(input_dim, 256),
-                nn.LeakyReLU(),
-                nn.Dropout(dropout_rate),
-                nn.Linear(256, 256),
-                nn.LayerNorm(256), # LN
-                nn.LeakyReLU(),
-                nn.Dropout(dropout_rate),
-            )
-        else:  # 'medium'
-            hidden_dim = 256
+            actor_hidden_sizes = [256, 128]
+            critic_hidden_sizes = [256, 128]
+        elif model_size == 'medium':
+            actor_hidden_sizes = [512, 256]
+            critic_hidden_sizes = [512, 256]
 
-            self.shared_mlp = nn.Sequential(
-                nn.Linear(input_dim, 512),
-                nn.LeakyReLU(),
-                nn.Dropout(dropout_rate),
-                nn.Linear(512, 512),
-                nn.LayerNorm(512), # LN
-                nn.LeakyReLU(),
-                nn.Dropout(dropout_rate),
-                nn.Linear(512, 512),
-                nn.LeakyReLU(),
-                nn.Dropout(dropout_rate),
-            )
+        # Build networks
+        # actor
+        actor_layers = []
+        input_size_actor = self.input_dim
+        for h in actor_hidden_sizes:
+            actor_layers.append(nn.Linear(input_size_actor, h))
+            actor_layers.append(activation())
+            # actor_layers.append(nn.Dropout(dropout_rate)) # Disabled for now
+            input_size_actor = h
+        self.actor_layers = nn.Sequential(*actor_layers)
+        self.actor_logits = nn.Linear(input_size_actor, action_dim) # Last layer, no activation
 
-        # Actor head
-        self.actor_layers = nn.Sequential(
-            nn.Linear(256 if model_size == 'small' else 512, hidden_dim),
-            nn.LeakyReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim, hidden_dim // 2),
-            nn.LeakyReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim // 2, self.action_dim)
+        # critic
+        critic_layers = []
+        input_size_critic = self.input_dim
+        for h in critic_hidden_sizes:
+            critic_layers.append(nn.Linear(input_size_critic, h))
+            critic_layers.append(activation())
+            # critic_layers.append(nn.Dropout(dropout_rate)) # Disabled for now
+            input_size_critic = h
+        self.critic_layers = nn.Sequential(*critic_layers)
+        self.critic_value = nn.Linear(input_size_critic, 1) # Last layer, no activation
 
-        )
 
-        # Critic head
-        self.critic_layers = nn.Sequential(
-            nn.Linear(256 if model_size == 'small' else 512, hidden_dim),
-            nn.LeakyReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim, hidden_dim // 2),
-            nn.LeakyReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim // 2, 1)
-        )
-
-    def forward_shared(self, state: torch.Tensor) -> torch.Tensor:
+    def actor_forward(self, state):
         """
-        Flatten the input from (B, C, D, S) to (B, -1) and pass through the shared MLP trunk.
-        """
-        # Flatten from 4D to 2D
-        bsz = state.size(0)
-        flat = state.view(bsz, -1)  # shape: (B, in_channels*action_duration*per_timestep_state_dim)
-        return self.shared_mlp(flat)
-
-    def actor(self, state):
-        """
+        First Flatten the input from 4D (B, C, D, S) to 2D (B, -1)
         Returns the raw action logits from the actor head.
         """
-        shared_features = self.forward_shared(state)
-        action_logits = self.actor_layers(shared_features)
-        return action_logits
+        bsz = state.size(0)
+        flat = state.view(bsz, -1)  # shape: (B, in_channels*action_duration*per_timestep_state_dim)
+        return self.actor_logits(self.actor_layers(flat))
 
-    def critic(self, state):
+    def critic_forward(self, state):
         """
+        First Flatten the input from 4D (B, C, D, S) to 2D (B, -1)
         Returns the scalar state-value V(s).
         """
-        shared_features = self.forward_shared(state)
-        return self.critic_layers(shared_features)
+        bsz = state.size(0)
+        flat = state.view(bsz, -1)  # shape: (B, in_channels*action_duration*per_timestep_state_dim)
+        return self.critic_value(self.critic_layers(flat))
 
     def act(self, state):
         """
@@ -347,10 +325,8 @@ class MLPActorCritic(nn.Module):
           - intersection action from first 4 logits (Categorical)
           - midblock from next 7 logits (Bernoulli)
         """
-        # Reshape to (1, c, d, s) 
-        # but we flatten inside forward_shared anyway.
-        state_tensor = state.reshape(1, self.in_channels, self.action_duration, self.per_timestep_state_dim)
-        action_logits = self.actor(state_tensor)
+        state = state.reshape(1, 1, state.shape[0], state.shape[1])
+        action_logits = self.actor_forward(state)
 
         # The first 4 logits => intersection (Categorical)
         intersection_logits = action_logits[:, :4]
@@ -364,17 +340,22 @@ class MLPActorCritic(nn.Module):
         midblock_dist = Bernoulli(midblock_probs)
         midblock_actions = midblock_dist.sample()  # shape [1,7]
 
+        # print(f"\nIntersection logits: {intersection_logits}")
+        # print(f"\nMidblock logits: {midblock_logits}")
+
         combined_action = torch.cat([intersection_action, midblock_actions.squeeze(0)], dim=0)
         log_prob = intersection_dist.log_prob(intersection_action) + \
                    midblock_dist.log_prob(midblock_actions).sum()
 
+        # print(f"\nAction Log probability: {log_prob}, shape: {log_prob.shape}")
         return combined_action.int(), log_prob
 
     def evaluate(self, states, actions):
         """
         Evaluate a batch of states and pre-sampled actions. Same logic as the CNN version.
         """
-        action_logits = self.actor(states)
+        print(f"States: {states.shape}, Actions: {actions.shape}")
+        action_logits = self.actor_forward(states)
         intersection_logits = action_logits[:, :4]
         midblock_logits = action_logits[:, 4:]
 
@@ -396,20 +377,19 @@ class MLPActorCritic(nn.Module):
         total_entropy = intersection_dist.entropy() + midblock_dist.entropy().sum(dim=1)
 
         # Critic value
-        state_values = self.critic(states)
+        state_values = self.critic_forward(states)
         return action_log_probs, state_values, total_entropy
+
 
     def param_count(self):
         """
         Return a dict describing the parameter counts, mirroring the CNN version.
         """
-        actor_params = sum(p.numel() for p in self.actor_layers.parameters())
-        critic_params = sum(p.numel() for p in self.critic_layers.parameters())
-        shared_params = sum(p.numel() for p in self.shared_mlp.parameters())
+        actor_params = sum(p.numel() for p in self.actor_layers.parameters()) + sum(p.numel() for p in self.actor_logits.parameters())
+        critic_params = sum(p.numel() for p in self.critic_layers.parameters()) + sum(p.numel() for p in self.critic_value.parameters())
 
         return {
-            "actor_total": actor_params + shared_params,
-            "critic_total": critic_params + shared_params,
-            "total": actor_params + critic_params + shared_params,
-            "shared": shared_params
+            "Actor": actor_params,
+            "Critic": critic_params,
+            "Total": actor_params + critic_params,
         }

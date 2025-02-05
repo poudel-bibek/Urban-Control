@@ -495,11 +495,11 @@ class ControlEnv(gym.Env):
             obs = self._get_observation(current_phase)
             observation_buffer.append(obs)
 
-            # Do before reward calculation
-            pressure_dict = self._get_pressure_dict(self.corrected_occupancy_map)
-            reward += self._get_reward(pressure_dict, self.corrected_occupancy_map, switch_state)
-
         # outside the loop
+        # Do before reward calculation
+        pressure_dict = self._get_pressure_dict(self.corrected_occupancy_map)
+        # Reward outside the loop (only once per duration)
+        reward += self._get_reward(pressure_dict, self.corrected_occupancy_map, switch_state)
         self.previous_action = action
 
         # Check if episode is done (outside the for loop, otherwise it would create a broken observation)
@@ -646,6 +646,7 @@ class ControlEnv(gym.Env):
         obs_std = observation.std() + 1e-6  # avoid division by zero
         normalized_observation = (observation - obs_mean) / obs_std
         #print(f"\nObservation: shape: {normalized_observation.shape}, value: {normalized_observation}, type: {type(normalized_observation)}") 
+        # print(f"\nNormalized observation: {normalized_observation}")
         return normalized_observation
 
 
@@ -824,8 +825,8 @@ class ControlEnv(gym.Env):
         # TODO: Should we consider vicinity for pedestrians as well?
         # TODO: Vehicles are in a queue only if their speed is below 0.1 (waiting)
         """
-        MWAQ_VEH_NORMALIZER = 1000
-        MWAQ_PED_NORMALIZER = 1000
+        MWAQ_VEH_NORMALIZER = 100
+        MWAQ_PED_NORMALIZER = 100
 
         # Intersection 
         # Vehicle

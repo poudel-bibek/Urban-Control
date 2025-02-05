@@ -18,7 +18,7 @@ from torch.utils.tensorboard import SummaryWriter
 from utils import *
 from env import ControlEnv
 
-def parallel_train_worker(rank, shared_policy_old, control_args, queue, global_seed, worker_device):
+def parallel_train_worker(rank, shared_policy_old, control_args, queue, worker_seed, worker_device):
     """
     At every iteration, a number of workers will each parallelly carry out one episode in control environment.
     - Worker environment runs in CPU (SUMO runs in CPU).
@@ -29,7 +29,6 @@ def parallel_train_worker(rank, shared_policy_old, control_args, queue, global_s
     """
 
     # Set seed for this worker
-    worker_seed = global_seed + rank
     random.seed(worker_seed)
     np.random.seed(worker_seed)
     torch.manual_seed(worker_seed)
@@ -78,13 +77,12 @@ def parallel_train_worker(rank, shared_policy_old, control_args, queue, global_s
     del worker_env
     queue.put((rank, None))  # Signal that this worker is done
 
-def save_config(config, SEED, save_path):
+def save_config(config, save_path):
     """
     Save hyperparameters to json.
     """
     config_to_save = {
         "hyperparameters": config,
-        "global_seed": SEED,
     }
     with open(save_path, 'w') as f:
         json.dump(config_to_save, f, indent=4)
@@ -99,8 +97,6 @@ def train(train_config, is_sweep=False, sweep_config=None):
     random.seed(SEED)
     np.random.seed(SEED)
     torch.manual_seed(SEED)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(SEED)
 
     worker_device = torch.device("cuda") if train_config['gpu'] and torch.cuda.is_available() else torch.device("cpu")
     print(f"Using device: {worker_device}")
@@ -116,7 +112,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
     os.makedirs(log_dir, exist_ok=True)
 
     config_path = os.path.join(log_dir, f'config_{current_time}.json')
-    save_config(train_config, SEED, config_path)
+    save_config(train_config, config_path)
     print(f"Configuration saved to {config_path}")
 
     control_args, ppo_args = classify_and_return_args(train_config, worker_device)
@@ -133,8 +129,8 @@ def train(train_config, is_sweep=False, sweep_config=None):
     # Initialize control agent
     print(f"\nControl agent: \n\tState dimension: {dummy_env.observation_space.shape}, Action dimension: {train_config['action_dim']}")
     control_ppo = PPO(**ppo_args)
-    control_ppo.policy.share_memory() # share across processes
-    control_ppo.policy_old.share_memory() # Since workers share the old policy (used for importance sampling), they get the new one after each update. Policy is not stale. Verify.
+    # control_ppo.policy.share_memory() # share across processes
+    # control_ppo.policy_old.share_memory() # Since workers share the old policy (used for importance sampling), they get the new one after each update. Policy is not stale. Verify.
 
     # Model saving and tensorboard 
     writer = SummaryWriter(log_dir=log_dir)
@@ -144,7 +140,6 @@ def train(train_config, is_sweep=False, sweep_config=None):
     control_args.update({
         'writer': writer,
         'save_dir': save_dir,
-        'global_seed': SEED,
         'total_action_timesteps_per_episode': train_config['max_timesteps'] // train_config['action_duration']
     })
     # worker related args
@@ -169,6 +164,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
         processes = []
         active_workers = []
         for rank in range(control_args['num_processes']):
+            worker_seed = SEED + iteration * 1000 + rank
             p = mp.Process(
                 target=parallel_train_worker,
                 args=(
@@ -176,7 +172,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     control_ppo.policy_old,
                     control_args_worker,
                     queue,
-                    control_args['global_seed'],
+                    worker_seed,
                     worker_device)
                 )
             p.start()

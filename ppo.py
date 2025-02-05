@@ -72,9 +72,9 @@ class PPO:
             raise ValueError(f"Invalid model type: {self.model_type}. Must be 'cnn' or 'mlp'.")
         
         param_counts = self.policy.param_count()
-        print(f"\tActor parameters: {param_counts['actor_total']}")
-        print(f"\tCritic parameters: {param_counts['critic_total']}")
-        print(f"\tShared parameters: {param_counts['shared']}\n")
+        print(f"\nModel parameters:")
+        for k, v in param_counts.items():
+            print(f"\t{k}: {v}")
 
         # Copy the parameters from the current policy to the old policy
         self.policy_old.load_state_dict(self.policy.state_dict())
@@ -139,8 +139,7 @@ class PPO:
         - Includes GAE
         - For the choice between KL divergence vs. clipping, we use clipping.
     
-         However, the policy network expects a tensor.
-        Therefore, we need to convert the graph to a tensor.
+        The paper expresses the loss as maximization objective. We convert it to minimization by changing the sign.
         """
 
         old_states = torch.stack(memories.states).to(self.device)
@@ -203,8 +202,7 @@ class PPO:
                 surr2 = torch.clamp(ratios, 1-self.eps_clip, 1+self.eps_clip) * advantages_batch
                 
                 # Calculate policy and value losses
-                # TODO: Is the mean necessary here? In policy loss and entropy loss. Probably yes, for averaging across the batch.
-                policy_loss = -torch.min(surr1, surr2).mean() # Equation 7 in the paper
+                policy_loss = torch.min(surr1, surr2).mean() # Equation 7 in the paper
                 print(f"\nPolicy loss: {policy_loss.item()}")
 
                 # The negative sign ensures that the optimizer maximizes the PPO objective by minimizing the loss function. It is correct and necessary.
@@ -215,9 +213,9 @@ class PPO:
                 entropy_loss = dist_entropy.mean()
                 print(f"\nEntropy loss: {entropy_loss.item()}")
 
-                # Total loss
-                loss = policy_loss + self.vf_coef * value_loss - self.ent_coef * entropy_loss # Equation 9 in the paper
-                print(f"\nLoss: {loss.item()}")
+                # Total loss. Negate for minimization.
+                loss = -1 * (policy_loss - self.vf_coef * value_loss + self.ent_coef * entropy_loss) # Equation 9 in the paper
+                print(f"\nTotal Loss: {loss.item()}")
 
                 # Take gradient step
                 self.optimizer.zero_grad()

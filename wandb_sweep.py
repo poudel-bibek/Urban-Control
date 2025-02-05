@@ -1,4 +1,5 @@
 import wandb
+import torch.nn as nn
 class HyperParameterTuner: 
     def __init__(self, config, train_function):
         self.config = config
@@ -75,8 +76,8 @@ class HyperParameterTuner:
                 },
             'parameters': {
                 'lr': {
-                    'min': 1e-6,
-                    'max': 0.1,
+                    'min': 1e-5,
+                    'max': 0.01,
                     'distribution': 'log_uniform_values'
                 },
                 'gae_lambda': {
@@ -101,7 +102,7 @@ class HyperParameterTuner:
                     'distribution': 'uniform'
                 },
                 'ent_coef': { # Entropy coefficient: a small positive range in log-scale # force the agent to explore for a much longer duration.
-                    'min': 0.05,  
+                    'min': 0.1,  
                     'max': 3.0,  
                     'distribution': 'log_uniform_values'
                 },
@@ -120,15 +121,20 @@ class HyperParameterTuner:
                 'size': {
                     'values': ['small', 'medium']
                 },
+                'activation': {
+                    'values': ["tanh"] #, "relu", "leakyrelu"]
+                },
+
+
                 # 'kernel_size': { 
                 #     'values': [3, 5, 7]
                 # },
 
-                'dropout_rate': {
-                    'min': 0.05,
-                    'max': 0.3,
-                    'distribution': 'uniform'
-                },
+                # 'dropout_rate': {
+                #     'min': 0.05,
+                #     'max': 0.3,
+                #     'distribution': 'uniform'
+                # },
                 # Reward-related lambdas: continuous range 
                 # 'l1': {
                 #     'min': -1.0,

@@ -25,7 +25,7 @@ def get_config():
         # PPO (general params)
         "seed": None,  # Random seed (default: None)
         "gpu": True,  # Use GPU if available (default: use CPU)
-        "total_timesteps": 100000,  # Total number of timesteps the simulation will run
+        "total_timesteps": 500000,  # Total number of timesteps the simulation will run
         "max_timesteps": 480,  # Maximum number of steps in one episode (make this multiple of 16*10)
         "total_sweep_trials": 256,  # Total number of trials for the wandb sweep
         "memory_transfer_freq": 16,  # Frequency of memory transfer from worker to main process 
@@ -45,12 +45,14 @@ def get_config():
         "ent_coef": 1.20,  # Entropy coefficient
         "vf_coef": 0.70,  # Value function coefficient
         "batch_size": 128,  # Batch size
-        "num_processes": 8,  # Number of parallel processes to use (agent has multiple workers)
+        "num_processes": 10,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.25,  # Dropout rate for CNN
         "action_dim": 7 + 4,  # 7 + 4 for simple action. Number of action logits (not the same as number of actions. think)
         "in_channels": 1, # in_channels for cnn
+        "activation": "nn.Tanh",  # Policy activation function
+
 
         # PPO reward weights
         "l1": -0.20,  # intersection vehicle
@@ -96,7 +98,6 @@ def classify_and_return_args(train_config, worker_device):
         'save_freq': train_config['save_freq'],
         'writer': None, # Need dummy values for dummy envs init.
         'save_dir': None,
-        'global_seed': None,
         'total_action_timesteps_per_episode': None,
         'num_processes': train_config['num_processes'],
         'anneal_lr': train_config['anneal_lr'],
@@ -115,7 +116,9 @@ def classify_and_return_args(train_config, worker_device):
         'kernel_size': train_config['kernel_size'],
         'dropout_rate': train_config['dropout_rate'],
         'per_timestep_state_dim': train_config['per_timestep_state_dim'],
+        'activation': train_config['activation'],
     }
+
 
     ppo_args = {
         'model_dim': train_config['in_channels'], 
