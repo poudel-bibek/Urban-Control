@@ -7,19 +7,14 @@ from torch.distributions import  Categorical
 class CNNActorCritic(nn.Module):
     def __init__(self, in_channels, action_dim, **kwargs):
         """
-        CNN Actor-Critic network with configurable size (designed to be compatible with hyper-parameter tuning)
-        we are applying conv2d, the state should be 2d with a bunch of channels.
-        Choices: 
+        Model choices: 
             Small: 4 Conv layers, 3 Linear layers
             Medium: 6 Conv layers, 5 Linear layers
 
-        Regularization: Dropout and Batch Norm (mitigation of internal covariate shift)
-        Using strided convolutions instead of pooling layers.
-
-        During hyper-param sweep, the model size changes based on one of the dimension of the input (action_duration). 
-        Even at high action durations, the model size is around 4.1M parameters. 
-
-        Shared CNN backbone useful because "feature extraction" is useful for both actor and critic.
+        - Applying conv2d, the state should be 2d with a bunch of channels (1)
+        - Regularization: Dropout and Batch Norm
+        - Using strided convolutions instead of pooling layers
+        - Shared CNN backbone useful because "feature extraction" is useful for both actor and critic.
         """
         super(CNNActorCritic, self).__init__()
         self.in_channels = in_channels
@@ -29,91 +24,101 @@ class CNNActorCritic(nn.Module):
 
         model_size = kwargs.get('model_size')
         kernel_size = kwargs.get('kernel_size')
-        dropout_rate = kwargs.get('dropout_rate')
         padding = kernel_size // 2
+        # dropout_rate = kwargs.get('dropout_rate')
+        activation = kwargs.get('activation')
+
+        if activation == "tanh":
+            activation = nn.Tanh
+        elif activation == "relu":
+            activation = nn.ReLU
+        elif activation == "leakyrelu":
+            activation = nn.LeakyReLU
 
         if model_size == 'small':
             self.shared_cnn = nn.Sequential(
                 nn.Conv2d(self.in_channels, 16, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(16),
-                nn.LeakyReLU(),
+                activation(),
                 nn.Conv2d(16, 32, kernel_size=kernel_size, stride=2, padding=padding),  # Strided Conv 
                 nn.BatchNorm2d(32),
-                nn.LeakyReLU(),
+                activation(),
                 nn.Conv2d(32, 64, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(64),
-                nn.LeakyReLU(),
+                activation(),
                 nn.Conv2d(64, 64, kernel_size=kernel_size, stride=2, padding=padding),  # Strided Conv 
                 nn.BatchNorm2d(64),
-                nn.LeakyReLU(),
+                activation(),
                 nn.Conv2d(64, 64, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(64),
-                nn.LeakyReLU(),
+                activation(),
                 nn.Flatten(),
                 #nn.Dropout(dropout_rate)
-            )
+                )
             hidden_dim = 128
 
         else:  # medium
             self.shared_cnn = nn.Sequential(
                 nn.Conv2d(self.in_channels, 16, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(16),
-                nn.LeakyReLU(),
+                activation(),
                 nn.Conv2d(16, 32, kernel_size=kernel_size, stride=2, padding=padding),  # Strided Conv 
                 nn.BatchNorm2d(32),
-                nn.LeakyReLU(),
+                activation(),
                 nn.Conv2d(32, 64, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(64),
-                nn.LeakyReLU(),
+                activation(),
                 nn.Conv2d(64, 128, kernel_size=kernel_size, stride=2, padding=padding), # Strided Conv 
                 nn.BatchNorm2d(128),
-                nn.LeakyReLU(),
+                activation(),
                 nn.Conv2d(128, 128, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(128),
-                nn.LeakyReLU(),
+                activation(),
                 nn.Conv2d(128, 128, kernel_size=kernel_size, stride=2, padding=padding), # Strided Conv 
                 nn.BatchNorm2d(128),
-                nn.LeakyReLU(),
+                activation(),
                 nn.Conv2d(128, 128, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(128),
-                nn.LeakyReLU(),
+                activation(),
                 nn.Flatten(),
                 #nn.Dropout(dropout_rate)
-            )
+                )
             hidden_dim = 256
 
         # Calculate the size of the flattened CNN output
         with torch.no_grad():
-            sample_input = torch.zeros(1, self.in_channels, self.action_duration, self.per_timestep_state_dim) # E.g., (1,1,10,74) batch size of 1, 1 channel, 10 timesteps, 74 state dims
+            sample_input = torch.zeros(1, self.in_channels, self.action_duration, self.per_timestep_state_dim)
             cnn_output_size = self.shared_cnn(sample_input).shape[1]
             #print(f"\n\nCNN output size: {cnn_output_size}\n\n")
 
-        # Actor-specific layers
         self.actor_layers = nn.Sequential(
             nn.Linear(cnn_output_size, hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
+            nn.LayerNorm(hidden_dim),
+            activation(),
+            # nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim, hidden_dim // 2),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
+            nn.LayerNorm(hidden_dim // 2),
+            activation(),
+            # nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim // 2, self.action_dim)
+
         )
         
-        # Critic-specific layers
         self.critic_layers = nn.Sequential(
             nn.Linear(cnn_output_size, hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
+            nn.LayerNorm(hidden_dim),
+            activation(),
+            # nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim, hidden_dim // 2),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
+            nn.LayerNorm(hidden_dim // 2),
+            activation(),
+            # nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim // 2, 1)
         )
 
-    def actor(self, state,):
+    def actor(self, state):
         shared_features = self.shared_cnn(state)
         action_logits = self.actor_layers(shared_features)
-        #print(f"\n\nAction logits: {action_logits}\n\n")
         return action_logits
     
     def critic(self, state):
@@ -174,8 +179,6 @@ class CNNActorCritic(nn.Module):
         log_prob = intersection_dist.log_prob(intersection_action) + midblock_dist.log_prob(midblock_actions).sum()
         # print(f"\nCombined action: {combined_action}, shape: {combined_action.shape}")
         return combined_action.int(), log_prob
-    
-        # Advanced action
 
     def evaluate(self, states, actions):
         """
@@ -227,8 +230,6 @@ class CNNActorCritic(nn.Module):
         state_values = self.critic(states)
         # print(f"\nState values: {state_values}, shape: {state_values.shape}")
         return action_log_probs, state_values, total_entropy
-        
-        # Advanced action
 
     def param_count(self, ):
         """
@@ -271,29 +272,30 @@ class MLPActorCritic(nn.Module):
 
         model_size = kwargs.get('model_size')
         if model_size == 'small':
-            actor_hidden_sizes = [256, 128]
-            critic_hidden_sizes = [256, 128]
+            actor_hidden_sizes = [256, 128, 64, 32]
+            critic_hidden_sizes = [256, 128, 64, 32]
         elif model_size == 'medium':
-            actor_hidden_sizes = [512, 256]
-            critic_hidden_sizes = [512, 256]
-
+            actor_hidden_sizes = [512, 256, 128, 64, 32]
+            critic_hidden_sizes = [512, 256, 128, 64, 32]
         # Build networks
         # actor
         actor_layers = []
         input_size_actor = self.input_dim
         for h in actor_hidden_sizes:
             actor_layers.append(nn.Linear(input_size_actor, h))
+            actor_layers.append(nn.LayerNorm(h))  # Add LayerNorm after linear layer
             actor_layers.append(activation())
             # actor_layers.append(nn.Dropout(dropout_rate)) # Disabled for now
             input_size_actor = h
         self.actor_layers = nn.Sequential(*actor_layers)
         self.actor_logits = nn.Linear(input_size_actor, action_dim) # Last layer, no activation
 
-        # critic
+        # critic 
         critic_layers = []
         input_size_critic = self.input_dim
         for h in critic_hidden_sizes:
             critic_layers.append(nn.Linear(input_size_critic, h))
+            critic_layers.append(nn.LayerNorm(h))  # Add LayerNorm after linear layer
             critic_layers.append(activation())
             # critic_layers.append(nn.Dropout(dropout_rate)) # Disabled for now
             input_size_critic = h
@@ -301,7 +303,7 @@ class MLPActorCritic(nn.Module):
         self.critic_value = nn.Linear(input_size_critic, 1) # Last layer, no activation
 
 
-    def actor_forward(self, state):
+    def actor(self, state):
         """
         First Flatten the input from 4D (B, C, D, S) to 2D (B, -1)
         Returns the raw action logits from the actor head.
@@ -310,7 +312,7 @@ class MLPActorCritic(nn.Module):
         flat = state.view(bsz, -1)  # shape: (B, in_channels*action_duration*per_timestep_state_dim)
         return self.actor_logits(self.actor_layers(flat))
 
-    def critic_forward(self, state):
+    def critic(self, state):
         """
         First Flatten the input from 4D (B, C, D, S) to 2D (B, -1)
         Returns the scalar state-value V(s).
@@ -326,7 +328,7 @@ class MLPActorCritic(nn.Module):
           - midblock from next 7 logits (Bernoulli)
         """
         state = state.reshape(1, 1, state.shape[0], state.shape[1])
-        action_logits = self.actor_forward(state)
+        action_logits = self.actor(state)
 
         # The first 4 logits => intersection (Categorical)
         intersection_logits = action_logits[:, :4]
@@ -354,10 +356,10 @@ class MLPActorCritic(nn.Module):
         """
         Evaluate a batch of states and pre-sampled actions. Same logic as the CNN version.
         """
-        print(f"States: {states.shape}, Actions: {actions.shape}")
-        action_logits = self.actor_forward(states)
+        action_logits = self.actor(states)
         intersection_logits = action_logits[:, :4]
         midblock_logits = action_logits[:, 4:]
+
 
         # Distributions
         intersection_probs = torch.softmax(intersection_logits, dim=1)
@@ -377,9 +379,8 @@ class MLPActorCritic(nn.Module):
         total_entropy = intersection_dist.entropy() + midblock_dist.entropy().sum(dim=1)
 
         # Critic value
-        state_values = self.critic_forward(states)
+        state_values = self.critic(states)
         return action_log_probs, state_values, total_entropy
-
 
     def param_count(self):
         """

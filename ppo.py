@@ -183,6 +183,7 @@ class PPO:
         avg_policy_loss = 0
         avg_value_loss = 0
         avg_entropy_loss = 0
+        avg_total_loss = 0
 
         # Optimize policy for K epochs (terminology used in PPO paper)
         for _ in range(self.K_epochs):
@@ -227,11 +228,13 @@ class PPO:
                 avg_policy_loss += policy_loss.item()
                 avg_value_loss += value_loss.item()
                 avg_entropy_loss += entropy_loss.item()
-        
+                avg_total_loss += loss.item()
+
         num_batches = len(dataloader) * self.K_epochs
         avg_policy_loss /= num_batches
         avg_value_loss /= num_batches
         avg_entropy_loss /= num_batches
+        avg_total_loss /= num_batches
 
         # print("\nPolicy New params:")
         # for name, param in self.policy.named_parameters():
@@ -250,5 +253,5 @@ class PPO:
             'policy_loss': avg_policy_loss,
             'value_loss': avg_value_loss,
             'entropy_loss': avg_entropy_loss,
-            'total_loss': avg_policy_loss + self.vf_coef * avg_value_loss - self.ent_coef * avg_entropy_loss
+            'total_loss': avg_total_loss
         }
