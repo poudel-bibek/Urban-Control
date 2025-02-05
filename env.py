@@ -805,12 +805,13 @@ class ControlEnv(gym.Env):
                  self.l3 * norm_mb_veh_pressure + 
                  self.l4 * norm_mb_ped_pressure + 
                  self.l5 * norm_switch_penalty)
+        
         return reward
 
     def _get_mwaq_reward(self, corrected_occupancy_map, switch_state, print_reward=False):
         """
         * Maximum wait aggregated queue (MWAQ)
-        * MWAQ = For each TL, For both veh and ped: [sum of queue lengths of all directions x maximum waiting time among all]
+        * MWAQ = For each TL, For both veh and ped: [sum of queue lengths of all incoming directions x maximum waiting time among all]
         * Penalize high MWAQ, i.e. make it negative.
         * Individually normalize MWAQ for each TL.
         Other components: 
@@ -822,82 +823,112 @@ class ControlEnv(gym.Env):
         Pedestrians:
         - getWaitingTime: The waiting time (in seconds) of a pedestrian spent with speed below 0.1 m/s. Reset to 0 every time it moves.
 
+        Normalizers:
+        - A fixed normalizer multiplied by the number of incoming directions
+
         # TODO: Should we consider vicinity for pedestrians as well?
-        # TODO: Vehicles are in a queue only if their speed is below 0.1 (waiting)
         """
         MWAQ_VEH_NORMALIZER = 100
         MWAQ_PED_NORMALIZER = 100
+        VEH_THRESHOLD_SPEED = 0.2 # m/s
+        PED_THRESHOLD_SPEED = 0.5 # m/s
 
         # Intersection 
         # Vehicle
         int_veh_mwaq = 0
-        max_wait_time_veh_int = 0
+        # queue length only starts counting if the vehicles are below 0.1 m/s
+        # set thsi to 0.5 so that it does not have a zero value if vehicles  moving but very slow (upto the threshold speed)
+        max_wait_time_veh_int = 0.5 
+        veh_queue_length = 0
+
         for direction_turn in self.direction_turn_intersection_incoming:
             int_vehicles = corrected_occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"][direction_turn]
-            veh_queue_length = len(int_vehicles)
             for veh_id in int_vehicles:
+                # queue length
+                if traci.vehicle.getSpeed(veh_id) < VEH_THRESHOLD_SPEED:
+                    veh_queue_length += 1
+                # wait time
                 wait_time = traci.vehicle.getWaitingTime(veh_id)
                 if wait_time > max_wait_time_veh_int:
                     max_wait_time_veh_int = wait_time
-            int_veh_mwaq += veh_queue_length * max_wait_time_veh_int
+
+        int_veh_mwaq = veh_queue_length * max_wait_time_veh_int
         norm_int_veh_mwaq = int_veh_mwaq / (MWAQ_VEH_NORMALIZER * len(self.direction_turn_intersection_incoming))
 
         # Pedestrian
         int_ped_mwaq = 0
-        max_wait_time_ped_int = 0
+        max_wait_time_ped_int = 0.5
+        ped_queue_length = 0
         for direction in self.directions:
             int_pedestrians = corrected_occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["pedestrian"]["incoming"][direction]["main"]
-            ped_queue_length = len(int_pedestrians)
             for ped_id in int_pedestrians:
+                # queue length
+                if traci.person.getSpeed(ped_id) < PED_THRESHOLD_SPEED:
+                    ped_queue_length += 1
+                # wait time
                 wait_time = traci.person.getWaitingTime(ped_id)
                 if wait_time > max_wait_time_ped_int:
+
                     max_wait_time_ped_int = wait_time
-            int_ped_mwaq += ped_queue_length * max_wait_time_ped_int
+        int_ped_mwaq = ped_queue_length * max_wait_time_ped_int
         norm_int_ped_mwaq = int_ped_mwaq / (MWAQ_PED_NORMALIZER * len(self.directions))
 
         # Midblock
         # Vehicle
-        mb_veh_mwaq = 0
-        mb_veh_mwaq_per_tl = {}
+        norm_mb_veh_mwaq = 0
+        norm_mb_veh_mwaq_per_tl = {}
         for tl_id in self.tl_ids[1:]:
-            max_wait_time_veh_mb = 0
             tl_veh_mwaq = 0
+            max_wait_time_veh_mb = 0.5
+            veh_queue_length = 0
             for direction in self.direction_turn_midblock:
                 mb_vehicles = corrected_occupancy_map[tl_id]["vehicle"]["incoming"][direction]
-                veh_queue_length = len(mb_vehicles)
+
+                # queue length
                 for veh_id in mb_vehicles:
+                    if traci.vehicle.getSpeed(veh_id) < VEH_THRESHOLD_SPEED:
+                        veh_queue_length += 1
+
+                    # wait time
                     wait_time = traci.vehicle.getWaitingTime(veh_id)
                     if wait_time > max_wait_time_veh_mb:
                         max_wait_time_veh_mb = wait_time
-                tl_veh_mwaq += veh_queue_length * max_wait_time_veh_mb
-            mb_veh_mwaq_per_tl[tl_id] = tl_veh_mwaq / (MWAQ_VEH_NORMALIZER * len(self.direction_turn_midblock))
-            mb_veh_mwaq += tl_veh_mwaq
-        norm_mb_veh_mwaq = mb_veh_mwaq / (MWAQ_VEH_NORMALIZER * len(self.tl_ids[1:]) * len(self.direction_turn_midblock))
+
+            tl_veh_mwaq = veh_queue_length * max_wait_time_veh_mb
+            norm_tl_veh_mwaq = tl_veh_mwaq / (MWAQ_VEH_NORMALIZER * len(self.direction_turn_midblock))
+            norm_mb_veh_mwaq_per_tl[tl_id] = norm_tl_veh_mwaq
+            norm_mb_veh_mwaq += norm_tl_veh_mwaq
+        norm_mb_veh_mwaq = norm_mb_veh_mwaq / len(self.tl_ids[1:])
+
 
         # Pedestrian    
-        mb_ped_mwaq = 0
-        mb_ped_mwaq_per_tl = {}
+        norm_mb_ped_mwaq = 0
+        norm_mb_ped_mwaq_per_tl = {}
         for tl_id in self.tl_ids[1:]:
-            max_wait_time_ped_mb = 0
+            tl_ped_mwaq = 0
+            max_wait_time_ped_mb = 0.5
+            ped_queue_length = 0
             mb_pedestrians = corrected_occupancy_map[tl_id]["pedestrian"]["incoming"]["north"]["main"] # only one direction # 
-            ped_queue_length = len(mb_pedestrians)
             for ped_id in mb_pedestrians:
+                # queue length
+                if traci.person.getSpeed(ped_id) < PED_THRESHOLD_SPEED:
+                    ped_queue_length += 1
+                # wait time
                 wait_time = traci.person.getWaitingTime(ped_id)
                 if wait_time > max_wait_time_ped_mb:
+
                     max_wait_time_ped_mb = wait_time
+
             tl_ped_mwaq = ped_queue_length * max_wait_time_ped_mb
-            mb_ped_mwaq_per_tl[tl_id] = tl_ped_mwaq / MWAQ_PED_NORMALIZER
-            mb_ped_mwaq += tl_ped_mwaq
-        norm_mb_ped_mwaq = mb_ped_mwaq / (MWAQ_PED_NORMALIZER * len(self.tl_ids[1:]))
+            norm_tl_ped_mwaq = tl_ped_mwaq / MWAQ_PED_NORMALIZER
+            norm_mb_ped_mwaq_per_tl[tl_id] = norm_tl_ped_mwaq
+            norm_mb_ped_mwaq += norm_tl_ped_mwaq
+        norm_mb_ped_mwaq = norm_mb_ped_mwaq / len(self.tl_ids[1:])  
 
         # Frequency of switch state changes
-        norm_switch_penalty = sum(switch_state) / len(self.tl_ids)
+        # norm_switch_penalty = sum(switch_state) / len(self.tl_ids)
         
-        reward = (self.l1 * norm_int_veh_mwaq + 
-                 self.l2 * norm_int_ped_mwaq + 
-                 self.l3 * norm_mb_veh_mwaq + 
-                 self.l4 * norm_mb_ped_mwaq) 
-                 # self.l5 * norm_switch_penalty
+        reward = -1 * (norm_int_veh_mwaq + norm_int_ped_mwaq + norm_mb_veh_mwaq + norm_mb_ped_mwaq)
 
         if print_reward:
             print(f"Intersection Reward Components:\n"
@@ -906,10 +937,11 @@ class ControlEnv(gym.Env):
 
             for tl_id in self.tl_ids[1:]:
                 print(f"Midblock TL {tl_id} Reward Components:\n"
-                      f"\tVehicle MWAQ: {mb_veh_mwaq_per_tl[tl_id]}\n"
-                      f"\tPedestrian MWAQ: {mb_ped_mwaq_per_tl[tl_id]}")
-            print(f"Switch penalty: {norm_switch_penalty}")
+                      f"\tVehicle MWAQ: {norm_mb_veh_mwaq_per_tl[tl_id]}\n"
+                      f"\tPedestrian MWAQ: {norm_mb_ped_mwaq_per_tl[tl_id]}")
+            # print(f"Switch penalty: {norm_switch_penalty}")
             print(f"Total Reward: {reward}\n\n")
+
         
         return reward
 
