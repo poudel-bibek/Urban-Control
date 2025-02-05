@@ -43,10 +43,10 @@ class CNNActorCritic(nn.Module):
                 nn.Conv2d(16, 32, kernel_size=kernel_size, stride=2, padding=padding),  # Strided Conv 
                 nn.BatchNorm2d(32),
                 activation(),
-                nn.Conv2d(32, 64, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.Conv2d(32, 64, kernel_size=kernel_size, stride=1, padding=0),
                 nn.BatchNorm2d(64),
                 activation(),
-                nn.Conv2d(64, 64, kernel_size=kernel_size, stride=2, padding=padding),  # Strided Conv 
+                nn.Conv2d(64, 64, kernel_size=kernel_size, stride=2, padding=0),  # Strided Conv 
                 nn.BatchNorm2d(64),
                 activation(),
                 nn.Flatten(),
@@ -62,16 +62,16 @@ class CNNActorCritic(nn.Module):
                 nn.Conv2d(16, 32, kernel_size=kernel_size, stride=2, padding=padding),  # Strided Conv 
                 nn.BatchNorm2d(32),
                 activation(),
-                nn.Conv2d(32, 64, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.Conv2d(32, 64, kernel_size=kernel_size, stride=1, padding=0),
                 nn.BatchNorm2d(64),
                 activation(),
-                nn.Conv2d(64, 128, kernel_size=kernel_size, stride=2, padding=padding), # Strided Conv 
+                nn.Conv2d(64, 128, kernel_size=kernel_size, stride=2, padding=0), # Strided Conv 
                 nn.BatchNorm2d(128),
                 activation(),
-                nn.Conv2d(128, 128, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.Conv2d(128, 128, kernel_size=kernel_size, stride=1, padding=0),
                 nn.BatchNorm2d(128),
                 activation(),
-                nn.Conv2d(128, 128, kernel_size=kernel_size, stride=2, padding=padding), # Strided Conv 
+                nn.Conv2d(128, 128, kernel_size=kernel_size, stride=2, padding=0), # Strided Conv 
                 nn.BatchNorm2d(128),
                 activation(),
                 nn.Flatten(),
