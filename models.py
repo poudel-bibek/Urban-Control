@@ -9,7 +9,7 @@ class CNNActorCritic(nn.Module):
         """
         Model choices: 
             Small: 4 Conv layers, 3 Linear layers
-            Medium: 6 Conv layers, 5 Linear layers
+            Medium: 6 Conv layers, 3 Linear layers
 
         - Applying conv2d, the state should be 2d with a bunch of channels (1)
         - Regularization: Dropout and Batch Norm
@@ -49,9 +49,6 @@ class CNNActorCritic(nn.Module):
                 nn.Conv2d(64, 64, kernel_size=kernel_size, stride=2, padding=padding),  # Strided Conv 
                 nn.BatchNorm2d(64),
                 activation(),
-                nn.Conv2d(64, 64, kernel_size=kernel_size, stride=1, padding=padding),
-                nn.BatchNorm2d(64),
-                activation(),
                 nn.Flatten(),
                 #nn.Dropout(dropout_rate)
                 )
@@ -75,9 +72,6 @@ class CNNActorCritic(nn.Module):
                 nn.BatchNorm2d(128),
                 activation(),
                 nn.Conv2d(128, 128, kernel_size=kernel_size, stride=2, padding=padding), # Strided Conv 
-                nn.BatchNorm2d(128),
-                activation(),
-                nn.Conv2d(128, 128, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(128),
                 activation(),
                 nn.Flatten(),
@@ -151,8 +145,6 @@ class CNNActorCritic(nn.Module):
             - Log probabilities can be summed for independent events. To get the joint log probability:
                 - Sum the log probabilities of the individual midblock choices.
                 - Add the log probability of the intersection choice.
-    
-        * Advanced Action: 
         """
         #print(f"State: shape: {state.shape}, type: {type(state)}")
         state_tensor = state.reshape(1, self.in_channels, self.action_duration, self.per_timestep_state_dim) # 1= batch size
