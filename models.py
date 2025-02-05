@@ -8,8 +8,8 @@ class CNNActorCritic(nn.Module):
     def __init__(self, in_channels, action_dim, **kwargs):
         """
         Model choices: 
-            Small: 4 Conv layers, 3 Linear layers
-            Medium: 6 Conv layers, 3 Linear layers
+            Small: 3 Conv layers, 3 Linear layers
+            Medium: 5 Conv layers, 3 Linear layers
 
         - Applying conv2d, the state should be 2d with a bunch of channels (1)
         - Regularization: Dropout and Batch Norm
@@ -43,10 +43,7 @@ class CNNActorCritic(nn.Module):
                 nn.Conv2d(16, 32, kernel_size=kernel_size, stride=2, padding=padding),  # Strided Conv 
                 nn.BatchNorm2d(32),
                 activation(),
-                nn.Conv2d(32, 64, kernel_size=kernel_size, stride=1, padding=0),
-                nn.BatchNorm2d(64),
-                activation(),
-                nn.Conv2d(64, 64, kernel_size=kernel_size, stride=2, padding=0),  # Strided Conv 
+                nn.Conv2d(32, 64, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(64),
                 activation(),
                 nn.Flatten(),
@@ -62,16 +59,13 @@ class CNNActorCritic(nn.Module):
                 nn.Conv2d(16, 32, kernel_size=kernel_size, stride=2, padding=padding),  # Strided Conv 
                 nn.BatchNorm2d(32),
                 activation(),
-                nn.Conv2d(32, 64, kernel_size=kernel_size, stride=1, padding=0),
+                nn.Conv2d(32, 64, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(64),
                 activation(),
-                nn.Conv2d(64, 128, kernel_size=kernel_size, stride=2, padding=0), # Strided Conv 
+                nn.Conv2d(64, 128, kernel_size=kernel_size, stride=2, padding=padding), # Strided Conv 
                 nn.BatchNorm2d(128),
                 activation(),
-                nn.Conv2d(128, 128, kernel_size=kernel_size, stride=1, padding=0),
-                nn.BatchNorm2d(128),
-                activation(),
-                nn.Conv2d(128, 128, kernel_size=kernel_size, stride=2, padding=0), # Strided Conv 
+                nn.Conv2d(128, 128, kernel_size=kernel_size, stride=1, padding=padding),
                 nn.BatchNorm2d(128),
                 activation(),
                 nn.Flatten(),
