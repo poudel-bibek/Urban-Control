@@ -9,15 +9,17 @@ class Memory:
     These memories will be made in CPU but loaded in GPU for the policy update.
     """
     def __init__(self,):
-        self.actions = []
         self.states = []
+        self.actions = []
+        self.values = []
         self.logprobs = []
         self.rewards = []
         self.is_terminals = []
-
-    def append(self, state, action, logprob, reward, done):
+        
+    def append(self, state, action, value, logprob, reward, done):
         self.states.append(state)
         self.actions.append(action) 
+        self.values.append(value) 
         self.logprobs.append(logprob)
         self.rewards.append(reward) # these are scalars
         self.is_terminals.append(done) # these are scalars
@@ -80,40 +82,29 @@ class PPO:
         self.policy_old.load_state_dict(self.policy.state_dict())
         # Set up the optimizer for the current policy network
         self.initial_lr = lr
-        self.optimizer = optim.Adam(self.policy.parameters(), lr=self.initial_lr)
+        self.optimizer = optim.Adam(self.policy.parameters(), lr=self.initial_lr, eps=1e-5)
         self.total_iterations = None  # Will be set externally.
     
-    def update_learning_rate(self, iteration):
+    def update_learning_rate(self, update, total_updates):
         """
         Linear annealing. At the end of training, the learning rate is 0.
         """
-        if self.total_iterations is None:
-            raise ValueError("total_iterations must be set before calling update_learning_rate")
-        
-        frac = 1.0 - (iteration / self.total_iterations)
+        frac = 1.0 - (update - 1.0) / total_updates
         new_lr = frac * self.initial_lr
-
-        for param_group in self.optimizer.param_groups:
-            param_group['lr'] = new_lr
+        self.optimizer.param_groups[0]['lr'] = new_lr
         return new_lr
-    
+
     def compute_gae(self, rewards, values, is_terminals, gamma, gae_lambda):
         """
-        Compute the Generalized Advantage Estimation (GAE) for the collected experiences.
         For most steps in the sequence, we use the value estimate of the next state to calculate the TD error.
         For the last step (step == len(rewards) - 1), we use the value estimate of the current state. 
-
         """ 
-        advantages = [0] * len(rewards)
+
+        advantages = torch.zeros_like(rewards)
         gae = 0.0
         next_value = 0.0
-
-        values = values.cpu().numpy()
-        print(f"\nValues 2: {values.shape}")
-
         # First, we iterate through the rewards in reverse order.
-        for step in reversed(range(len(rewards))):
-
+        for step in reversed(range(rewards.shape[0])):
             # If its the terminal step (which has no future) or if its the last step in our collected experiences (which may not be terminal).
             if is_terminals[step]:
                 next_value = 0.0
@@ -128,9 +119,8 @@ class PPO:
 
             # Update the next value for the next step
             next_value = values[step]
-
-        #print(f"\nAdvantages: {advantages}, shape: {len(advantages)}")
-        return torch.tensor(advantages, dtype=torch.float32).to(self.device)
+            #print(f"Next value: {next_value}")
+        return torch.tensor(advantages, dtype=torch.float32)
 
     def update(self, memories):
         """
@@ -142,42 +132,43 @@ class PPO:
         The paper expresses the loss as maximization objective. We convert it to minimization by changing the sign.
         """
 
-        old_states = torch.stack(memories.states).to(self.device)
-        # print(f"\nOld states before reshape: {old_states.shape}")
+        # print(f"\nMemories.states: {memories.states}")
+        # print(f"\nMemories.actions: {memories.actions}")
+        # print(f"\nMemories.values: {memories.values}")
+        # print(f"\nMemories.logprobs: {memories.logprobs}")
+        # print(f"\nMemories.rewards: {memories.rewards}")
+        # print(f"\nMemories.is_terminals: {memories.is_terminals}")
 
-        # From [128, 10, 96] to [128, 1, 10, 96]
-        old_states = old_states.unsqueeze(1) # Reshape states to have batch size first
-        # print(f"\nOld states after reshape: {old_states.shape}")
+        states = torch.stack(memories.states, dim=0)
+        actions = torch.stack(memories.actions, dim=0)
+        values = torch.tensor(memories.values, dtype=torch.float32)
+        old_logprobs = torch.tensor(memories.logprobs, dtype=torch.float32)
+        rewards = torch.tensor(memories.rewards, dtype=torch.float32)
+        is_terminals = torch.tensor(memories.is_terminals, dtype=torch.bool)
 
-        with torch.no_grad():
-            values = self.policy_old.critic(old_states) # Use the old policy to get the value estimate.
-            values = values.squeeze() # Shape is [128]
-
-        print(f"\nStates: {old_states.shape}")
-        print(f"\nActions: {len(memories.actions)}")
-        print(f"\nLogprobs: {len(memories.logprobs)}")
-        print(f"\nValues: {values.shape}")
+        print(f"\nStates shape: {states.shape}")
+        print(f"\nActions shape: {actions.shape}")
+        print(f"\nValues shape: {values.shape}")
+        print(f"\nOld logprobs shape: {old_logprobs.shape}")
+        print(f"\nRewards shape: {rewards.shape}")
+        print(f"\nIs terminals shape: {is_terminals.shape}")
 
         # Compute GAE
-        advantages = self.compute_gae(memories.rewards, values, memories.is_terminals, self.gamma, self.gae_lambda)
+        advantages = self.compute_gae(rewards, values, is_terminals, self.gamma, self.gae_lambda)
 
         # Advantage = how much better is it to take a specific action compared to the average action. 
         # GAE = difference between the empirical return and the value function estimate.
         # advantages + val = Reconstruction of empirical returns. Because we want the critic to predict the empirical returns.
         returns = advantages + values
-        print(f"\nAdvantages: {advantages.shape}")
-        print(f"\nReturns: {returns.shape}")
+        print(f"\nAdvantages: {advantages}, shape: {advantages.shape}")
+        print(f"\nReturns: {returns}, shape: {returns.shape}")
 
         # Normalize the advantages (only for use in policy loss calculation) after they have been added to get returns.
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8) # Small constant to prevent division by zero
-        print(f"\nAdvantages after normalization: {advantages.shape}")
-
-        # Process actions and logprobs
-        old_actions = torch.stack(memories.actions).to(self.device)
-        old_logprobs = torch.stack(memories.logprobs).to(self.device)
+        print(f"\nAdvantages after normalization: {advantages}, shape: {advantages.shape}")
 
         # Create a dataloader for mini-batching 
-        dataset = TensorDataset(old_states, old_actions, old_logprobs, advantages, returns)
+        dataset = TensorDataset(states, actions, old_logprobs, advantages, returns)
         dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
 
         avg_policy_loss = 0
@@ -188,20 +179,30 @@ class PPO:
         # Optimize policy for K epochs (terminology used in PPO paper)
         for _ in range(self.K_epochs):
             for states_batch, actions_batch, old_logprobs_batch, advantages_batch, returns_batch in dataloader:
+                
+                old_logprobs_batch = old_logprobs_batch.to(self.device)
+                advantages_batch = advantages_batch.to(self.device)
+                returns_batch = returns_batch.to(self.device)
+                print(f"\nOld logprobs batch shape: {old_logprobs_batch.shape}")
+                print(f"\nAdvantages batch shape: {advantages_batch.shape}")
+                print(f"\nReturns batch shape: {returns_batch.shape}")
 
                 # Evaluating old actions and values using current policy network
-                logprobs, state_values, dist_entropy = self.policy.evaluate(states_batch, actions_batch)
+                logprobs, state_values, dist_entropy = self.policy.evaluate(states_batch.to(self.device), actions_batch.to(self.device))
 
                 # Finding the ratio (pi_theta / pi_theta_old) for importance sampling (we want to use the samples obtained from old policy to get the new policy)
-                ratios = torch.exp(logprobs - old_logprobs_batch.squeeze(-1)) # New log probs need to remain attached to the graph.
-                # print(f"\nLogprobs: {logprobs.shape}")
-                # print(f"\nOld logprobs: {old_logprobs_batch.squeeze(-1).shape}")
-                # print(f"\nRatios: {ratios.shape}")
+                logratios = logprobs - old_logprobs_batch.squeeze(-1) # New log probs, state_values, dist_entropy need to remain attached to the graph.
+                ratios = logratios.exp()
+                print(f"\nLogprobs: {logprobs.shape}")
+                print(f"\nOld logprobs: {old_logprobs_batch.squeeze(-1).shape}")
+                print(f"\nRatios: {ratios.shape}: {ratios}")
 
                 # Finding Surrogate Loss
                 surr1 = ratios * advantages_batch
                 surr2 = torch.clamp(ratios, 1-self.eps_clip, 1+self.eps_clip) * advantages_batch
-                
+                print(f"\nSurrogate 1: {surr1.shape}: {surr1.mean()}")
+                print(f"\nSurrogate 2: {surr2.shape}: {surr2.mean()}")
+
                 # Calculate policy and value losses
                 policy_loss = torch.min(surr1, surr2).mean() # Equation 7 in the paper
                 print(f"\nPolicy loss: {policy_loss.item()}")
@@ -210,14 +211,14 @@ class PPO:
                 value_loss = 0.5 * ((state_values - returns_batch) ** 2).mean() # MSE. Value loss is clipped (0.5)
                 print(f"\nValue loss: {value_loss.item()}")
 
-                print(f"\nDist entropy: {dist_entropy.shape}, dist entropy: {dist_entropy}")
+                print(f"\nDist entropy: {dist_entropy.shape}")
                 entropy_loss = dist_entropy.mean()
                 print(f"\nEntropy loss: {entropy_loss.item()}")
 
-                # Total loss. Negate for minimization.
-                loss = -1 * (policy_loss - self.vf_coef * value_loss + self.ent_coef * entropy_loss) # Equation 9 in the paper
+                # Minimize policy loss and value loss, maximize entropy loss. Negate for minimization.
+                loss = -policy_loss + self.vf_coef * value_loss - self.ent_coef * entropy_loss # Equation 9 in the paper
                 print(f"\nTotal Loss: {loss.item()}")
-
+                print("--------------------------------")
                 # Take gradient step
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -229,6 +230,15 @@ class PPO:
                 avg_value_loss += value_loss.item()
                 avg_entropy_loss += entropy_loss.item()
                 avg_total_loss += loss.item()
+
+                # Debug method 1: KL divergence (http://joschu.net/blog/kl-approx.html)
+                # How much the new policy diverges from the old policy.
+                with torch.no_grad():
+                    approx_kl = ((ratios - 1) - logratios).mean()
+                    print(f"\nApprox KL: {approx_kl.item()}")
+                    print("--------------------------------\n")
+                    # TODO: Early stopping (at the minibatch level) based on KL divergence.
+
 
         num_batches = len(dataloader) * self.K_epochs
         avg_policy_loss /= num_batches
@@ -253,5 +263,6 @@ class PPO:
             'policy_loss': avg_policy_loss,
             'value_loss': avg_value_loss,
             'entropy_loss': avg_entropy_loss,
-            'total_loss': avg_total_loss
+            'total_loss': avg_total_loss,
+            'approx_kl': approx_kl
         }

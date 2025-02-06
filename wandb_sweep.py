@@ -86,7 +86,7 @@ class HyperParameterTuner:
                     'distribution': 'uniform'
                 },
                 'update_freq': {
-                    'values': [64, 128, 256]
+                    'values': [128, 256, 512]
                 },
                 'gamma': {
                     'min': 0.90,
@@ -94,7 +94,7 @@ class HyperParameterTuner:
                     'distribution': 'uniform'
                 },
                 'K_epochs': {
-                    'values': [2, 4, 8, 16]
+                    'values': [2, 4, 8]
                 },
                 'eps_clip': {
                     'min': 0.05,
@@ -102,9 +102,9 @@ class HyperParameterTuner:
                     'distribution': 'uniform'
                 },
                 'ent_coef': { # Entropy coefficient: a small positive range in log-scale # force the agent to explore for a much longer duration.
-                    'min': 0.1,  
-                    'max': 3.0,  
-                    'distribution': 'log_uniform_values'
+                    'min': 0.0001,  
+                    'max': 0.01,  
+                    'distribution': 'uniform'
                 },
                 'vf_coef': {
                     'min': 0.25,
@@ -112,7 +112,7 @@ class HyperParameterTuner:
                     'distribution': 'uniform'
                 },
                 'batch_size': {
-                    'values': [16, 32, 64, 128]
+                    'values': [64, 128, 256]
                 },
                 # policy:
                 'model_type': {

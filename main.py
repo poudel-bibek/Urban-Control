@@ -45,10 +45,15 @@ def parallel_train_worker(rank, shared_policy_old, control_args, queue, worker_s
         state = torch.FloatTensor(state)
         # Select action
         with torch.no_grad():
-            action, logprob = shared_policy_old.act(state.to(worker_device)) # sim runs in CPU, state will initially always be in CPU.
-            state = state.detach().cpu()
-            action = action.detach().cpu()
-            logprob = logprob.detach().cpu()
+            state = state.to(worker_device)
+            action, logprob = shared_policy_old.act(state) # sim runs in CPU, state will initially always be in CPU.
+            value = shared_policy_old.critic(state.unsqueeze(0)) # add a batch dimension
+
+            state = state.detach().cpu() # 2D
+            action = action.detach().cpu() # 1D
+            value = value.item() # Scalar
+            logprob = logprob.item() # Scalar
+            #print(f"State: {state}, Action: {action}, Value: {value}, Logprob: {logprob}")
 
         # Perform action
         # These reward and next_state are for the action_duration timesteps.
@@ -56,7 +61,7 @@ def parallel_train_worker(rank, shared_policy_old, control_args, queue, worker_s
         ep_reward += reward
 
         # Store data in memory
-        local_memory.append(state, action, logprob, reward, done) 
+        local_memory.append(state, action, value, logprob, reward, done) 
         steps_since_update += 1
 
         if steps_since_update >= memory_transfer_freq or done or truncated:
@@ -129,8 +134,6 @@ def train(train_config, is_sweep=False, sweep_config=None):
     # Initialize control agent
     print(f"\nControl agent: \n\tState dimension: {dummy_env.observation_space.shape}, Action dimension: {train_config['action_dim']}")
     control_ppo = PPO(**ppo_args)
-    # control_ppo.policy.share_memory() # share across processes
-    # control_ppo.policy_old.share_memory() # Since workers share the old policy (used for importance sampling), they get the new one after each update. Policy is not stale. Verify.
 
     # Model saving and tensorboard 
     writer = SummaryWriter(log_dir=log_dir)
@@ -148,28 +151,33 @@ def train(train_config, is_sweep=False, sweep_config=None):
     # Instead of using total_episodes, we will use total_iterations. 
     # Every iteration, num_process control agents interact with the environment for total_action_timesteps_per_episode steps (which further internally contains action_duration steps)
     total_iterations = train_config['total_timesteps'] // (train_config['max_timesteps'] * train_config['num_processes'])
+    total_updates = train_config['total_timesteps'] // train_config['update_freq']
     control_ppo.total_iterations = total_iterations
     
     global_step = 0
-    total_updates = 0
+    update_count = 0
     action_timesteps = 0
     best_reward = float('-inf')
 
     all_memories = Memory()
     for iteration in range(0, total_iterations): # Starting from 1 to prevent policy update in the very first iteration.
         print(f"\nStarting iteration: {iteration + 1}/{total_iterations} with {global_step} total steps so far\n")
+        
+        old_policy = control_ppo.policy_old.to(worker_device)
+        old_policy.share_memory() # Dont pickle separate policy_old for each worker.
 
         #print(f"Shared policy weights: {control_ppo.policy_old.state_dict()}")
         queue = mp.Queue()
         processes = []
         active_workers = []
         for rank in range(control_args['num_processes']):
+
             worker_seed = SEED + iteration * 1000 + rank
             p = mp.Process(
                 target=parallel_train_worker,
                 args=(
                     rank,
-                    control_ppo.policy_old,
+                    old_policy,
                     control_args_worker,
                     queue,
                     worker_seed,
@@ -178,14 +186,11 @@ def train(train_config, is_sweep=False, sweep_config=None):
             p.start()
             processes.append(p)
             active_workers.append(rank)
-
-        if control_args['anneal_lr']:
-            current_lr = control_ppo.update_learning_rate(iteration)
         
         while active_workers:
             print(f"Active workers: {active_workers}")
+            rank, memory = queue.get()
 
-            rank, memory = queue.get() #timeout=60) # Add a timeout to prevent infinite waiting
             if memory is None:
                 print(f"Worker {rank} finished")
                 active_workers.remove(rank)
@@ -194,6 +199,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                 print(f"Memory from worker {rank} received. Memory size: {current_action_timesteps}")
                 all_memories.actions.extend(memory.actions)
                 all_memories.states.extend(memory.states)
+                all_memories.values.extend(memory.values)
                 all_memories.logprobs.extend(memory.logprobs)
                 all_memories.rewards.extend(memory.rewards)
                 all_memories.is_terminals.extend(memory.is_terminals)
@@ -205,12 +211,16 @@ def train(train_config, is_sweep=False, sweep_config=None):
 
                 # Update PPO every n times (or close) action has been taken 
                 if action_timesteps >= control_args['update_freq']:
-                    total_updates += 1
+                    update_count += 1
                     print(f"Updating PPO with {len(all_memories.actions)} memories")
-                    
+
+                    # Anneal after every update
+                    if control_args['anneal_lr']:
+                        current_lr = control_ppo.update_learning_rate(update_count, total_updates)
+                        
                     avg_reward = sum(all_memories.rewards) / control_args['num_processes'] # Averaged across processes.
                     print(f"\nAverage Reward (across processes): {avg_reward}\n")
-                    print(f"\nAll memories rewards: {all_memories.rewards}")
+                    #print(f"\nAll memories rewards: {all_memories.rewards}")
 
                     loss = control_ppo.update(deepcopy(all_memories))
         
@@ -224,25 +234,27 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     if is_sweep: # Wandb for hyperparameter tuning
                         wandb.log({ "iteration": iteration,
                                         "avg_reward": avg_reward, # Set as maximize in the sweep config
-                                        "total_updates": total_updates,
+                                        "update_count": update_count,
                                         "policy_loss": loss['policy_loss'],
                                         "value_loss": loss['value_loss'], 
                                         "entropy_loss": loss['entropy_loss'],
                                         "total_loss": loss['total_loss'],
                                         "current_lr": current_lr if control_args['anneal_lr'] else ppo_args['lr'],
+                                        "approx_kl": loss['approx_kl'],
                                         "global_step": global_step          })
                         
                     else: # Tensorboard for regular training
                         writer.add_scalar('Training/Average_Reward', avg_reward, global_step)
-                        writer.add_scalar('Training/Total_Policy_Updates', total_updates, global_step)
+                        writer.add_scalar('Training/Total_Policy_Updates', update_count, global_step)
                         writer.add_scalar('Training/Policy_Loss', loss['policy_loss'], global_step)
                         writer.add_scalar('Training/Value_Loss', loss['value_loss'], global_step)
                         writer.add_scalar('Training/Entropy_Loss', loss['entropy_loss'], global_step)
                         writer.add_scalar('Training/Total_Loss', loss['total_loss'], global_step)
                         writer.add_scalar('Training/Current_LR', current_lr if control_args['anneal_lr'] else ppo_args['lr'], global_step)
+                        writer.add_scalar('Training/Approx_KL', loss['approx_kl'], global_step)
 
                         # Save model every n times it has been updated (may not every iteration)
-                        if control_args['save_freq'] > 0 and total_updates % control_args['save_freq'] == 0:
+                        if control_args['save_freq'] > 0 and update_count % control_args['save_freq'] == 0:
                             torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'control_model_iteration_{iteration+1}.pth'))
 
                         # Save best model so far

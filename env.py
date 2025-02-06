@@ -1016,7 +1016,7 @@ class ControlEnv(gym.Env):
         #print(f"Number of actions during warmup: {num_actions_warmup}")
         observation_buffer = []
         for i in range(num_actions_warmup):
-            # Randomly initialize actions (1 digit for intersection, 7 bits for crosswalks)
+            # Randomly sample actions (1 digit for intersection, 7 bits for crosswalks)
             action = np.concatenate([np.random.randint(4, size=1), np.random.randint(2, size=7)]).astype(np.int32)
             #print(f"\nWarmup action {i}: {action}\n")
             if i==0:

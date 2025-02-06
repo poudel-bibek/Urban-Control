@@ -33,17 +33,17 @@ def get_config():
         "model_type": "mlp",  # Model type: 'cnn' or 'mlp'
 
         # PPO
-        "anneal_lr": False,  # Anneal learning rate
-        "gae_lambda": 0.92,  # GAE lambda
+        "anneal_lr": True,  # Anneal learning rate
+        "gae_lambda": 0.95,  # GAE lambda
         "max_grad_norm": 1.0,  # Maximum gradient norm for gradient clipping
-        "update_freq": 256,  # Number of action timesteps between each policy update
-        "lr": 0.00001,  # Learning rate
+        "update_freq": 512,  # Number of action timesteps between each policy update
+        "lr": 2.5e-4,  # Learning rate
         "gamma": 0.99,  # Discount factor
         "K_epochs": 4,  # Number of epochs to update policy
         "eps_clip": 0.2,  # Clip parameter for PPO
         "save_freq": 2,  # Save model after every n updates (0 to disable)
-        "ent_coef": 1.20,  # Entropy coefficient
-        "vf_coef": 0.70,  # Value function coefficient
+        "ent_coef": 0.01,  # Entropy coefficient
+        "vf_coef": 0.5,  # Value function coefficient
         "batch_size": 128,  # Batch size
         "num_processes": 10,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN

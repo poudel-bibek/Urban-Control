@@ -1,8 +1,18 @@
 import torch
 import torch.nn as nn
+import numpy as np
 import torch.nn.functional as F
 from torch.distributions import Categorical, Bernoulli
 from torch.distributions import  Categorical
+
+def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
+    """
+    Orthogoal initialization of weights and Constant initialization of biases.
+    https://iclr-blog-track.github.io/2022/03/25/ppo-implementation-details/
+    """
+    nn.init.orthogonal_(layer.weight, std)
+    nn.init.constant_(layer.bias, bias_const)
+    return layer
 
 class CNNActorCritic(nn.Module):
     def __init__(self, in_channels, action_dim, **kwargs):
@@ -80,29 +90,31 @@ class CNNActorCritic(nn.Module):
             #print(f"\n\nCNN output size: {cnn_output_size}\n\n")
 
         self.actor_layers = nn.Sequential(
-            nn.Linear(cnn_output_size, hidden_dim),
+            layer_init(nn.Linear(cnn_output_size, hidden_dim)),
             nn.LayerNorm(hidden_dim),
             activation(),
             # nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim, hidden_dim // 2),
+            layer_init(nn.Linear(hidden_dim, hidden_dim // 2)),
             nn.LayerNorm(hidden_dim // 2),
             activation(),
-            # nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim // 2, self.action_dim)
 
+            # nn.Dropout(dropout_rate),
+            layer_init(nn.Linear(hidden_dim // 2, self.action_dim))
         )
         
         self.critic_layers = nn.Sequential(
-            nn.Linear(cnn_output_size, hidden_dim),
+            layer_init(nn.Linear(cnn_output_size, hidden_dim)),
             nn.LayerNorm(hidden_dim),
             activation(),
             # nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim, hidden_dim // 2),
+            layer_init(nn.Linear(hidden_dim, hidden_dim // 2)),
             nn.LayerNorm(hidden_dim // 2),
             activation(),
+
             # nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim // 2, 1)
+            layer_init(nn.Linear(hidden_dim // 2, 1))
         )
+
 
     def actor(self, state):
         shared_features = self.shared_cnn(state)
@@ -268,25 +280,25 @@ class MLPActorCritic(nn.Module):
         actor_layers = []
         input_size_actor = self.input_dim
         for h in actor_hidden_sizes:
-            actor_layers.append(nn.Linear(input_size_actor, h))
+            actor_layers.append(layer_init(nn.Linear(input_size_actor, h)))
             actor_layers.append(nn.LayerNorm(h))  # Add LayerNorm after linear layer
             actor_layers.append(activation())
             # actor_layers.append(nn.Dropout(dropout_rate)) # Disabled for now
             input_size_actor = h
         self.actor_layers = nn.Sequential(*actor_layers)
-        self.actor_logits = nn.Linear(input_size_actor, action_dim) # Last layer, no activation
+        self.actor_logits = layer_init(nn.Linear(input_size_actor, action_dim)) # Last layer, no activation
 
         # critic 
         critic_layers = []
         input_size_critic = self.input_dim
         for h in critic_hidden_sizes:
-            critic_layers.append(nn.Linear(input_size_critic, h))
+            critic_layers.append(layer_init(nn.Linear(input_size_critic, h)))
             critic_layers.append(nn.LayerNorm(h))  # Add LayerNorm after linear layer
             critic_layers.append(activation())
             # critic_layers.append(nn.Dropout(dropout_rate)) # Disabled for now
             input_size_critic = h
         self.critic_layers = nn.Sequential(*critic_layers)
-        self.critic_value = nn.Linear(input_size_critic, 1) # Last layer, no activation
+        self.critic_value = layer_init(nn.Linear(input_size_critic, 1)) # Last layer, no activation
 
 
     def actor(self, state):
@@ -313,19 +325,21 @@ class MLPActorCritic(nn.Module):
           - intersection action from first 4 logits (Categorical)
           - midblock from next 7 logits (Bernoulli)
         """
+        print("Sampling...")
         state = state.reshape(1, 1, state.shape[0], state.shape[1])
         action_logits = self.actor(state)
 
         # The first 4 logits => intersection (Categorical)
         intersection_logits = action_logits[:, :4]
-        intersection_probs = torch.softmax(intersection_logits, dim=1)
-        intersection_dist = Categorical(intersection_probs)
+        # intersection_probs = torch.softmax(intersection_logits, dim=1)
+        intersection_dist = Categorical(logits=intersection_logits)
         intersection_action = intersection_dist.sample()  # [1]
+
 
         # The next 7 logits => midblock (Bernoulli)
         midblock_logits = action_logits[:, 4:]
-        midblock_probs = torch.sigmoid(midblock_logits)
-        midblock_dist = Bernoulli(midblock_probs)
+        # midblock_probs = torch.sigmoid(midblock_logits)
+        midblock_dist = Bernoulli(logits=midblock_logits)
         midblock_actions = midblock_dist.sample()  # shape [1,7]
 
         # print(f"\nIntersection logits: {intersection_logits}")
@@ -335,31 +349,36 @@ class MLPActorCritic(nn.Module):
         log_prob = intersection_dist.log_prob(intersection_action) + \
                    midblock_dist.log_prob(midblock_actions).sum()
 
-        # print(f"\nAction Log probability: {log_prob}, shape: {log_prob.shape}")
+        print(f"\nAction Log probability: {log_prob}, shape: {log_prob.shape}")
         return combined_action.int(), log_prob
+
 
     def evaluate(self, states, actions):
         """
         Evaluate a batch of states and pre-sampled actions. Same logic as the CNN version.
         """
+        print("Evaluating...")
         action_logits = self.actor(states)
         intersection_logits = action_logits[:, :4]
         midblock_logits = action_logits[:, 4:]
 
-
         # Distributions
-        intersection_probs = torch.softmax(intersection_logits, dim=1)
-        intersection_dist = Categorical(intersection_probs)
-        midblock_probs = torch.sigmoid(midblock_logits)
-        midblock_dist = Bernoulli(midblock_probs)
-        
+        # intersection_probs = torch.softmax(intersection_logits, dim=1)
+        intersection_dist = Categorical(logits=intersection_logits)
+        # midblock_probs = torch.sigmoid(midblock_logits)
+        midblock_dist = Bernoulli(logits=midblock_logits)
+
         # Actions in shape (B,1) for intersection, (B,7) for midblock
         intersection_action = actions[:, :1].squeeze(1).long() # Categorical expects long
         midblock_actions = actions[:, 1:].float()
 
         intersection_log_probs = intersection_dist.log_prob(intersection_action)
+        print(f"\nIntersection log probs: {intersection_log_probs}, shape: {intersection_log_probs.shape}")
         midblock_log_probs = midblock_dist.log_prob(midblock_actions)
+        print(f"\nMidblock log probs: {midblock_log_probs}, shape: {midblock_log_probs.shape}")
         action_log_probs = intersection_log_probs + midblock_log_probs.sum(dim=1)
+        print(f"\nAction log probs: {action_log_probs}, shape: {action_log_probs.shape}")
+
 
         # Entropies
         total_entropy = intersection_dist.entropy() + midblock_dist.entropy().sum(dim=1)
@@ -380,3 +399,5 @@ class MLPActorCritic(nn.Module):
             "Critic": critic_params,
             "Total": actor_params + critic_params,
         }
+    
+
