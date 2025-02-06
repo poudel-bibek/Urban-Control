@@ -325,7 +325,7 @@ class MLPActorCritic(nn.Module):
           - intersection action from first 4 logits (Categorical)
           - midblock from next 7 logits (Bernoulli)
         """
-        print("Sampling...")
+        # print("Sampling...")
         state = state.reshape(1, 1, state.shape[0], state.shape[1])
         action_logits = self.actor(state)
 
@@ -349,7 +349,7 @@ class MLPActorCritic(nn.Module):
         log_prob = intersection_dist.log_prob(intersection_action) + \
                    midblock_dist.log_prob(midblock_actions).sum()
 
-        print(f"\nAction Log probability: {log_prob}, shape: {log_prob.shape}")
+        # print(f"\nAction Log probability: {log_prob}, shape: {log_prob.shape}")
         return combined_action.int(), log_prob
 
 
@@ -379,9 +379,10 @@ class MLPActorCritic(nn.Module):
         action_log_probs = intersection_log_probs + midblock_log_probs.sum(dim=1)
         print(f"\nAction log probs: {action_log_probs}, shape: {action_log_probs.shape}")
 
-
         # Entropies
+        print(f"Entropies: intersection: {intersection_dist.entropy()}, midblock: {midblock_dist.entropy().sum(dim=1)}")
         total_entropy = intersection_dist.entropy() + midblock_dist.entropy().sum(dim=1)
+        print(f"Total entropy: {total_entropy}, shape: {total_entropy.shape}")
 
         # Critic value
         state_values = self.critic(states)
