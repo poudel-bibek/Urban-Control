@@ -122,6 +122,8 @@ class CNNActorCritic(nn.Module):
         return action_logits
     
     def critic(self, state):
+        if state.ndim == 3:
+            state = state.unsqueeze(0)
         shared_features = self.shared_cnn(state)
         return self.critic_layers(shared_features)
     
