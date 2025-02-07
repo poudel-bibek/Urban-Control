@@ -154,9 +154,17 @@ class CNNActorCritic(nn.Module):
                 - Sum the log probabilities of the individual midblock choices.
                 - Add the log probability of the intersection choice.
         """
-        #print(f"State: shape: {state.shape}, type: {type(state)}")
-        state_tensor = state.reshape(1, self.in_channels, self.action_duration, self.per_timestep_state_dim) # 1= batch size
-        action_logits = self.actor(state_tensor)
+        # Check the number of dimensions of state.
+        if state.ndim == 2: # coming from act
+            # State is of shape [action_duration, per_timestep_state_dim].
+            # Add batch and channel dimensions: becomes [1, 1, action_duration, per_timestep_state_dim].
+            state = state.unsqueeze(0).unsqueeze(0)
+        elif state.ndim == 3: # coming from evaluate
+            # State is of shape [batch, action_duration, per_timestep_state_dim].
+            # Add the channel dimension: becomes [batch, 1, action_duration, per_timestep_state_dim].
+            state = state.unsqueeze(1)
+
+        action_logits = self.actor(state)
         #print(f"\nAction logits: {action_logits}")
 
         # Simple action
@@ -192,7 +200,12 @@ class CNNActorCritic(nn.Module):
         - 4. Get the individual entropy (used as a regularization term to encourage exploration) and sum them to get the total entropy.
         - 5. Get the state values from critic.
         """
-
+        # print(f"\nStates shape: {states.shape}")
+        states = states.unsqueeze(0)
+        # reshape to have [C, B, H, W] instead of [B, C, H, W]
+        states = states.permute(1, 0, 2, 3)
+        # print(f"\nStates shape after unsqueeze: {states.shape}")
+        
         action_logits = self.actor(states)
         # print(f"\nAction logits: {action_logits}")
 
