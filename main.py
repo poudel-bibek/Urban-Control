@@ -7,7 +7,7 @@ import random
 import numpy as np
 from copy import deepcopy
 from datetime import datetime
-from ppo import PPO, Memory
+from ppo import PPO, Memory, WelfordNormalizer
 from config import get_config
 import torch.multiprocessing as mp
 
@@ -18,7 +18,7 @@ from torch.utils.tensorboard import SummaryWriter
 from utils import *
 from env import ControlEnv
 
-def parallel_train_worker(rank, shared_policy_old, control_args, queue, worker_seed, worker_device):
+def parallel_train_worker(rank, shared_policy_old, control_args, queue, worker_seed, shared_state_normalizer, shared_reward_normalizer, worker_device):
     """
     At every iteration, a number of workers will each parallelly carry out one episode in control environment.
     - Worker environment runs in CPU (SUMO runs in CPU).
@@ -41,10 +41,12 @@ def parallel_train_worker(rank, shared_policy_old, control_args, queue, worker_s
     ep_reward = 0
     steps_since_update = 0
     
+
     for _ in range(control_args['total_action_timesteps_per_episode']):
         state = torch.FloatTensor(state)
         # Select action
         with torch.no_grad():
+            state = shared_state_normalizer.normalize(state)
             state = state.to(worker_device)
             action, logprob = shared_policy_old.act(state) # sim runs in CPU, state will initially always be in CPU.
             value = shared_policy_old.critic(state.unsqueeze(0)) # add a batch dimension
@@ -58,6 +60,7 @@ def parallel_train_worker(rank, shared_policy_old, control_args, queue, worker_s
         # Perform action
         # These reward and next_state are for the action_duration timesteps.
         next_state, reward, done, truncated, _ = worker_env.step(action) # need the returned state to be 2D
+        reward = shared_reward_normalizer.normalize(reward).item()
         ep_reward += reward
 
         # Store data in memory
@@ -129,6 +132,10 @@ def train(train_config, is_sweep=False, sweep_config=None):
     print(f"\tObservation space shape: {dummy_env.observation_space.shape}")
     print(f"\tDefined action space: {dummy_env.action_space}")
     print(f"\tOptions per action dimension: {dummy_env.action_space.nvec}")
+
+    # use the dummy env shapes to init normalizers
+    shared_state_normalizer = WelfordNormalizer(dummy_env.observation_space.shape)
+    shared_reward_normalizer = WelfordNormalizer(1)
     dummy_env.close()
 
     # Initialize control agent
@@ -164,7 +171,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
         print(f"\nStarting iteration: {iteration + 1}/{total_iterations} with {global_step} total steps so far\n")
         
         old_policy = control_ppo.policy_old.to(worker_device)
-        old_policy.share_memory() # Dont pickle separate policy_old for each worker.
+        old_policy.share_memory() # Dont pickle separate policy_old for each worker. Despite this, the old policy is still stale.
 
         #print(f"Shared policy weights: {control_ppo.policy_old.state_dict()}")
         queue = mp.Queue()
@@ -181,9 +188,12 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     control_args_worker,
                     queue,
                     worker_seed,
+                    shared_state_normalizer,
+                    shared_reward_normalizer,
                     worker_device)
                 )
             p.start()
+
             processes.append(p)
             active_workers.append(rank)
         

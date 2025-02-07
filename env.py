@@ -642,12 +642,8 @@ class ControlEnv(gym.Env):
 
         # Normalize with running mean and std
         observation = np.asarray(observation, dtype=np.float32)
-        obs_mean = observation.mean()
-        obs_std = observation.std() + 1e-6  # avoid division by zero
-        normalized_observation = (observation - obs_mean) / obs_std
-        #print(f"\nObservation: shape: {normalized_observation.shape}, value: {normalized_observation}, type: {type(normalized_observation)}") 
-        # print(f"\nNormalized observation: {normalized_observation}")
-        return normalized_observation
+        #print(f"\nObservation: shape: {observation.shape}") 
+        return observation
 
 
     def _get_advanced_observation(self, current_phase, print_map=False):

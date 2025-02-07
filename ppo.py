@@ -1,7 +1,9 @@
 import torch
 import torch.optim as optim
+import torch.multiprocessing as mp
 from torch.utils.data import TensorDataset, DataLoader
 from models import CNNActorCritic, MLPActorCritic
+from copy import deepcopy
 
 class Memory:
     """
@@ -24,6 +26,60 @@ class Memory:
         self.rewards.append(reward) # these are scalars
         self.is_terminals.append(done) # these are scalars
 
+class WelfordNormalizer:
+    def __init__(self, shape, eps=1e-8):
+        """
+        Normalization using Welford's algorithm.
+        Can be used for both state and reward normalization.
+
+        In parallelized PPO actors, each worker uses its own copy of the old policy.
+        However, in this case a single (global) instance of the normalizer (shared resource) will be updated by all workers.
+        This may result in race conditions, hence lock is used. 
+        """
+        self.mean = torch.zeros(shape, dtype=torch.float32).share_memory_()
+        self.M2 = torch.zeros(shape, dtype=torch.float32).share_memory_()
+        self.count = mp.Value('i', 0) # A variable i that is shared between processe and is init to 0.
+        self.eps = eps
+        self.lock = mp.Lock()
+
+    def update(self, x):
+        """
+        Update running statistics with a new sample x using Welford's algorithm.
+        """
+        with self.lock:
+            if self.count.value == 0:
+                # First sample: initialize mean and zero-out M2.
+                self.mean.copy_(x)
+                self.M2.zero_()
+                self.count.value = 1
+            else:
+                self.count.value += 1
+                delta = x - self.mean
+                self.mean.add_(delta / self.count.value)
+                delta2 = x - self.mean
+                self.M2.add_(delta * delta2)
+
+    def variance(self):
+        with self.lock:
+            if self.count.value < 2:
+                # Not enough samples: return a tensor of ones with the same shape as mean
+                return torch.ones_like(self.mean)
+            else:
+                return self.M2 / (self.count.value - 1)
+
+    def std(self):
+        return torch.sqrt(self.variance()) + self.eps
+
+    def normalize(self, x):
+        """
+        Normalizes the sample x using the running mean and standard deviation.
+        - x (torch.Tensor or array-like): The sample to normalize.
+        - update (bool): If True, update the running statistics with x.
+        - Returns the normalized sample.
+        """
+        self.update(x)
+        return (x - self.mean) / self.std()
+    
 class PPO:
     """
     This implementation is parallelized using Multiprocessing i.e. multiple CPU cores each running a separate process.
@@ -237,7 +293,7 @@ class PPO:
                     approx_kl = ((ratios - 1) - logratios).mean()
                     print(f"\nApprox KL: {approx_kl.item()}")
                     print("--------------------------------\n")
-                    # TODO: Early stopping (at the minibatch level) based on KL divergence.
+                    # TODO: Early stopping (at the minibatch level) based on KL divergence? Do it in main.
 
 
         num_batches = len(dataloader) * self.K_epochs
@@ -255,7 +311,7 @@ class PPO:
         #     print(f"{name}: {param.data}")
 
         # Copy new weights into old policy
-        self.policy_old.load_state_dict(self.policy.state_dict())
+        self.policy_old = deepcopy(self.policy) # .load_state_dict(self.policy.state_dict())
         print(f"\nPolicy updated with avg_policy_loss: {avg_policy_loss}\n") 
 
         # Return the average batch loss per epoch
@@ -266,3 +322,4 @@ class PPO:
             'total_loss': avg_total_loss,
             'approx_kl': approx_kl
         }
+    
