@@ -645,7 +645,6 @@ class ControlEnv(gym.Env):
         #print(f"\nObservation: shape: {observation.shape}") 
         return observation
 
-
     def _get_advanced_observation(self, current_phase, print_map=False):
         """
         Advanced Traffic State (ATS).

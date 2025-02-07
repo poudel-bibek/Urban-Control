@@ -36,8 +36,8 @@ class WelfordNormalizer:
         However, in this case a single (global) instance of the normalizer (shared resource) will be updated by all workers.
         This may result in race conditions, hence lock is used. 
         """
-        self.mean = torch.zeros(shape, dtype=torch.float32).share_memory_()
-        self.M2 = torch.zeros(shape, dtype=torch.float32).share_memory_()
+        self.mean = torch.zeros(shape, dtype=torch.float32).share_memory_() # remains in CPU
+        self.M2 = torch.zeros(shape, dtype=torch.float32).share_memory_() # remains in CPU
         self.count = mp.Value('i', 0) # A variable i that is shared between processe and is init to 0.
         self.eps = eps
         self.lock = mp.Lock()
@@ -311,7 +311,7 @@ class PPO:
         #     print(f"{name}: {param.data}")
 
         # Copy new weights into old policy
-        self.policy_old = deepcopy(self.policy) # .load_state_dict(self.policy.state_dict())
+        self.policy_old = deepcopy(self.policy).to(torch.device("cpu")) # .load_state_dict(self.policy.state_dict())
         print(f"\nPolicy updated with avg_policy_loss: {avg_policy_loss}\n") 
 
         # Return the average batch loss per epoch

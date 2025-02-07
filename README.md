@@ -1,3 +1,6 @@
+In linux, use: ulimit -n 10000
+to increase the limit on the number of file descriptors that can be opened by a process.
+
 # Co-designing the built environment and traffic controller using reinforcement learning
 
 ## Abstract

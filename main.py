@@ -74,6 +74,7 @@ def parallel_train_worker(rank, shared_policy_old, control_args, queue, worker_s
             local_memory = Memory()  # Reset local memory
             steps_since_update = 0
 
+
         state = next_state
         if done or truncated:
             break
@@ -106,8 +107,8 @@ def train(train_config, is_sweep=False, sweep_config=None):
     np.random.seed(SEED)
     torch.manual_seed(SEED)
 
-    worker_device = torch.device("cuda") if train_config['gpu'] and torch.cuda.is_available() else torch.device("cpu")
-    print(f"Using device: {worker_device}")
+    device = torch.device("cuda") if train_config['gpu'] and torch.cuda.is_available() else torch.device("cpu") 
+    print(f"Using device: {device}")
 
     # Set and save hyperparameters 
     if is_sweep:
@@ -123,7 +124,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
     save_config(train_config, config_path)
     print(f"Configuration saved to {config_path}")
 
-    control_args, ppo_args = classify_and_return_args(train_config, worker_device)
+    control_args, ppo_args = classify_and_return_args(train_config, device)
 
     # Print stats from dummy environment
     dummy_env = ControlEnv(control_args, worker_id=None)
@@ -170,7 +171,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
     for iteration in range(0, total_iterations): # Starting from 1 to prevent policy update in the very first iteration.
         print(f"\nStarting iteration: {iteration + 1}/{total_iterations} with {global_step} total steps so far\n")
         
-        old_policy = control_ppo.policy_old.to(worker_device)
+        old_policy = control_ppo.policy_old.to(device)
         old_policy.share_memory() # Dont pickle separate policy_old for each worker. Despite this, the old policy is still stale.
 
         #print(f"Shared policy weights: {control_ppo.policy_old.state_dict()}")
@@ -190,10 +191,9 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     worker_seed,
                     shared_state_normalizer,
                     shared_reward_normalizer,
-                    worker_device)
+                    device)
                 )
             p.start()
-
             processes.append(p)
             active_workers.append(rank)
         
@@ -251,8 +251,8 @@ def train(train_config, is_sweep=False, sweep_config=None):
                                         "total_loss": loss['total_loss'],
                                         "current_lr": current_lr if control_args['anneal_lr'] else ppo_args['lr'],
                                         "approx_kl": loss['approx_kl'],
-                                        "global_step": global_step          })
-                        
+                                        "global_step": global_step })
+
                     else: # Tensorboard for regular training
                         writer.add_scalar('Training/Average_Reward', avg_reward, global_step)
                         writer.add_scalar('Training/Total_Policy_Updates', update_count, global_step)
@@ -263,14 +263,15 @@ def train(train_config, is_sweep=False, sweep_config=None):
                         writer.add_scalar('Training/Current_LR', current_lr if control_args['anneal_lr'] else ppo_args['lr'], global_step)
                         writer.add_scalar('Training/Approx_KL', loss['approx_kl'], global_step)
 
-                        # Save model every n times it has been updated (may not every iteration)
-                        if control_args['save_freq'] > 0 and update_count % control_args['save_freq'] == 0:
-                            torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'control_model_iteration_{iteration+1}.pth'))
+                        # Save policy 
+                        if update_count % control_args['save_freq'] == 0:
+                            torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'control_model_iteration_{global_step}.pth'))
 
-                        # Save best model so far
+                        # Save best policy so far 
                         if avg_reward > best_reward:
                             torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], 'best_control_model.pth'))
                             best_reward = avg_reward
+
                     print(f"Logged agent data at step {global_step}")
 
         if torch.cuda.is_available():

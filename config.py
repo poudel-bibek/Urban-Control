@@ -4,7 +4,7 @@ def get_config():
     """
     config = {
         # Simulation
-        "sweep": True,  # Use wandb sweeps for hyperparameter tuning
+        "sweep": False,  # Use wandb sweeps for hyperparameter tuning
         "gui": False,  # Use SUMO GUI (default: False)
         "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
         "action_duration": 10,  # Duration of each action (default: 10.0)
@@ -25,33 +25,33 @@ def get_config():
         # PPO (general params)
         "seed": None,  # Random seed (default: None)
         "gpu": True,  # Use GPU if available (default: use CPU)
-        "total_timesteps": 500000,  # Total number of timesteps the simulation will run
+        "total_timesteps": 5000000,  # Total number of timesteps the simulation will run
         "max_timesteps": 480,  # Maximum number of steps in one episode (make this multiple of 16*10)
         "total_sweep_trials": 256,  # Total number of trials for the wandb sweep
         "memory_transfer_freq": 16,  # Frequency of memory transfer from worker to main process 
         "per_timestep_state_dim": 96,  # Number of features per timestep
-        "model_type": "mlp",  # Model type: 'cnn' or 'mlp'
+        "model_type": "cnn",  # Model type: 'cnn' or 'mlp'
 
         # PPO
         "anneal_lr": True,  # Anneal learning rate
-        "gae_lambda": 0.95,  # GAE lambda
+        "gae_lambda": 0.96,  # GAE lambda
         "max_grad_norm": 1.0,  # Maximum gradient norm for gradient clipping
         "update_freq": 512,  # Number of action timesteps between each policy update
         "lr": 2.5e-4,  # Learning rate
-        "gamma": 0.99,  # Discount factor
+        "gamma": 0.98,  # Discount factor
         "K_epochs": 4,  # Number of epochs to update policy
         "eps_clip": 0.2,  # Clip parameter for PPO
         "save_freq": 2,  # Save model after every n updates (0 to disable)
-        "ent_coef": 0.01,  # Entropy coefficient
+        "ent_coef": 0.005,  # Entropy coefficient
         "vf_coef": 0.5,  # Value function coefficient
-        "batch_size": 128,  # Batch size
+        "batch_size": 64,  # Batch size
         "num_processes": 10,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.25,  # Dropout rate for CNN
         "action_dim": 7 + 4,  # 7 + 4 for simple action. Number of action logits (not the same as number of actions. think)
         "in_channels": 1, # in_channels for cnn
-        "activation": "nn.Tanh",  # Policy activation function
+        "activation": "tanh",  # Policy activation function
 
 
         # PPO reward weights
@@ -73,7 +73,7 @@ def get_config():
 
     return config
 
-def classify_and_return_args(train_config, worker_device):
+def classify_and_return_args(train_config, device):
     """
     Classify config and return. 
     """
@@ -123,7 +123,7 @@ def classify_and_return_args(train_config, worker_device):
     ppo_args = {
         'model_dim': train_config['in_channels'], 
         'action_dim': train_config['action_dim'],
-        'device': worker_device,
+        'device': device,
         'lr': train_config['lr'],
         'gamma': train_config['gamma'],
         'K_epochs': train_config['K_epochs'],
