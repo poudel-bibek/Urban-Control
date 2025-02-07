@@ -101,7 +101,7 @@ class HyperParameterTuner:
                     'max': 0.30,
                     'distribution': 'uniform'
                 },
-                'ent_coef': { # Entropy coefficient: a small positive range in log-scale # force the agent to explore for a much longer duration.
+                'ent_coef': {
                     'min': 0.0001,  
                     'max': 0.01,  
                     'distribution': 'uniform'
@@ -116,25 +116,24 @@ class HyperParameterTuner:
                 },
                 # policy:
                 'model_type': {
-                    'values': ['mlp']
+                    'values': ['cnn', 'mlp']
                 },
                 'size': {
                     'values': ['small', 'medium']
                 },
                 'activation': {
-                    'values': ["tanh"] #, "relu", "leakyrelu"]
+                    'values': ["tanh", "relu", "leakyrelu"]
                 },
-
-
-                # 'kernel_size': { 
-                #     'values': [3, 5, 7]
-                # },
-
-                # 'dropout_rate': {
-                #     'min': 0.05,
-                #     'max': 0.3,
-                #     'distribution': 'uniform'
-                # },
+                'cnn': {
+                    'parameters': {
+                        'kernel_size': { 
+                            'values': [3, 5, 7]
+                        }
+                    },
+                    'conditions': [{
+                        'model_type': 'cnn'
+                    }]
+                },
                 # Reward-related lambdas: continuous range 
                 # 'l1': {
                 #     'min': -1.0,

@@ -1,7 +1,0 @@
-Error: tcpip::Socket::recvAndCheck @ recv: Connection reset by peer
-Quitting (on error).
-202_#5more_w3', time=481.00.
-Warning: Person '57' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=521.00.
-Error: tcpip::Socket::recvAndCheck @ recv: Connection reset by peer
-Quitting (on error).
-48202_#5more_w3', time=567.00.
