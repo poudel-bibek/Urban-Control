@@ -124,15 +124,8 @@ class HyperParameterTuner:
                 'activation': {
                     'values': ["tanh", "relu", "leakyrelu"]
                 },
-                'cnn': {
-                    'parameters': {
-                        'kernel_size': { 
-                            'values': [3, 5, 7]
-                        }
-                    },
-                    'conditions': [{
-                        'model_type': 'cnn'
-                    }]
+                'kernel_size': { # ignored if model_type is mlp
+                    'values': [3, 5, 7]
                 },
                 # Reward-related lambdas: continuous range 
                 # 'l1': {
@@ -160,7 +153,7 @@ class HyperParameterTuner:
                 #     'max': -0.1,
                 #     'distribution': 'uniform'
                 # }
-            }
+                }
             }  
         sweep_id = wandb.sweep(sweep_config, entity="fluidic-city", project=self.project)
         return sweep_id

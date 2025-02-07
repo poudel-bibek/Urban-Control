@@ -1,0 +1,52 @@
+***Starting server on port 52267 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (13ms).
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_1.xml'
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_1.xml'
+Loading done.
+Simulation version UNKNOWN started with time: 0.00.
+Warning: Person '57' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=465.00.
+Warning: Person '1941' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=476.00.
+Warning: Person '2039' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=478.00.
+Warning: Person '1948' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=492.00.
+Warning: Person '56' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=530.00.
+Warning: Person '616' is jammed on edge ':9727816623_c0', time=568.00.
+Warning: Person '1759' is jammed on edge ':9727816623_c0', time=568.00.
+Warning: Person '1009' is jammed on edge ':9727816623_c0', time=569.00.
+Warning: Person '1098' is jammed on edge ':9727816623_c0', time=569.00.
+Warning: Person '1334' is jammed on edge ':9727816623_c0', time=569.00.
+Warning: Person '1022' is jammed on edge ':9727816623_c0', time=569.00.
+Warning: Person '1025' is jammed on edge ':9727816623_c0', time=569.00.
+Warning: Person '1779' is jammed on edge ':9727816623_c0', time=569.00.
+Warning: Person '1766' is jammed on edge ':9727816623_c0', time=569.00.
+Warning: Person '1815' is jammed on edge ':9727816623_c0', time=569.00.
+Warning: Person '1260' is jammed on edge ':9727816623_c0', time=570.00.
+Warning: Person '1267' is jammed on edge ':9727816623_c0', time=570.00.
+Warning: Person '1330' is jammed on edge ':9727816623_c0', time=570.00.
+Warning: Person '1736' is jammed on edge ':9727816623_c0', time=570.00.
+Warning: Person '1706' is jammed on edge ':9727816623_c0', time=570.00.
+Warning: Person '1348' is jammed on edge ':9727816623_c0', time=571.00.
+Warning: Person '1270' is jammed on edge ':9727816623_c0', time=572.00.
+Warning: Person '1945' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=572.00.
+Warning: Person '1721' is jammed on edge ':9727816623_c0', time=576.00.
+Simulation ended at time: 580.00.
+Reason: TraCI requested termination.
+Performance:
+ Duration: 256.01s
+ TraCI-Duration: 254.99s
+ Real time factor: 2.26552
+ UPS: 47.825883
+ UPS-Persons: 865.908629
+Vehicles:
+ Inserted: 60 (Loaded: 62)
+ Running: 25
+ Waiting: 0
+Persons:
+ Inserted: 1186
+ Running: 610
+ Jammed: 24
+DijkstraRouter answered 24052 queries and explored 5.89 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.00ms on average).
+DijkstraRouter answered 1137 queries and explored 476.71 edges on average.
+DijkstraRouter spent 0.06s answering queries (0.05ms on average).
+DijkstraRouter answered 60 queries and explored 57.67 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.02ms on average).
