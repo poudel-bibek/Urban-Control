@@ -45,7 +45,7 @@ def get_config():
         "ent_coef": 0.005,  # Entropy coefficient
         "vf_coef": 0.5,  # Value function coefficient
         "batch_size": 64,  # Batch size
-        "num_processes": 10,  # Number of parallel processes to use (agent has multiple workers)
+        "num_processes": 12,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.25,  # Dropout rate for CNN

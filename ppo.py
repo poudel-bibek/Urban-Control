@@ -311,7 +311,7 @@ class PPO:
         #     print(f"{name}: {param.data}")
 
         # Copy new weights into old policy
-        self.policy_old = deepcopy(self.policy).to(torch.device("cpu")) # .load_state_dict(self.policy.state_dict())
+        self.policy_old = deepcopy(self.policy)
         print(f"\nPolicy updated with avg_policy_loss: {avg_policy_loss}\n") 
 
         # Return the average batch loss per epoch
