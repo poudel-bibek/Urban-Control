@@ -20,7 +20,7 @@ def get_config():
         "manual_demand_veh": None,  # Manually scale vehicle demand before starting the simulation (veh/hr)
         "manual_demand_ped": None,  # Manually scale pedestrian demand before starting the simulation (ped/hr)
         "demand_scale_min": 1.0,  # Minimum demand scaling factor for automatic scaling
-        "demand_scale_max": 3.5,  # Maximum demand scaling factor for automatic scaling
+        "demand_scale_max": 2.5,  # Maximum demand scaling factor for automatic scaling
 
         # PPO (general params)
         "seed": None,  # Random seed (default: None)
@@ -30,28 +30,28 @@ def get_config():
         "total_sweep_trials": 256,  # Total number of trials for the wandb sweep
         "memory_transfer_freq": 16,  # Frequency of memory transfer from worker to main process 
         "per_timestep_state_dim": 96,  # Number of features per timestep
-        "model_type": "cnn",  # Model type: 'cnn' or 'mlp'
+        "model_type": "mlp",  # Model type: 'cnn' or 'mlp'
 
         # PPO
         "anneal_lr": True,  # Anneal learning rate
         "gae_lambda": 0.96,  # GAE lambda
         "max_grad_norm": 1.0,  # Maximum gradient norm for gradient clipping
         "update_freq": 512,  # Number of action timesteps between each policy update
-        "lr": 2.5e-4,  # Learning rate
-        "gamma": 0.98,  # Discount factor
+        "lr": 2.5e-3,  # Learning rate
+        "gamma": 0.96,  # Discount factor
         "K_epochs": 4,  # Number of epochs to update policy
         "eps_clip": 0.2,  # Clip parameter for PPO
         "save_freq": 2,  # Save model after every n updates (0 to disable)
         "ent_coef": 0.005,  # Entropy coefficient
-        "vf_coef": 0.5,  # Value function coefficient
-        "batch_size": 64,  # Batch size
+        "vf_coef": 0.75,  # Value function coefficient
+        "batch_size": 32,  # Batch size
         "num_processes": 12,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.25,  # Dropout rate for CNN
         "action_dim": 7 + 4,  # 7 + 4 for simple action. Number of action logits (not the same as number of actions. think)
         "in_channels": 1, # in_channels for cnn
-        "activation": "tanh",  # Policy activation function
+        "activation": "leakyrelu",  # Policy activation function
 
 
         # PPO reward weights
@@ -68,7 +68,7 @@ def get_config():
         "eval_n_timesteps": 360,  # Number of timesteps to each episode. Warmup not counted.
         "eval_n_workers": 12,  # Parallelizes how many demands can be evaluated at the same time.
         "eval_worker_device": "gpu",  # Policy during eval can be run in GPU
-        "eval_demand_scales": [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 3.75, 4.0, 4.25], # Includes demand outside the training range
+        "eval_demand_scales": [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25], # Includes demand outside the training range
     }
 
     return config
