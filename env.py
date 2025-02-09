@@ -541,7 +541,7 @@ class ControlEnv(gym.Env):
         # print(f"Switch state: {switch_state}")
         return switch_state
 
-    def _get_observation(self, current_phase, print_map=False):
+    def _get_observation(self, current_phase, print_map=True):
         """
         wrapper
         """
@@ -735,8 +735,10 @@ class ControlEnv(gym.Env):
         """ 
         """
         # return self._get_pressure_based_reward(pressure_dict, switch_state)
-        return self._get_mwaq_reward(corrected_occupancy_map, switch_state)
+        # return self._get_mwaq_reward(corrected_occupancy_map, switch_state)
+        return self._get_mwaq_reward_exponential(corrected_occupancy_map, switch_state, print_reward=True)
         #return self._get_vehicle_wait_time_reward(corrected_occupancy_map)
+
 
     def _get_vehicle_wait_time_reward(self, corrected_occupancy_map):
         """
@@ -937,9 +939,153 @@ class ControlEnv(gym.Env):
             # print(f"Switch penalty: {norm_switch_penalty}")
             print(f"Total Reward: {reward}\n\n")
 
-        
         return reward
 
+    def _get_mwaq_reward_exponential(self, corrected_occupancy_map, switch_state, print_reward=False):
+        """
+        * Maximum wait aggregated queue (MWAQ) made continuous and differentiable by using L2 norm and exponentiation.
+        * MWAQ = For each TL, For both veh and ped: [sum of queue lengths of all incoming directions x maximum waiting time among all]
+        * Penalize high MWAQ, i.e. make it negative.
+        * Individually normalize MWAQ for each TL.
+        Other components: 
+            - Penalize frequent changes of action based on switch_state 
+
+        Vehicles:
+        - getWaitingTime: The waiting time (in seconds) of a vehicle spent with speed below 0.1 m/s. Reset to 0 every time it moves.
+        - getAccumulatedWaitingTime: The accumulated waiting time (in seconds) of a vehicle over a certain time interval (interval length is set with --waiting-time-memory)
+        Pedestrians:
+        - getWaitingTime: The waiting time (in seconds) of a pedestrian spent with speed below 0.1 m/s. Reset to 0 every time it moves.
+
+        Normalizers:
+        - A fixed normalizer multiplied by the number of incoming directions
+
+        # TODO: Should we consider vicinity for pedestrians as well?
+        """
+        MWAQ_VEH_NORMALIZER = 100
+        MWAQ_PED_NORMALIZER = 100
+        VEH_THRESHOLD_SPEED = 0.2 # m/s
+        PED_THRESHOLD_SPEED = 0.5 # m/s
+
+        # Intersection 
+        # Vehicle
+        int_veh_mwaq = 0
+        # queue length only starts counting if the vehicles are below 0.1 m/s
+        # set thsi to 0.5 so that it does not have a zero value if vehicles  moving but very slow (upto the threshold speed)
+        max_wait_time_veh_int = 0.5 
+        veh_queue_length = 0
+
+        for direction_turn in self.direction_turn_intersection_incoming:
+            int_vehicles = corrected_occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"][direction_turn]
+            for veh_id in int_vehicles:
+                # queue length
+                if traci.vehicle.getSpeed(veh_id) < VEH_THRESHOLD_SPEED:
+                    veh_queue_length += 1
+                # wait time
+                wait_time = traci.vehicle.getWaitingTime(veh_id)
+                if wait_time > max_wait_time_veh_int:
+                    max_wait_time_veh_int = wait_time
+
+        int_veh_mwaq = veh_queue_length * max_wait_time_veh_int
+        # In practice, using len(self.direction_turn_intersection_incoming) (with value 12) in the division, is too harsh, and will lead to pedestrians getting extreme favor.
+        # Only 7 incoming directions are physically present.
+        norm_int_veh_mwaq = int_veh_mwaq / (MWAQ_VEH_NORMALIZER * len(self.directions))
+
+        # Pedestrian
+        int_ped_mwaq = 0
+        max_wait_time_ped_int = 0.5
+        ped_queue_length = 0
+        for direction in self.directions:
+            int_pedestrians = corrected_occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["pedestrian"]["incoming"][direction]["main"]
+            for ped_id in int_pedestrians:
+                # queue length
+                if traci.person.getSpeed(ped_id) < PED_THRESHOLD_SPEED:
+                    ped_queue_length += 1
+                # wait time
+                wait_time = traci.person.getWaitingTime(ped_id)
+                if wait_time > max_wait_time_ped_int:
+
+                    max_wait_time_ped_int = wait_time
+        int_ped_mwaq = ped_queue_length * max_wait_time_ped_int
+        norm_int_ped_mwaq = int_ped_mwaq / (MWAQ_PED_NORMALIZER * len(self.directions))
+
+        # Midblock
+        # Vehicle
+        norm_mb_veh_mwaq_per_tl = {}
+        for tl_id in self.tl_ids[1:]:
+            tl_veh_mwaq = 0
+            max_wait_time_veh_mb = 0.5
+            veh_queue_length = 0
+            for direction in self.direction_turn_midblock:
+                mb_vehicles = corrected_occupancy_map[tl_id]["vehicle"]["incoming"][direction]
+
+                # queue length
+                for veh_id in mb_vehicles:
+                    if traci.vehicle.getSpeed(veh_id) < VEH_THRESHOLD_SPEED:
+                        veh_queue_length += 1
+
+                    # wait time
+                    wait_time = traci.vehicle.getWaitingTime(veh_id)
+                    if wait_time > max_wait_time_veh_mb:
+                        max_wait_time_veh_mb = wait_time
+
+            tl_veh_mwaq = veh_queue_length * max_wait_time_veh_mb
+            norm_tl_veh_mwaq = tl_veh_mwaq / (MWAQ_VEH_NORMALIZER * len(self.direction_turn_midblock))
+            norm_mb_veh_mwaq_per_tl[tl_id] = norm_tl_veh_mwaq
+
+        # Pedestrian    
+        norm_mb_ped_mwaq_per_tl = {}
+        for tl_id in self.tl_ids[1:]:
+            tl_ped_mwaq = 0
+            max_wait_time_ped_mb = 0.5
+            ped_queue_length = 0
+            mb_pedestrians = corrected_occupancy_map[tl_id]["pedestrian"]["incoming"]["north"]["main"] # only one direction # 
+            for ped_id in mb_pedestrians:
+                # queue length
+                if traci.person.getSpeed(ped_id) < PED_THRESHOLD_SPEED:
+                    ped_queue_length += 1
+                # wait time
+                wait_time = traci.person.getWaitingTime(ped_id)
+                if wait_time > max_wait_time_ped_mb:
+
+                    max_wait_time_ped_mb = wait_time
+
+            tl_ped_mwaq = ped_queue_length * max_wait_time_ped_mb
+            norm_tl_ped_mwaq = tl_ped_mwaq / MWAQ_PED_NORMALIZER
+            norm_mb_ped_mwaq_per_tl[tl_id] = norm_tl_ped_mwaq
+
+        # Frequency of switch state changes
+        # norm_switch_penalty = sum(switch_state) / len(self.tl_ids)
+        
+        # Final reward calculation
+        # For the intersection, exponent the current normalized value (for both veh and ped)
+        final_int_veh = np.exp(norm_int_veh_mwaq)
+        final_int_ped = np.exp(norm_int_ped_mwaq)
+
+        # For the midblock, compute an L2 norm over the vector of normalized values for each TL, then exponentiate (for both veh and ped)
+        norm_mb_veh_l2 = np.linalg.norm(np.array(list(norm_mb_veh_mwaq_per_tl.values())))
+        norm_mb_ped_l2 = np.linalg.norm(np.array(list(norm_mb_ped_mwaq_per_tl.values())))
+        final_mb_veh = np.exp(norm_mb_veh_l2)
+        final_mb_ped = np.exp(norm_mb_ped_l2)
+
+        # Final reward is the negative sum of the four exponentiated values
+        reward = -1 * (final_int_veh + final_int_ped + final_mb_veh + final_mb_ped)
+        if print_reward:
+            print(f"Intersection Reward Components:\n"
+                f"\tVehicle MWAQ: {norm_int_veh_mwaq} (exp: {final_int_veh})\n"
+                f"\tPedestrian MWAQ: {norm_int_ped_mwaq} (exp: {final_int_ped})")
+
+            for tl_id in self.tl_ids[1:]:
+                print(f"Midblock TL {tl_id} Reward Components:\n"
+                    f"\tVehicle MWAQ: {norm_mb_veh_mwaq_per_tl[tl_id]}\n"
+                    f"\tPedestrian MWAQ: {norm_mb_ped_mwaq_per_tl[tl_id]}")
+            print(f"Midblock Overall L2 Norms:\n"
+                f"\tVehicle L2 Norm: {norm_mb_veh_l2} (exp: {final_mb_veh})\n"
+                f"\tPedestrian L2 Norm: {norm_mb_ped_l2} (exp: {final_mb_ped})")
+            # print(f"Switch penalty: {norm_switch_penalty}")
+            print(f"Total Reward: {reward}\n\n")
+
+        return reward
+    
     def _check_done(self):
         """
         TODO: What more conditions can be added here?
