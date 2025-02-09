@@ -417,8 +417,8 @@ def eval(config):
     with open(result_json_path, 'w') as f:
         json.dump(all_results, f, indent=4)
 
-    in_range_demand_scales = [0.25, 0.5, 0.75, 3.75, 4.0, 4.25]
-    out_of_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5]
+    in_range_demand_scales = [0.25, 0.5, 0.75, 2.75, 3.0, 3.25]
+    out_of_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5]
     plot_consolidated_results(result_json_path, in_range_demand_scales, out_of_range_demand_scales)
 
 def main(config):
