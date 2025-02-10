@@ -284,7 +284,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
     if not is_sweep:
         writer.close()
 
-def parallel_eval_worker(rank, eval_worker_config, queue):
+def parallel_eval_worker(rank, eval_worker_config, queue, tl= False):
     """
     - For the same demand, each worker runs n_iterations number of episodes and measures performance metrics at each iteration.
     - Each episode runs on a different random seed.
@@ -294,6 +294,8 @@ def parallel_eval_worker(rank, eval_worker_config, queue):
     - Returns a dictionary with performance metrics in all iterations.
     - For PPO: 
         - Each worker create a copy of the policy and run it
+    - For TL:
+        - Just pass tl = True
     """
     ppo_args = eval_worker_config['policy_args']
     eval_control_ppo = PPO(**ppo_args)
@@ -322,7 +324,7 @@ def parallel_eval_worker(rank, eval_worker_config, queue):
         worker_result[i]['SEED'] = SEED
 
         # Run the worker (reset includes warmup)
-        state, _ = env.reset()
+        state, _ = env.reset(tl = tl)
         veh_waiting_time_this_episode = 0
         ped_waiting_time_this_episode = 0
         veh_unique_ids_this_episode = 0
@@ -331,11 +333,10 @@ def parallel_eval_worker(rank, eval_worker_config, queue):
         with torch.no_grad():
             for _ in range(eval_worker_config['total_action_timesteps_per_episode']):
             
-
                 state = torch.FloatTensor(state).to(ppo_args['device'])
                 action, _ = eval_control_ppo.policy.act(state)
                 action = action.detach().cpu() # sim runs in CPU
-                state, reward, done, truncated, _ = env.step(action)
+                state, reward, done, truncated, _ = env.step(action, tl)
 
                 # During this step, get all vehicles and pedestrians
                 veh_waiting_time_this_step = env.get_vehicle_waiting_time()
@@ -352,7 +353,7 @@ def parallel_eval_worker(rank, eval_worker_config, queue):
     # After all iterations are complete. 
     queue.put((worker_demand_scale, worker_result))
 
-def eval(config):
+def eval(config, in_range_demand_scales, out_of_range_demand_scales, tl= False):
     """
     Evaluate RL agent vs real-world TL
     - Each demand is run on a different worker
@@ -366,10 +367,9 @@ def eval(config):
     policy_path = config['eval_model_path']
     eval_device = torch.device("cuda") if config['gpu'] and torch.cuda.is_available() else torch.device("cpu")
     control_args, ppo_args = classify_and_return_args(config, eval_device)
-    eval_demand_scales = config['eval_demand_scales']
+    eval_demand_scales = in_range_demand_scales + out_of_range_demand_scales
     all_results = {}
 
-    # PPO
     # number of times the n_workers have to be repeated to cover all eval demands
     num_times_workers_recycle = len(eval_demand_scales) if len(eval_demand_scales) < n_workers else (len(eval_demand_scales) // n_workers) + 1
     for i in range(num_times_workers_recycle):
@@ -395,7 +395,7 @@ def eval(config):
             }
             p = mp.Process(
                 target=parallel_eval_worker,
-                args=(rank, worker_config, queue))
+                args=(rank, worker_config, queue, tl))
             
             p.start()
             processes.append(p)
@@ -413,14 +413,11 @@ def eval(config):
     print(f"All results: {all_results}")    
     current_time = datetime.now().strftime('%b%d_%H-%M-%S')
     os.makedirs('./results', exist_ok=True)
-    result_json_path = os.path.join('./results', f'eval_results_{current_time}.json')
+    result_json_path = os.path.join('./results', f'eval_results_{current_time}_{"tl" if tl else "ppo"}.json')
     with open(result_json_path, 'w') as f:
         json.dump(all_results, f, indent=4)
-
-    in_range_demand_scales = [0.25, 0.5, 0.75, 2.75, 3.0, 3.25]
-    out_of_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5]
-    plot_consolidated_results(result_json_path, in_range_demand_scales, out_of_range_demand_scales)
-
+    return result_json_path
+    
 def main(config):
     """
     Cannot create a bunch of connections in main and then pass them around. 
@@ -430,7 +427,12 @@ def main(config):
     # Spawn means create a new process. There is a fork method as well which will create a copy of the current process.
     mp.set_start_method('spawn') 
     if config['evaluate']: 
-        eval(config)
+        in_range_demand_scales = config['in_range_demand_scales']
+        out_of_range_demand_scales = config['out_of_range_demand_scales']
+        # eval policy and tl
+        tl_results_path = eval(config, in_range_demand_scales, out_of_range_demand_scales, tl= True)
+        ppo_results_path = eval(config, in_range_demand_scales, out_of_range_demand_scales, tl= False)
+        plot_consolidated_results(tl_results_path, ppo_results_path, in_range_demand_scales, out_of_range_demand_scales)
 
     elif config['sweep']:
         tuner = HyperParameterTuner(config, train)

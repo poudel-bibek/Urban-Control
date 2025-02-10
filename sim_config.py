@@ -1,4 +1,4 @@
-def get_real_world_tl_phases():
+def get_sumo_generated_tl_phases():
     """
     Phase information for the intersection (22 characters).
     1: east-right

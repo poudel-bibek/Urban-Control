@@ -39,6 +39,10 @@ class ControlEnv(gym.Env):
         self.unique_suffix = f"_{worker_id}" if worker_id is not None else ""
         self.total_unique_ids_veh = []
         self.total_unique_ids_ped = []
+        # dictionaries to store the last waiting time for each entity
+        self.prev_vehicle_waiting_time = {}
+        self.prev_ped_waiting_time = {}
+
         self.vehicle_output_trips = self.vehicle_output_trips.replace('.xml', f'{self.unique_suffix}.xml')
 
         self.pedestrian_output_trips = self.pedestrian_output_trips.replace('.xml', f'{self.unique_suffix}.xml')
@@ -471,8 +475,9 @@ class ControlEnv(gym.Env):
         # Advanced observation
         # TODO: Implement
 
-    def step(self, action):
+    def step(self, action, tl= False):
         """
+        If Tl = True, operating in eval mode with TL.
         """
         if not self.sumo_running:
             raise Exception("Environment is not running. Call reset() to start the environment.")
@@ -487,9 +492,13 @@ class ControlEnv(gym.Env):
         switch_state = self._detect_switch(action, self.previous_action)
 
         for i in range(self.steps_per_action): # Run simulation steps for the duration of the action
-            
             # Apply action is called every timestep (return information useful for reward calculation)
-            current_phase = self._apply_action(action, i, switch_state)
+            #TODO: Placing an if-else here (at the innermost loop) is very inefficient.
+            if tl: 
+                current_phase = [1]*len(self.tl_ids) # random phase
+            else:   # Only apply the action from policy if not TL.   
+                current_phase = self._apply_action(action, i, switch_state)
+
             traci.simulationStep() # Step length is the simulation time that elapses when each time this is called.
             self.step_count += 1
             obs = self._get_observation(current_phase)
@@ -541,7 +550,7 @@ class ControlEnv(gym.Env):
         # print(f"Switch state: {switch_state}")
         return switch_state
 
-    def _get_observation(self, current_phase, print_map=True):
+    def _get_observation(self, current_phase, print_map=False):
         """
         wrapper
         """
@@ -736,7 +745,7 @@ class ControlEnv(gym.Env):
         """
         # return self._get_pressure_based_reward(pressure_dict, switch_state)
         # return self._get_mwaq_reward(corrected_occupancy_map, switch_state)
-        return self._get_mwaq_reward_exponential(corrected_occupancy_map, switch_state, print_reward=True)
+        return self._get_mwaq_reward_exponential(corrected_occupancy_map, switch_state, print_reward=False)
         #return self._get_vehicle_wait_time_reward(corrected_occupancy_map)
 
 
@@ -1093,7 +1102,7 @@ class ControlEnv(gym.Env):
         """
         return self.step_count >= self.max_timesteps
 
-    def reset(self):
+    def reset(self, tl= False):
         """
         """
         if self.sumo_running:
@@ -1165,18 +1174,27 @@ class ControlEnv(gym.Env):
             switch_state = self._detect_switch(action, prev_action)
 
             for j in range(self.steps_per_action):
-                current_phase = self._apply_action(action, j, switch_state)
+                # TODO: Again, very inefficient.
+                if tl:
+                    current_phase = [1]*len(self.tl_ids) # random phase
+                else:
+                    current_phase = self._apply_action(action, j, switch_state)
                 traci.simulationStep() 
                 obs = self._get_observation(current_phase)
                 _ = self._get_pressure_dict(self.corrected_occupancy_map)
                 observation_buffer.append(obs)
                 # No reward calculation
+
                 # self.step_count += 1 # We are not counting the warmup steps in the total simulation steps
 
         #print(f"Ended Warmup. Buffer length: {len(observation_buffer)}")
         observation_buffer = observation_buffer[-self.steps_per_action:] # Only keep the observation of thelast action
         observation = np.asarray(observation_buffer, dtype=np.float32)
         #print(f"\nObservation (in reset): {observation.shape}")
+
+        # reset the waiting times
+        self.prev_vehicle_waiting_time = {}
+        self.prev_ped_waiting_time = {}
         return observation, {} # info is empty
 
     def close(self):
@@ -1187,24 +1205,42 @@ class ControlEnv(gym.Env):
     # Eval specific methods
     def get_vehicle_waiting_time(self):
         """
+        Returns the incremental waiting time for vehicles at the current simulation step.
+        Instead of summing the cumulative waiting time each step, we add only the difference since the last call.
         """
-        veh_waiting_time = 0
-        for veh_id in traci.vehicle.getIDList():
-            veh_waiting_time += traci.vehicle.getWaitingTime(veh_id)
+        incremental_wait = 0.0
+        current_vehicle_ids = traci.vehicle.getIDList()
+        for veh_id in current_vehicle_ids:
+            current_wait = traci.vehicle.getWaitingTime(veh_id)
+            last_wait = self.prev_vehicle_waiting_time.get(veh_id, 0.0)
+            diff = current_wait - last_wait
+            # In case the waiting time was reset (e.g. when a vehicle moves) and diff becomes negative, use current_wait.
+            if diff < 0:
+                diff = current_wait
+            incremental_wait += diff
+            self.prev_vehicle_waiting_time[veh_id] = current_wait
             if veh_id not in self.total_unique_ids_veh:
                 self.total_unique_ids_veh.append(veh_id)
-        return veh_waiting_time
-    
+        return incremental_wait
 
     def get_pedestrian_waiting_time(self):
         """
+        Returns the incremental waiting time for pedestrians at the current simulation step.
+        Only the increase in waiting time since the last call is accumulated.
         """
-        ped_waiting_time = 0
-        for ped_id in traci.person.getIDList():
-            ped_waiting_time += traci.person.getWaitingTime(ped_id)
+        incremental_wait = 0.0
+        current_ped_ids = traci.person.getIDList()
+        for ped_id in current_ped_ids:
+            current_wait = traci.person.getWaitingTime(ped_id)
+            last_wait = self.prev_ped_waiting_time.get(ped_id, 0.0)
+            diff = current_wait - last_wait
+            if diff < 0:
+                diff = current_wait
+            incremental_wait += diff
+            self.prev_ped_waiting_time[ped_id] = current_wait
             if ped_id not in self.total_unique_ids_ped:
                 self.total_unique_ids_ped.append(ped_id)
-        return ped_waiting_time
+        return incremental_wait
     
     def total_unique_ids(self):
         """
