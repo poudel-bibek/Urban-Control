@@ -1,3 +1,0 @@
-Warning: Missing green phase in tlLogic 'cluster_172228464_482708521_9687148201_9687148202_#5more', program '0' for tl-index 17.
-Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
-Quitting (on error).

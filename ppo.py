@@ -263,7 +263,6 @@ class PPO:
                 policy_loss = torch.min(surr1, surr2).mean() # Equation 7 in the paper
                 print(f"\nPolicy loss: {policy_loss.item()}")
 
-                # The negative sign ensures that the optimizer maximizes the PPO objective by minimizing the loss function. It is correct and necessary.
                 value_loss = 0.5 * ((state_values - returns_batch) ** 2).mean() # MSE. Value loss is clipped (0.5)
                 print(f"\nValue loss: {value_loss.item()}")
 
@@ -271,7 +270,8 @@ class PPO:
                 entropy_loss = dist_entropy.mean()
                 print(f"\nEntropy loss: {entropy_loss.item()}")
 
-                # Minimize policy loss and value loss, maximize entropy loss. Negate for minimization.
+                # Minimize policy loss and value loss, maximize entropy loss.
+                # The signs are negated (wrt to the equation in the paper). This ensures that the optimizer maximizes the PPO objective by minimizing the loss function. It is correct and necessary.
                 loss = -policy_loss + self.vf_coef * value_loss - self.ent_coef * entropy_loss # Equation 9 in the paper
                 print(f"\nTotal Loss: {loss.item()}")
                 print("--------------------------------")

@@ -491,19 +491,24 @@ class ControlEnv(gym.Env):
         # switch detection does not need to be done every timestep. 
         switch_state = self._detect_switch(action, self.previous_action)
 
-        for i in range(self.steps_per_action): # Run simulation steps for the duration of the action
-            # Apply action is called every timestep (return information useful for reward calculation)
-            #TODO: Placing an if-else here (at the innermost loop) is very inefficient.
-            if tl: 
+        #TODO: Placing an if-else here (at almost the innermost loop) is very inefficient.
+        if tl: # Apply action for TL (For evaluation)
+            for i in range(self.steps_per_action): # Run simulation steps for the duration of the action
                 current_phase = [1]*len(self.tl_ids) # random phase
-            else:   # Only apply the action from policy if not TL.   
+                traci.simulationStep() # Step length is the simulation time that elapses when each time this is called.
+                self.step_count += 1
+                obs = self._get_observation(current_phase)
+                observation_buffer.append(obs)
+        else: 
+            # Only apply the action from policy if not TL.   
+            for i in range(self.steps_per_action): # Run simulation steps for the duration of the action
+                # Apply action is called every timestep (return information useful for reward calculation)
                 current_phase = self._apply_action(action, i, switch_state)
-
-            traci.simulationStep() # Step length is the simulation time that elapses when each time this is called.
-            self.step_count += 1
-            obs = self._get_observation(current_phase)
-            observation_buffer.append(obs)
-
+                traci.simulationStep() # Step length is the simulation time that elapses when each time this is called.
+                self.step_count += 1
+                obs = self._get_observation(current_phase)
+                observation_buffer.append(obs)
+            
         # outside the loop
         # Do before reward calculation
         pressure_dict = self._get_pressure_dict(self.corrected_occupancy_map)
