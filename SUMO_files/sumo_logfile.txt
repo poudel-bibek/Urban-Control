@@ -1,0 +1,29 @@
+***Starting server on port 34073 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (14ms).
+Warning: Missing green phase in tlLogic 'cluster_172228464_482708521_9687148201_9687148202_#5more', program '0' for tl-index 17.
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_0.xml'
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_0.xml'
+Loading done.
+Simulation started with time: 0.00.
+Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
+Quitting (on error).
+Simulation ended at time: 460.00.
+Performance:
+ Duration: 129.90s
+ TraCI-Duration: 117.64s
+ Real time factor: 3.5411
+ UPS: 138.849757
+ UPS-Persons: 1196.254128
+Vehicles:
+ Inserted: 89 (Loaded: 117)
+ Running: 53
+ Waiting: 0
+Persons:
+ Inserted: 1204
+ Running: 532
+DijkstraRouter answered 13263 queries and explored 5.44 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.00ms on average).
+DijkstraRouter answered 914 queries and explored 474.88 edges on average.
+DijkstraRouter spent 0.04s answering queries (0.04ms on average).
+DijkstraRouter answered 89 queries and explored 57.75 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.01ms on average).

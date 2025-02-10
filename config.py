@@ -5,7 +5,7 @@ def get_config():
     config = {
         # Simulation
         "sweep": False,  # Use wandb sweeps for hyperparameter tuning
-        "gui": True,  # Use SUMO GUI (default: False)
+        "gui": False,  # Use SUMO GUI (default: False)
         "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
         "action_duration": 10,  # Duration of each action (default: 10.0)
         "warmup_steps": 100,  # Number of steps to run before collecting data
@@ -62,7 +62,7 @@ def get_config():
         "l5": -0.1,  # switch penalty weight
 
         # Evaluation
-        "evaluate": True,  
+        "evaluate": False,  
         "eval_model_path": "./saved_models/Feb09_15-17-56/best_control_model.pth",  # Path to the saved PPO model for evaluation
         "eval_n_iterations": 5,  # Number of iterations to repeat for each demand
         "eval_n_timesteps": 360,  # Number of timesteps to each episode. Warmup not counted.

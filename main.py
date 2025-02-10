@@ -430,9 +430,13 @@ def main(config):
         in_range_demand_scales = config['in_range_demand_scales']
         out_of_range_demand_scales = config['out_of_range_demand_scales']
         # eval policy and tl
-        tl_results_path = eval(config, in_range_demand_scales, out_of_range_demand_scales, tl= True)
-        ppo_results_path = eval(config, in_range_demand_scales, out_of_range_demand_scales, tl= False)
+        # tl_results_path = eval(config, in_range_demand_scales, out_of_range_demand_scales, tl= True)
+        # ppo_results_path = eval(config, in_range_demand_scales, out_of_range_demand_scales, tl= False)
+
+        tl_results_path = "./results/eval_results_Feb10_11-17-01_tl.json"
+        ppo_results_path = "./results/eval_results_Feb10_11-45-00_ppo.json"
         plot_consolidated_results(tl_results_path, ppo_results_path, in_range_demand_scales, out_of_range_demand_scales)
+
 
     elif config['sweep']:
         tuner = HyperParameterTuner(config, train)
