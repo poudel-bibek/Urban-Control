@@ -63,10 +63,10 @@ def get_config():
 
         # Evaluation
         "evaluate": False,  
-        "eval_model_path": "./saved_models/Feb09_15-17-56/best_control_model.pth",  # Path to the saved PPO model for evaluation
+        "eval_model_path": "./saved_models/Feb10_18-02-35/best_control_model.pth",  # Path to the saved PPO model for evaluation
         "eval_n_iterations": 5,  # Number of iterations to repeat for each demand
         "eval_n_timesteps": 360,  # Number of timesteps to each episode. Warmup not counted.
-        "eval_n_workers": 12,  # Parallelizes how many demands can be evaluated at the same time.
+        "eval_n_workers": 10,  # Parallelizes how many demands can be evaluated at the same time.
         "eval_worker_device": "gpu",  # Policy during eval can be run in GPU
         "in_range_demand_scales": [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5], # The demand scales that are used for training.
         "out_of_range_demand_scales": [0.25, 0.5, 0.75, 2.75, 3.0, 3.25], # The demand scales that are used ONLY for evaluation.

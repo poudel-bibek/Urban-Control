@@ -825,9 +825,8 @@ class ControlEnv(gym.Env):
         * MWAQ = For each TL, For both veh and ped: [sum of queue lengths of all incoming directions x maximum waiting time among all]
         * Penalize high MWAQ, i.e. make it negative.
         * Individually normalize MWAQ for each TL.
-        Other components: 
+        Other components (Optional): 
             - Penalize frequent changes of action based on switch_state 
-
         Vehicles:
         - getWaitingTime: The waiting time (in seconds) of a vehicle spent with speed below 0.1 m/s. Reset to 0 every time it moves.
         - getAccumulatedWaitingTime: The accumulated waiting time (in seconds) of a vehicle over a certain time interval (interval length is set with --waiting-time-memory)
@@ -957,11 +956,11 @@ class ControlEnv(gym.Env):
 
     def _get_mwaq_reward_exponential(self, corrected_occupancy_map, switch_state, print_reward=False):
         """
-        * Maximum wait aggregated queue (MWAQ) made continuous and differentiable by using L2 norm and exponentiation.
+        - Exponentially Increasing Normalized Maximum wait aggregated queue (EI-MWAQ) 
         * MWAQ = For each TL, For both veh and ped: [sum of queue lengths of all incoming directions x maximum waiting time among all]
         * Penalize high MWAQ, i.e. make it negative.
         * Individually normalize MWAQ for each TL.
-        Other components: 
+        Other components (Optional): 
             - Penalize frequent changes of action based on switch_state 
 
         Vehicles:
@@ -1072,17 +1071,21 @@ class ControlEnv(gym.Env):
         
         # Final reward calculation
         # For the intersection, exponent the current normalized value (for both veh and ped)
-        final_int_veh = np.exp(norm_int_veh_mwaq)
-        final_int_ped = np.exp(norm_int_ped_mwaq)
+        final_int_veh = np.exp(0.5*norm_int_veh_mwaq) # Alpha value of 0.5 to reduce sensitivity 
+        final_int_ped = np.exp(0.5*norm_int_ped_mwaq)
 
         # For the midblock, compute an L2 norm over the vector of normalized values for each TL, then exponentiate (for both veh and ped)
         norm_mb_veh_l2 = np.linalg.norm(np.array(list(norm_mb_veh_mwaq_per_tl.values())))
         norm_mb_ped_l2 = np.linalg.norm(np.array(list(norm_mb_ped_mwaq_per_tl.values())))
-        final_mb_veh = np.exp(norm_mb_veh_l2)
-        final_mb_ped = np.exp(norm_mb_ped_l2)
+        final_mb_veh = np.exp(0.5*norm_mb_veh_l2)
+        final_mb_ped = np.exp(0.5*norm_mb_ped_l2)
 
         # Final reward is the negative sum of the four exponentiated values
         reward = -1 * (final_int_veh + final_int_ped + final_mb_veh + final_mb_ped)
+
+        # Clip the reward (In an appropriately chosen range) before returning. 
+        clipped_reward = np.clip(reward, -10000, 10000)
+
         if print_reward:
             print(f"Intersection Reward Components:\n"
                 f"\tVehicle MWAQ: {norm_int_veh_mwaq} (exp: {final_int_veh})\n"
@@ -1097,8 +1100,9 @@ class ControlEnv(gym.Env):
                 f"\tPedestrian L2 Norm: {norm_mb_ped_l2} (exp: {final_mb_ped})")
             # print(f"Switch penalty: {norm_switch_penalty}")
             print(f"Total Reward: {reward}\n\n")
+            print(f"Clipped Reward: {clipped_reward}\n\n")
 
-        return reward
+        return clipped_reward
     
     def _check_done(self):
         """
