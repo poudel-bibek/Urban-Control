@@ -123,7 +123,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
     save_config(train_config, config_path)
     print(f"Configuration saved to {config_path}")
 
-    control_args, ppo_args = classify_and_return_args(train_config, device)
+    control_args, ppo_args, eval_args = classify_and_return_args(train_config, device)
 
     # Print stats from dummy environment
     dummy_env = ControlEnv(control_args, worker_id=None)
@@ -164,7 +164,11 @@ def train(train_config, is_sweep=False, sweep_config=None):
     global_step = 0
     update_count = 0
     action_timesteps = 0
-    best_reward = float('-inf')
+    best_reward = float('-inf') 
+    best_loss = float('inf')
+    best_eval = float('inf')
+    eval_veh_avg_wait = float('inf')
+    eval_ped_avg_wait = float('inf')    
 
     all_memories = Memory()
     for iteration in range(0, total_iterations): # Starting from 1 to prevent policy update in the very first iteration.
@@ -239,6 +243,14 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     action_timesteps = 0
                     print(f"Size of all memories after update: {len(all_memories.actions)}")
 
+                    # Evaluate the policy every eval_freq updates
+                    if update_count % control_args['eval_freq'] == 0:
+                        print(f"Evaluating policy: {control_args['eval_model_path']} at step {global_step}")
+                        eval_json = eval(control_args, ppo_args, eval_args, policy_path=control_args['eval_model_path'], tl= False) # which policy to evaluate?
+                        _, eval_veh_avg_wait, eval_ped_avg_wait = get_averages(eval_json)
+                        avg_eval = 0.5 * eval_veh_avg_wait + 0.5 * eval_ped_avg_wait
+                        print(f"Eval veh avg wait: {eval_veh_avg_wait}, eval ped avg wait: {eval_ped_avg_wait}, avg eval: {avg_eval}")
+
                     # logging
                     if is_sweep: # Wandb for hyperparameter tuning
                         wandb.log({ "iteration": iteration,
@@ -250,8 +262,10 @@ def train(train_config, is_sweep=False, sweep_config=None):
                                         "total_loss": loss['total_loss'],
                                         "current_lr": current_lr if control_args['anneal_lr'] else ppo_args['lr'],
                                         "approx_kl": loss['approx_kl'],
+                                        "eval_veh_avg_wait": eval_veh_avg_wait,
+                                        "eval_ped_avg_wait": eval_ped_avg_wait,
+                                        "avg_eval": avg_eval,
                                         "global_step": global_step })
-
                     else: # Tensorboard for regular training
                         writer.add_scalar('Training/Average_Reward', avg_reward, global_step)
                         writer.add_scalar('Training/Total_Policy_Updates', update_count, global_step)
@@ -261,17 +275,26 @@ def train(train_config, is_sweep=False, sweep_config=None):
                         writer.add_scalar('Training/Total_Loss', loss['total_loss'], global_step)
                         writer.add_scalar('Training/Current_LR', current_lr if control_args['anneal_lr'] else ppo_args['lr'], global_step)
                         writer.add_scalar('Training/Approx_KL', loss['approx_kl'], global_step)
+                        writer.add_scalar('Evaluation/Veh_Avg_Wait', eval_veh_avg_wait, global_step)
+                        writer.add_scalar('Evaluation/Ped_Avg_Wait', eval_ped_avg_wait, global_step)
+                        writer.add_scalar('Evaluation/Avg_Eval', avg_eval, global_step)
 
-                        # Save policy 
-                        if update_count % control_args['save_freq'] == 0:
-                            torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'control_model_iteration_{global_step}.pth'))
+                    # Save both during sweep and non-sweep
+                    # Save policy every save_freq updates
+                    if update_count % control_args['save_freq'] == 0:
+                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'control_model_iteration_{global_step}.pth'))
+                    # Save best policies 
+                    if avg_reward > best_reward:
+                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_reward_policy_{global_step}.pth'))
+                        best_reward = avg_reward
+                    if loss['total_loss'] < best_loss:
+                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_loss_policy_{global_step}.pth'))
+                        best_loss = loss['total_loss']
+                    if avg_eval < best_eval:
+                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_eval_policy_{global_step}.pth'))
+                        best_eval = avg_eval
 
-                        # Save best policy so far 
-                        if avg_reward > best_reward:
-                            torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], 'best_control_model.pth'))
-                            best_reward = avg_reward
-
-                    print(f"Logged agent data at step {global_step}")
+                    print(f"\nLogged data at step {global_step}\n")
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -352,21 +375,16 @@ def parallel_eval_worker(rank, eval_worker_config, queue, tl= False):
     # After all iterations are complete. 
     queue.put((worker_demand_scale, worker_result))
 
-def eval(config, in_range_demand_scales, out_of_range_demand_scales, tl= False):
+def eval(control_args, ppo_args, eval_args, policy_path=None, tl= False):
     """
-    Evaluate RL agent vs real-world TL
+    Works to evaluate a policy during training as well as stand-alone policy vs real-world TL (tl = True) evaluation.
     - Each demand is run on a different worker
-    - First eval trained ppo policy, TODO: then TL
-    - Results savedd as json dict. 
+    - Results saved as json dict. 
     """
-    n_workers = config['eval_n_workers']
-    eval_worker_device = config['eval_worker_device']
-    n_iterations = config['eval_n_iterations']
-
-    policy_path = config['eval_model_path']
-    eval_device = torch.device("cuda") if config['gpu'] and torch.cuda.is_available() else torch.device("cpu")
-    control_args, ppo_args = classify_and_return_args(config, eval_device)
-    eval_demand_scales = in_range_demand_scales + out_of_range_demand_scales
+    n_workers = eval_args['eval_n_workers']
+    n_iterations = eval_args['eval_n_iterations']
+    eval_device = torch.device("cuda") if eval_args['eval_worker_device']=='gpu' and torch.cuda.is_available() else torch.device("cpu")
+    eval_demand_scales = eval_args['in_range_demand_scales'] + eval_args['out_of_range_demand_scales']
     all_results = {}
 
     # number of times the n_workers have to be repeated to cover all eval demands
@@ -390,7 +408,7 @@ def eval(config, in_range_demand_scales, out_of_range_demand_scales, tl= False):
                 'policy_path': policy_path,
                 'policy_args': ppo_args,
                 'control_args': control_args,
-                'worker_device': eval_worker_device,
+                'worker_device': eval_device,
             }
             p = mp.Process(
                 target=parallel_eval_worker,
@@ -412,7 +430,7 @@ def eval(config, in_range_demand_scales, out_of_range_demand_scales, tl= False):
     print(f"All results: {all_results}")    
     current_time = datetime.now().strftime('%b%d_%H-%M-%S')
     os.makedirs('./results', exist_ok=True)
-    result_json_path = os.path.join('./results', f'eval_results_{current_time}_{"tl" if tl else "ppo"}.json')
+    result_json_path = os.path.join('./results', f'eval_policy_{policy_path.split("/")[2] if policy_path else "tl"}_{current_time}.json')
     with open(result_json_path, 'w') as f:
         json.dump(all_results, f, indent=4)
     return result_json_path
@@ -426,14 +444,10 @@ def main(config):
     # Spawn means create a new process. There is a fork method as well which will create a copy of the current process.
     mp.set_start_method('spawn') 
     if config['evaluate']: 
-        in_range_demand_scales = config['in_range_demand_scales']
-        out_of_range_demand_scales = config['out_of_range_demand_scales']
-        # eval policy and tl
-        tl_results_path = eval(config, in_range_demand_scales, out_of_range_demand_scales, tl= True)
-        ppo_results_path = eval(config, in_range_demand_scales, out_of_range_demand_scales, tl= False)
-
-        plot_consolidated_results(tl_results_path, ppo_results_path, in_range_demand_scales, out_of_range_demand_scales)
-
+        control_args, ppo_args, eval_args = classify_and_return_args(config, config['eval_worker_device'])
+        tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=None, tl= True)
+        ppo_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= False)
+        plot_consolidated_results(tl_results_path, ppo_results_path, eval_args['in_range_demand_scales'], eval_args['out_of_range_demand_scales'])
 
     elif config['sweep']:
         tuner = HyperParameterTuner(config, train)

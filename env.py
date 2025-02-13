@@ -1108,15 +1108,16 @@ class ControlEnv(gym.Env):
         # norm_switch_penalty = sum(switch_state) / len(self.tl_ids)
         
         # Final reward calculation
+        alpha = 0.5
         # For the intersection, exponent the current normalized value (for both veh and ped)
-        final_int_veh = np.exp(0.5*norm_int_veh_mwaq) # Alpha value of 0.5 to reduce sensitivity 
-        final_int_ped = np.exp(0.5*norm_int_ped_mwaq)
+        final_int_veh = np.exp(alpha*norm_int_veh_mwaq) # Alpha value of 0.5 to reduce sensitivity 
+        final_int_ped = np.exp(alpha*norm_int_ped_mwaq)
 
         # For the midblock, compute an L2 norm over the vector of normalized values for each TL, then exponentiate (for both veh and ped)
         norm_mb_veh_l2 = np.linalg.norm(np.array(list(norm_mb_veh_mwaq_per_tl.values())))
         norm_mb_ped_l2 = np.linalg.norm(np.array(list(norm_mb_ped_mwaq_per_tl.values())))
-        final_mb_veh = np.exp(0.5*norm_mb_veh_l2)
-        final_mb_ped = np.exp(0.5*norm_mb_ped_l2)
+        final_mb_veh = np.exp(alpha*norm_mb_veh_l2)
+        final_mb_ped = np.exp(alpha*norm_mb_ped_l2)
 
         # Final reward is the negative sum of the four exponentiated values
         reward = -1 * (final_int_veh + final_int_ped + final_mb_veh + final_mb_ped)

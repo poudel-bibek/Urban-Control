@@ -4,8 +4,8 @@ def get_config():
     """
     config = {
         # Simulation
-        "sweep": False,  # Use wandb sweeps for hyperparameter tuning
-        "gui": False,  # Use SUMO GUI (default: False)
+        "sweep": True,  # Use wandb sweeps for hyperparameter tuning
+        "gui": True,  # Use SUMO GUI (default: False)
         "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
         "action_duration": 10,  # Duration of each action (default: 10.0)
         "warmup_steps": 100,  # Number of steps to run before collecting data
@@ -42,6 +42,7 @@ def get_config():
         "K_epochs": 4,  # Number of epochs to update policy
         "eps_clip": 0.2,  # Clip parameter for PPO
         "save_freq": 2,  # Save model after every n updates (0 to disable)
+        "eval_freq": 2,  # Evaluate policy after every n updates (0 to disable)
         "ent_coef": 0.005,  # Entropy coefficient
         "vf_coef": 0.75,  # Value function coefficient
         "batch_size": 32,  # Batch size
@@ -98,6 +99,7 @@ def classify_and_return_args(train_config, device):
         'demand_scale_max': train_config['demand_scale_max'],
         'memory_transfer_freq': train_config['memory_transfer_freq'],
         'save_freq': train_config['save_freq'],
+        'eval_freq': train_config['eval_freq'],
         'writer': None, # Need dummy values for dummy envs init.
         'save_dir': None,
         'total_action_timesteps_per_episode': None,
@@ -138,5 +140,15 @@ def classify_and_return_args(train_config, device):
         'model_type': train_config['model_type'],
         'model_kwargs': model_kwargs
     }
+    
+    eval_args = {
+        'eval_model_path': train_config['eval_model_path'],
+        'eval_n_iterations': train_config['eval_n_iterations'],
+        'eval_n_timesteps': train_config['eval_n_timesteps'],
+        'eval_n_workers': train_config['eval_n_workers'],
+        'eval_worker_device': train_config['eval_worker_device'],
+        'in_range_demand_scales': train_config['in_range_demand_scales'],
+        'out_of_range_demand_scales': train_config['out_of_range_demand_scales'],
+    }
 
-    return control_args, ppo_args
+    return control_args, ppo_args, eval_args
