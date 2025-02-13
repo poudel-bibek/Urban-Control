@@ -475,9 +475,49 @@ class ControlEnv(gym.Env):
         # Advanced observation
         # TODO: Implement
 
-    def step(self, action, tl= False):
+    def train_step(self, action):
         """
         If Tl = True, operating in eval mode with TL.
+        """
+        if not self.sumo_running:
+            raise Exception("Environment is not running. Call reset() to start the environment.")
+        if self.previous_action is None:
+            self.previous_action = action
+
+        reward = 0
+        done = False
+        observation_buffer = []
+        action = np.array(action)
+        # switch detection does not need to be done every timestep. 
+        switch_state = self._detect_switch(action, self.previous_action)
+ 
+        for i in range(self.steps_per_action): # Run simulation steps for the duration of the action
+            # Apply action is called every timestep (return information useful for reward calculation)
+            current_phase = self._apply_action(action, i, switch_state)
+            traci.simulationStep() # Step length is the simulation time that elapses when each time this is called.
+            self.step_count += 1
+            obs = self._get_observation(current_phase)
+            observation_buffer.append(obs)
+            
+        # outside the loop
+        # Do before reward calculation
+        # pressure_dict = self._get_pressure_dict(self.corrected_occupancy_map)
+        # Reward outside the loop (only once per duration)
+        reward = self._get_reward(self.corrected_occupancy_map, switch_state, pressure_dict = None) # pressure dict used only in pressure-based reward
+        self.previous_action = action
+
+        # Check if episode is done (outside the for loop, otherwise it would create a broken observation)
+        if self._check_done():
+            done = True
+
+        observation = np.asarray(observation_buffer, dtype=np.float32) 
+        #print(f"\nObservation shape: {observation.shape}, type: {type(observation)}, value: {observation}")
+        #visualize_observation(observation)
+        return observation, reward, done, False, {} # info is empty
+    
+    def eval_step(self, action, tl= False):
+        """
+        Step during evaluation.
         """
         if not self.sumo_running:
             raise Exception("Environment is not running. Call reset() to start the environment.")
@@ -511,9 +551,9 @@ class ControlEnv(gym.Env):
             
         # outside the loop
         # Do before reward calculation
-        pressure_dict = self._get_pressure_dict(self.corrected_occupancy_map)
+        # pressure_dict = self._get_pressure_dict(self.corrected_occupancy_map)
         # Reward outside the loop (only once per duration)
-        reward += self._get_reward(pressure_dict, self.corrected_occupancy_map, switch_state)
+        reward = self._get_reward(self.corrected_occupancy_map, switch_state, pressure_dict = None) # pressure dict used only in pressure-based reward
         self.previous_action = action
 
         # Check if episode is done (outside the for loop, otherwise it would create a broken observation)
@@ -524,7 +564,7 @@ class ControlEnv(gym.Env):
         #print(f"\nObservation shape: {observation.shape}, type: {type(observation)}, value: {observation}")
         #visualize_observation(observation)
         return observation, reward, done, False, {} # info is empty
-    
+
     def _detect_switch(self, current_action, previous_action):
         """
         Detect a switch in all the components (the vehicle part at the intersection considered as one component) i.e., total 8 components
@@ -745,7 +785,7 @@ class ControlEnv(gym.Env):
         """
         pass
 
-    def _get_reward(self, pressure_dict, corrected_occupancy_map, switch_state):
+    def _get_reward(self, corrected_occupancy_map, switch_state, pressure_dict):
         """ 
         """
         # return self._get_pressure_based_reward(pressure_dict, switch_state)
@@ -976,15 +1016,13 @@ class ControlEnv(gym.Env):
         """
         MWAQ_VEH_NORMALIZER = 100
         MWAQ_PED_NORMALIZER = 100
-        VEH_THRESHOLD_SPEED = 0.2 # m/s
-        PED_THRESHOLD_SPEED = 0.5 # m/s
+        VEH_THRESHOLD_SPEED = 0.1 # m/s
+        PED_THRESHOLD_SPEED = 0.1 # m/s # 0.1 is the threshold in SUMO by default (i.e. wait time is counted when speed is below 0.1 m/s)
 
         # Intersection 
         # Vehicle
         int_veh_mwaq = 0
-        # queue length only starts counting if the vehicles are below 0.1 m/s
-        # set thsi to 0.5 so that it does not have a zero value if vehicles  moving but very slow (upto the threshold speed)
-        max_wait_time_veh_int = 0.5 
+        max_wait_time_veh_int = 0.0
         veh_queue_length = 0
 
         for direction_turn in self.direction_turn_intersection_incoming:
@@ -1005,7 +1043,7 @@ class ControlEnv(gym.Env):
 
         # Pedestrian
         int_ped_mwaq = 0
-        max_wait_time_ped_int = 0.5
+        max_wait_time_ped_int = 0.0
         ped_queue_length = 0
         for direction in self.directions:
             int_pedestrians = corrected_occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["pedestrian"]["incoming"][direction]["main"]
@@ -1026,7 +1064,7 @@ class ControlEnv(gym.Env):
         norm_mb_veh_mwaq_per_tl = {}
         for tl_id in self.tl_ids[1:]:
             tl_veh_mwaq = 0
-            max_wait_time_veh_mb = 0.5
+            max_wait_time_veh_mb = 0.0
             veh_queue_length = 0
             for direction in self.direction_turn_midblock:
                 mb_vehicles = corrected_occupancy_map[tl_id]["vehicle"]["incoming"][direction]
@@ -1049,7 +1087,7 @@ class ControlEnv(gym.Env):
         norm_mb_ped_mwaq_per_tl = {}
         for tl_id in self.tl_ids[1:]:
             tl_ped_mwaq = 0
-            max_wait_time_ped_mb = 0.5
+            max_wait_time_ped_mb = 0.0
             ped_queue_length = 0
             mb_pedestrians = corrected_occupancy_map[tl_id]["pedestrian"]["incoming"]["north"]["main"] # only one direction # 
             for ped_id in mb_pedestrians:

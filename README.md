@@ -1,10 +1,10 @@
 In linux, use: ulimit -n 10000
 to increase the limit on the number of file descriptors that can be opened by a process.
 
-# Co-designing the built environment and traffic controller using reinforcement learning
+# Control Urban Traffic using Reinforcement Learning
 
 ## Abstract
-This project explores the co-design of urban environments and traffic control systems using reinforcement learning techniques, specifically the Proximal Policy Optimization (PPO) algorithm. We utilize SUMO (Simulation of Urban MObility) for traffic simulation and implement our learning algorithms using PyTorch.
+This project explores the control of urban traffic using reinforcement learning techniques, specifically the Proximal Policy Optimization (PPO) algorithm. We utilize SUMO (Simulation of Urban MObility) for traffic simulation and implement our learning algorithms using PyTorch.
 
 ## Requirements
 - SUMO version 1.20.0

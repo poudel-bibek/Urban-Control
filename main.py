@@ -59,7 +59,7 @@ def parallel_train_worker(rank, shared_policy_old, control_args, queue, worker_s
 
         # Perform action
         # These reward and next_state are for the action_duration timesteps.
-        next_state, reward, done, truncated, _ = worker_env.step(action) # need the returned state to be 2D
+        next_state, reward, done, truncated, _ = worker_env.train_step(action) # need the returned state to be 2D
         reward = shared_reward_normalizer.normalize(reward).item()
         ep_reward += reward
 
@@ -335,7 +335,7 @@ def parallel_eval_worker(rank, eval_worker_config, queue, tl= False):
                 state = torch.FloatTensor(state).to(ppo_args['device'])
                 action, _ = eval_control_ppo.policy.act(state)
                 action = action.detach().cpu() # sim runs in CPU
-                state, reward, done, truncated, _ = env.step(action, tl)
+                state, reward, done, truncated, _ = env.eval_step(action, tl)
 
                 # During this step, get all vehicles and pedestrians
                 veh_waiting_time_this_step = env.get_vehicle_waiting_time()
