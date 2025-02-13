@@ -871,7 +871,7 @@
                  personName_show="0" personName_size="60.00" personName_color="0,153,204" personName_bgColor="128,0,0,0" personName_constantSize="1" personName_onlySelected="0"
                   personValue_show="0" personValue_size="80.00" personValue_color="cyan" personValue_bgColor="128,0,0,0" personValue_constantSize="1" personValue_onlySelected="0">
             <colorScheme name="given person/type color">
-                <entry color="blue"/>
+                <entry color="255,174,0"/>
             </colorScheme>
             <colorScheme name="uniform">
                 <entry color="blue"/>

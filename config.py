@@ -41,11 +41,11 @@ def get_config():
         "gamma": 0.96,  # Discount factor
         "K_epochs": 4,  # Number of epochs to update policy
         "eps_clip": 0.2,  # Clip parameter for PPO
-        "save_freq": 5,  # Save model after every n updates (0 to disable)
+        "save_freq": 2,  # Save model after every n updates (0 to disable)
         "ent_coef": 0.005,  # Entropy coefficient
         "vf_coef": 0.75,  # Value function coefficient
         "batch_size": 32,  # Batch size
-        "num_processes": 8,  # Number of parallel processes to use (agent has multiple workers)
+        "num_processes": 1,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.25,  # Dropout rate for CNN
@@ -64,9 +64,9 @@ def get_config():
         # Evaluation
         "evaluate": False,  
         "eval_model_path": "./saved_models/Feb10_18-02-35/best_control_model.pth",  # Path to the saved PPO model for evaluation
-        "eval_n_iterations": 3,  # Number of iterations to repeat for each demand
+        "eval_n_iterations": 1,  # Number of iterations to repeat for each demand
         "eval_n_timesteps": 100,  # Number of timesteps to each episode. Warmup not counted.
-        "eval_n_workers": 8,  # Parallelizes how many demands can be evaluated at the same time.
+        "eval_n_workers": 6,  # Parallelizes how many demands can be evaluated at the same time.
         "eval_worker_device": "gpu",  # Policy during eval can be run in GPU
         "in_range_demand_scales": [1.0, 1.25, 1.5], #, 1.75, 2.0, 2.25, 2.5], # The demand scales that are used for training.
         "out_of_range_demand_scales": [0.25, 0.5] #, 0.75, 2.75, 3.0, 3.25], # The demand scales that are used ONLY for evaluation.

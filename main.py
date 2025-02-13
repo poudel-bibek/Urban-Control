@@ -18,7 +18,7 @@ from torch.utils.tensorboard import SummaryWriter
 from utils import *
 from env import ControlEnv
 
-def parallel_train_worker(rank, shared_policy_old, control_args, queue, worker_seed, shared_state_normalizer, shared_reward_normalizer, worker_device):
+def parallel_train_worker(rank, shared_policy_old, control_args, train_queue, worker_seed, shared_state_normalizer, shared_reward_normalizer, worker_device):
     """
     At every iteration, a number of workers will each parallelly carry out one episode in control environment.
     - Worker environment runs in CPU (SUMO runs in CPU).
@@ -40,7 +40,6 @@ def parallel_train_worker(rank, shared_policy_old, control_args, queue, worker_s
     state, _ = worker_env.reset()
     ep_reward = 0
     steps_since_update = 0
-    
 
     for _ in range(control_args['total_action_timesteps_per_episode']):
         state = torch.FloatTensor(state)
@@ -51,11 +50,11 @@ def parallel_train_worker(rank, shared_policy_old, control_args, queue, worker_s
             action, logprob = shared_policy_old.act(state) # sim runs in CPU, state will initially always be in CPU.
             value = shared_policy_old.critic(state.unsqueeze(0)) # add a batch dimension
 
-            state = state.detach().cpu() # 2D
-            action = action.detach().cpu() # 1D
+            state = state.detach().cpu().numpy() # 2D
+            action = action.detach().cpu().numpy() # 1D
             value = value.item() # Scalar
             logprob = logprob.item() # Scalar
-            #print(f"State: {state}, Action: {action}, Value: {value}, Logprob: {logprob}")
+            # print(f"State: {state}, Action: {action}, Value: {value}, Logprob: {logprob}")
 
         # Perform action
         # These reward and next_state are for the action_duration timesteps.
@@ -70,7 +69,7 @@ def parallel_train_worker(rank, shared_policy_old, control_args, queue, worker_s
         if steps_since_update >= memory_transfer_freq or done or truncated:
             # Put local memory in the queue for the main process to collect
             memory_copy = deepcopy(local_memory)
-            queue.put((rank, memory_copy))
+            train_queue.put((rank, memory_copy))
             local_memory = Memory()  # Reset local memory
             steps_since_update = 0
 
@@ -83,7 +82,7 @@ def parallel_train_worker(rank, shared_policy_old, control_args, queue, worker_s
     worker_env.close()
     time.sleep(10) # Essential
     del worker_env
-    queue.put((rank, None))  # Signal that this worker is done
+    train_queue.put((rank, None))  # Signal that this worker is done
 
 def save_config(config, save_path):
     """
@@ -185,9 +184,9 @@ def train(train_config, is_sweep=False, sweep_config=None):
         old_policy.share_memory() # Dont pickle separate policy_old for each worker. Despite this, the old policy is still stale.
 
         #print(f"Shared policy weights: {control_ppo.policy_old.state_dict()}")
-        queue = mp.Queue()
-        processes = []
-        active_workers = []
+        train_queue = mp.Queue()
+        train_processes = []
+        active_train_workers = []
         for rank in range(control_args['num_processes']):
 
             worker_seed = SEED + iteration * 1000 + rank
@@ -197,28 +196,28 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     rank,
                     old_policy,
                     control_args_worker,
-                    queue,
+                    train_queue,
                     worker_seed,
                     shared_state_normalizer,
                     shared_reward_normalizer,
                     device)
                 )
             p.start()
-            processes.append(p)
-            active_workers.append(rank)
+            train_processes.append(p)
+            active_train_workers.append(rank)
         
-        while active_workers:
-            print(f"Active workers: {active_workers}")
-            rank, memory = queue.get()
+        while active_train_workers:
+            print(f"Active workers: {active_train_workers}")
+            rank, memory = train_queue.get()
 
             if memory is None:
                 print(f"Worker {rank} finished")
-                active_workers.remove(rank)
+                active_train_workers.remove(rank)
             else:
                 current_action_timesteps = len(memory.states)
                 print(f"Memory from worker {rank} received. Memory size: {current_action_timesteps}")
-                all_memories.actions.extend(memory.actions)
-                all_memories.states.extend(memory.states)
+                all_memories.actions.extend(torch.from_numpy(np.asarray(memory.actions)))
+                all_memories.states.extend(torch.from_numpy(np.asarray(memory.states)))
                 all_memories.values.extend(memory.values)
                 all_memories.logprobs.extend(memory.logprobs)
                 all_memories.rewards.extend(memory.rewards)
@@ -260,18 +259,18 @@ def train(train_config, is_sweep=False, sweep_config=None):
                         print(f"Evaluating policy: {latest_policy_path} at step {global_step}")
                         eval_json = eval(control_args_worker, ppo_args, eval_args, policy_path=latest_policy_path, tl= False) # which policy to evaluate?
                         _, eval_veh_avg_wait, eval_ped_avg_wait = get_averages(eval_json)
-                        avg_eval = 0.5 * eval_veh_avg_wait + 0.5 * eval_ped_avg_wait
+                        avg_eval = (np.mean(eval_veh_avg_wait) + np.mean(eval_ped_avg_wait)) / 2
                         print(f"Eval veh avg wait: {eval_veh_avg_wait}, eval ped avg wait: {eval_ped_avg_wait}, avg eval: {avg_eval}")
 
                     # Save best policies 
                     if avg_reward > best_reward:
-                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_reward_policy.pth'))
+                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], 'best_reward_policy.pth'))
                         best_reward = avg_reward
                     if loss['total_loss'] < best_loss:
-                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_loss_policy.pth'))
+                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], 'best_loss_policy.pth'))
                         best_loss = loss['total_loss']
                     if avg_eval < best_eval:
-                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_eval_policy.pth'))
+                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], 'best_eval_policy.pth'))
                         best_eval = avg_eval
 
                     # logging
@@ -303,12 +302,14 @@ def train(train_config, is_sweep=False, sweep_config=None):
                         writer.add_scalar('Evaluation/Avg_Eval', avg_eval, global_step)
                     print(f"\nLogged data at step {global_step}\n")
 
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
         # Clean up. The join() method ensures that the main program waits for all processes to complete before continuing.
-        for p in processes:
+        for p in train_processes:
             p.join() 
         print(f"All processes joined\n\n")
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        del train_queue
 
         # Save all the sampled actions to a json file
         with open(actions_file_path, 'r+') as f:
@@ -321,12 +322,13 @@ def train(train_config, is_sweep=False, sweep_config=None):
             #print(f"Sampled actions: {sampled_actions}")
             json.dump(data, f, indent=4)
             f.truncate()
+            f.close()
         sampled_actions = []
 
     if not is_sweep:
         writer.close()
 
-def parallel_eval_worker(rank, eval_worker_config, queue, tl= False):
+def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl= False):
     """
     - For the same demand, each worker runs n_iterations number of episodes and measures performance metrics at each iteration.
     - Each episode runs on a different random seed.
@@ -335,14 +337,12 @@ def parallel_eval_worker(rank, eval_worker_config, queue, tl= False):
         - Average travel time (Veh, Ped)
     - Returns a dictionary with performance metrics in all iterations.
     - For PPO: 
-        - Each worker create a copy of the policy and run it
+        - Create a single shared policy, and share among workers.
     - For TL:
         - Just pass tl = True
     """
-    ppo_args = eval_worker_config['policy_args']
-    eval_control_ppo = PPO(**ppo_args)
-    eval_control_ppo.policy.load_state_dict(torch.load(eval_worker_config['policy_path']))
     
+    shared_policy = eval_worker_config['shared_policy']
     worker_demand_scale = eval_worker_config['worker_demand_scale']
     control_args = eval_worker_config['control_args']
 
@@ -375,8 +375,8 @@ def parallel_eval_worker(rank, eval_worker_config, queue, tl= False):
         with torch.no_grad():
             for _ in range(eval_worker_config['total_action_timesteps_per_episode']):
             
-                state = torch.FloatTensor(state).to(ppo_args['device'])
-                action, _ = eval_control_ppo.policy.act(state)
+                state = torch.FloatTensor(state).to(eval_worker_config['worker_device'])
+                action, _ = shared_policy.act(state)
                 action = action.detach().cpu() # sim runs in CPU
                 state, reward, done, truncated, _ = env.eval_step(action, tl)
 
@@ -392,8 +392,12 @@ def parallel_eval_worker(rank, eval_worker_config, queue, tl= False):
         # gather performance metrics
         worker_result[i]['veh_avg_waiting_time'] = veh_waiting_time_this_episode / veh_unique_ids_this_episode
         worker_result[i]['ped_avg_waiting_time'] = ped_waiting_time_this_episode / ped_unique_ids_this_episode
+
     # After all iterations are complete. 
-    queue.put((worker_demand_scale, worker_result))
+    env.close()
+    time.sleep(10) # Essential
+    del env
+    eval_queue.put((worker_demand_scale, worker_result))
 
 def eval(control_args, ppo_args, eval_args, policy_path=None, tl= False):
     """
@@ -407,6 +411,11 @@ def eval(control_args, ppo_args, eval_args, policy_path=None, tl= False):
     eval_demand_scales = eval_args['in_range_demand_scales'] + eval_args['out_of_range_demand_scales']
     all_results = {}
 
+    eval_ppo = PPO(**ppo_args)
+    eval_ppo.policy.load_state_dict(torch.load(policy_path))
+    shared_policy = eval_ppo.policy.to(eval_device)
+    shared_policy.share_memory()
+
     # number of times the n_workers have to be repeated to cover all eval demands
     num_times_workers_recycle = len(eval_demand_scales) if len(eval_demand_scales) < n_workers else (len(eval_demand_scales) // n_workers) + 1
     for i in range(num_times_workers_recycle):
@@ -414,9 +423,9 @@ def eval(control_args, ppo_args, eval_args, policy_path=None, tl= False):
         end = n_workers * (i + 1)
         demand_scales_evaluated_current_cycle = eval_demand_scales[start: end]
 
-        queue = mp.Queue()
-        processes = []  
-        active_workers = []
+        eval_queue = mp.Queue()
+        eval_processes = []  
+        active_eval_workers = []
         demand_scale_to_rank = {}
         for rank, demand_scale in enumerate(demand_scales_evaluated_current_cycle): 
             demand_scale_to_rank[demand_scale] = rank
@@ -425,34 +434,39 @@ def eval(control_args, ppo_args, eval_args, policy_path=None, tl= False):
                 'n_iterations': n_iterations,
                 'total_action_timesteps_per_episode': config['eval_n_timesteps'] // control_args['action_duration'], # Each time
                 'worker_demand_scale': demand_scale,
-                'policy_path': policy_path,
-                'policy_args': ppo_args,
+                'shared_policy': shared_policy,
                 'control_args': control_args,
                 'worker_device': eval_device,
             }
             p = mp.Process(
                 target=parallel_eval_worker,
-                args=(rank, worker_config, queue, tl))
+                args=(rank, worker_config, eval_queue, tl))
             
             p.start()
-            processes.append(p)
-            active_workers.append(rank)
+            eval_processes.append(p)
+            active_eval_workers.append(rank)
 
-        while active_workers:
-            worker_demand_scale, result = queue.get() #timeout=60) # Result is obtained after all iterations are complete
+        while active_eval_workers:
+            worker_demand_scale, result = eval_queue.get() #timeout=60) # Result is obtained after all iterations are complete
             print(f"Result from worker with demand scale: {worker_demand_scale}: {result}")
             all_results[worker_demand_scale] = result
-            active_workers.remove(demand_scale_to_rank[worker_demand_scale])
+            active_eval_workers.remove(demand_scale_to_rank[worker_demand_scale])
 
-        for p in processes:
+        for p in eval_processes:
             p.join()
+
+    # if torch.cuda.is_available():
+    #     torch.cuda.empty_cache()
+    del eval_queue
+    del shared_policy
 
     print(f"All results: {all_results}")    
     current_time = datetime.now().strftime('%b%d_%H-%M-%S')
     os.makedirs('./results', exist_ok=True)
-    result_json_path = os.path.join('./results', f'eval_policy_{policy_path.split("/")[2] if policy_path else "tl"}_{current_time}.json')
+    result_json_path = os.path.join('./results', f'eval_{policy_path.split("/")[2].split(".")[0] if policy_path else "tl"}_{current_time}.json')
     with open(result_json_path, 'w') as f:
         json.dump(all_results, f, indent=4)
+    f.close()
     return result_json_path
     
 def main(config):
@@ -465,7 +479,7 @@ def main(config):
     mp.set_start_method('spawn') 
     if config['evaluate']: 
         control_args, ppo_args, eval_args = classify_and_return_args(config, config['eval_worker_device'])
-        tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=None, tl= True)
+        tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True) # supply a ploicy (wont be used)
         ppo_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= False)
         plot_consolidated_results(tl_results_path, ppo_results_path, eval_args['in_range_demand_scales'], eval_args['out_of_range_demand_scales'])
 
