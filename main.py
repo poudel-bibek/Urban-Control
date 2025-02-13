@@ -254,7 +254,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     # Save both during sweep and non-sweep
                     # Save (and evaluate the latest policy) every save_freq updates
                     if update_count % control_args['save_freq'] == 0:
-                        latest_policy_path = os.path.join(control_args['save_dir'], f'control_model_iteration_{global_step}.pth')
+                        latest_policy_path = os.path.join(control_args['save_dir'], f'policy_at_step_{global_step}.pth')
                         torch.save(control_ppo.policy.state_dict(), latest_policy_path)
                     
                         print(f"Evaluating policy: {latest_policy_path} at step {global_step}")
@@ -265,13 +265,13 @@ def train(train_config, is_sweep=False, sweep_config=None):
 
                     # Save best policies 
                     if avg_reward > best_reward:
-                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_reward_policy_{global_step}.pth'))
+                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_reward_policy.pth'))
                         best_reward = avg_reward
                     if loss['total_loss'] < best_loss:
-                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_loss_policy_{global_step}.pth'))
+                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_loss_policy.pth'))
                         best_loss = loss['total_loss']
                     if avg_eval < best_eval:
-                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_eval_policy_{global_step}.pth'))
+                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_eval_policy.pth'))
                         best_eval = avg_eval
 
                     # logging
