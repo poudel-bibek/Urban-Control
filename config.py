@@ -8,7 +8,7 @@ def get_config():
         "gui": True,  # Use SUMO GUI (default: False)
         "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
         "action_duration": 10,  # Duration of each action (default: 10.0)
-        "warmup_steps": [100, 250]  # Number of steps to run before collecting data
+        "warmup_steps": [100, 250],  # Number of steps to run before collecting data
         "auto_start": True,  # Automatically start the simulation
         "vehicle_input_trips": "./SUMO_files/original_vehtrips.xml",  # Original Input trips file
         "vehicle_output_trips": "./SUMO_files/scaled_trips/scaled_vehtrips.xml",  # Output trips file
@@ -26,7 +26,7 @@ def get_config():
         "seed": None,  # Random seed (default: None)
         "gpu": True,  # Use GPU if available (default: use CPU)
         "total_timesteps": 5000000,  # Total number of timesteps the simulation will run
-        "max_timesteps": 480,  # Maximum number of steps in one episode (make this multiple of 16*10)
+        "max_timesteps": 100,  # Maximum number of steps in one episode (make this multiple of 16*10)
         "total_sweep_trials": 256,  # Total number of trials for the wandb sweep
         "memory_transfer_freq": 16,  # Frequency of memory transfer from worker to main process 
         "per_timestep_state_dim": 96,  # Number of features per timestep
@@ -41,8 +41,7 @@ def get_config():
         "gamma": 0.96,  # Discount factor
         "K_epochs": 4,  # Number of epochs to update policy
         "eps_clip": 0.2,  # Clip parameter for PPO
-        "save_freq": 2,  # Save model after every n updates (0 to disable)
-        "eval_freq": 2,  # Evaluate policy after every n updates (0 to disable)
+        "save_freq": 5,  # Save model after every n updates (0 to disable)
         "ent_coef": 0.005,  # Entropy coefficient
         "vf_coef": 0.75,  # Value function coefficient
         "batch_size": 32,  # Batch size
@@ -65,12 +64,12 @@ def get_config():
         # Evaluation
         "evaluate": False,  
         "eval_model_path": "./saved_models/Feb10_18-02-35/best_control_model.pth",  # Path to the saved PPO model for evaluation
-        "eval_n_iterations": 5,  # Number of iterations to repeat for each demand
-        "eval_n_timesteps": 360,  # Number of timesteps to each episode. Warmup not counted.
-        "eval_n_workers": 10,  # Parallelizes how many demands can be evaluated at the same time.
+        "eval_n_iterations": 3,  # Number of iterations to repeat for each demand
+        "eval_n_timesteps": 100,  # Number of timesteps to each episode. Warmup not counted.
+        "eval_n_workers": 8,  # Parallelizes how many demands can be evaluated at the same time.
         "eval_worker_device": "gpu",  # Policy during eval can be run in GPU
-        "in_range_demand_scales": [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5], # The demand scales that are used for training.
-        "out_of_range_demand_scales": [0.25, 0.5, 0.75, 2.75, 3.0, 3.25], # The demand scales that are used ONLY for evaluation.
+        "in_range_demand_scales": [1.0, 1.25, 1.5], #, 1.75, 2.0, 2.25, 2.5], # The demand scales that are used for training.
+        "out_of_range_demand_scales": [0.25, 0.5] #, 0.75, 2.75, 3.0, 3.25], # The demand scales that are used ONLY for evaluation.
     }
 
 
@@ -99,7 +98,6 @@ def classify_and_return_args(train_config, device):
         'demand_scale_max': train_config['demand_scale_max'],
         'memory_transfer_freq': train_config['memory_transfer_freq'],
         'save_freq': train_config['save_freq'],
-        'eval_freq': train_config['eval_freq'],
         'writer': None, # Need dummy values for dummy envs init.
         'save_dir': None,
         'total_action_timesteps_per_episode': None,

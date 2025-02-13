@@ -87,11 +87,11 @@ class ControlEnv(gym.Env):
         self.max_switches = len(self.tl_ids)
         
         # Reward weights 
-        self.l1 = control_args.get('l1')  # intersection vehicle pressure weight
-        self.l2 = control_args.get('l2')  # intersection pedestrian pressure weight 
-        self.l3 = control_args.get('l3')  # midblock vehicle pressure weight
-        self.l4 = control_args.get('l4')  # midblock pedestrian pressure weight
-        self.l5 = control_args.get('l5')  # switch penalty weight
+        self.l1 = control_args['l1']  # intersection vehicle pressure weight
+        self.l2 = control_args['l2']  # intersection pedestrian pressure weight 
+        self.l3 = control_args['l3']  # midblock vehicle pressure weight
+        self.l4 = control_args['l4']  # midblock pedestrian pressure weight
+        self.l5 = control_args['l5']  # switch penalty weight
 
     def _get_vehicle_direction(self, signal_state):
         # Define signal bits for left and right blinkers
@@ -1209,8 +1209,9 @@ class ControlEnv(gym.Env):
         self.tl_lane_dict = get_related_lanes_edges()
 
         # Warmup period
-        # How many actions to take during warmup?
-        num_actions_warmup = random.randint(self.warmup_steps[0], self.warmup_steps[1]) // self.steps_per_action
+        # How many actions to take during warmup
+        warmup = random.randint(self.warmup_steps[0], self.warmup_steps[1])
+        num_actions_warmup = warmup // self.steps_per_action
         #print(f"Number of actions during warmup: {num_actions_warmup}")
         observation_buffer = []
         for i in range(num_actions_warmup):
@@ -1241,7 +1242,7 @@ class ControlEnv(gym.Env):
                     # No reward calculation
                     # self.step_count += 1 # We are not counting the warmup steps in the total simulation steps
 
-        #print(f"Ended Warmup. Buffer length: {len(observation_buffer)}")
+        print(f"\n{warmup} steps of warmup ended.\n")
         observation_buffer = observation_buffer[-self.steps_per_action:] # Only keep the observation of thelast action
         observation = np.asarray(observation_buffer, dtype=np.float32)
         #print(f"\nObservation (in reset): {observation.shape}")

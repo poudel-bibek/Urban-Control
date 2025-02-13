@@ -167,8 +167,15 @@ def train(train_config, is_sweep=False, sweep_config=None):
     best_reward = float('-inf') 
     best_loss = float('inf')
     best_eval = float('inf')
+    avg_eval = float('inf')
     eval_veh_avg_wait = float('inf')
     eval_ped_avg_wait = float('inf')    
+
+    # Every iteration, save all the sampled actions to a json file (by appending to the file).
+    # A newer policy does importance sampling only every iteration. 
+    actions_file_path = os.path.join(save_dir, f'sampled_actions.json')
+    open(actions_file_path, 'w').close()
+    sampled_actions = []
 
     all_memories = Memory()
     for iteration in range(0, total_iterations): # Starting from 1 to prevent policy update in the very first iteration.
@@ -217,6 +224,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                 all_memories.rewards.extend(memory.rewards)
                 all_memories.is_terminals.extend(memory.is_terminals)
 
+                sampled_actions.append(memory.actions[0].tolist())
                 action_timesteps += current_action_timesteps
                 global_step += current_action_timesteps * train_config['action_duration'] 
                 print(f"Action timesteps: {action_timesteps}, global step: {global_step}")
@@ -243,13 +251,28 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     action_timesteps = 0
                     print(f"Size of all memories after update: {len(all_memories.actions)}")
 
-                    # Evaluate the policy every eval_freq updates
-                    if update_count % control_args['eval_freq'] == 0:
-                        print(f"Evaluating policy: {control_args['eval_model_path']} at step {global_step}")
-                        eval_json = eval(control_args, ppo_args, eval_args, policy_path=control_args['eval_model_path'], tl= False) # which policy to evaluate?
+                    # Save both during sweep and non-sweep
+                    # Save (and evaluate the latest policy) every save_freq updates
+                    if update_count % control_args['save_freq'] == 0:
+                        latest_policy_path = os.path.join(control_args['save_dir'], f'control_model_iteration_{global_step}.pth')
+                        torch.save(control_ppo.policy.state_dict(), latest_policy_path)
+                    
+                        print(f"Evaluating policy: {latest_policy_path} at step {global_step}")
+                        eval_json = eval(control_args_worker, ppo_args, eval_args, policy_path=latest_policy_path, tl= False) # which policy to evaluate?
                         _, eval_veh_avg_wait, eval_ped_avg_wait = get_averages(eval_json)
                         avg_eval = 0.5 * eval_veh_avg_wait + 0.5 * eval_ped_avg_wait
                         print(f"Eval veh avg wait: {eval_veh_avg_wait}, eval ped avg wait: {eval_ped_avg_wait}, avg eval: {avg_eval}")
+
+                    # Save best policies 
+                    if avg_reward > best_reward:
+                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_reward_policy_{global_step}.pth'))
+                        best_reward = avg_reward
+                    if loss['total_loss'] < best_loss:
+                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_loss_policy_{global_step}.pth'))
+                        best_loss = loss['total_loss']
+                    if avg_eval < best_eval:
+                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_eval_policy_{global_step}.pth'))
+                        best_eval = avg_eval
 
                     # logging
                     if is_sweep: # Wandb for hyperparameter tuning
@@ -278,22 +301,6 @@ def train(train_config, is_sweep=False, sweep_config=None):
                         writer.add_scalar('Evaluation/Veh_Avg_Wait', eval_veh_avg_wait, global_step)
                         writer.add_scalar('Evaluation/Ped_Avg_Wait', eval_ped_avg_wait, global_step)
                         writer.add_scalar('Evaluation/Avg_Eval', avg_eval, global_step)
-
-                    # Save both during sweep and non-sweep
-                    # Save policy every save_freq updates
-                    if update_count % control_args['save_freq'] == 0:
-                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'control_model_iteration_{global_step}.pth'))
-                    # Save best policies 
-                    if avg_reward > best_reward:
-                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_reward_policy_{global_step}.pth'))
-                        best_reward = avg_reward
-                    if loss['total_loss'] < best_loss:
-                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_loss_policy_{global_step}.pth'))
-                        best_loss = loss['total_loss']
-                    if avg_eval < best_eval:
-                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], f'best_eval_policy_{global_step}.pth'))
-                        best_eval = avg_eval
-
                     print(f"\nLogged data at step {global_step}\n")
 
         if torch.cuda.is_available():
@@ -302,6 +309,19 @@ def train(train_config, is_sweep=False, sweep_config=None):
         for p in processes:
             p.join() 
         print(f"All processes joined\n\n")
+
+        # Save all the sampled actions to a json file
+        with open(actions_file_path, 'r+') as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                data = {}
+            data[iteration] = sampled_actions
+            f.seek(0)
+            #print(f"Sampled actions: {sampled_actions}")
+            json.dump(data, f, indent=4)
+            f.truncate()
+        sampled_actions = []
 
     if not is_sweep:
         writer.close()

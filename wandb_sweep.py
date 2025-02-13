@@ -86,7 +86,7 @@ class HyperParameterTuner:
                     'distribution': 'uniform'
                 },
                 'update_freq': {
-                    'values': [128, 256, 512]
+                    'values': [64], #128, 256, 512]
                 },
                 'gamma': {
                     'min': 0.90,
