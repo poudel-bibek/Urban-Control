@@ -31,7 +31,7 @@ class ControlEnv(gym.Env):
         self.max_timesteps = control_args['max_timesteps']
         self.use_gui = control_args['gui']
         self.auto_start = control_args['auto_start']
-        self.warmup_steps = control_args['warmup_steps']
+        self.warmup_steps = control_args['warmup_steps'] # is a list of two values
         self.sumo_running = False
         self.step_count = 0
         
@@ -1210,7 +1210,7 @@ class ControlEnv(gym.Env):
 
         # Warmup period
         # How many actions to take during warmup?
-        num_actions_warmup = self.warmup_steps // self.steps_per_action
+        num_actions_warmup = random.randint(self.warmup_steps[0], self.warmup_steps[1]) // self.steps_per_action
         #print(f"Number of actions during warmup: {num_actions_warmup}")
         observation_buffer = []
         for i in range(num_actions_warmup):
@@ -1221,19 +1221,25 @@ class ControlEnv(gym.Env):
                 prev_action = action
             switch_state = self._detect_switch(action, prev_action)
 
-            for j in range(self.steps_per_action):
-                # TODO: Again, very inefficient.
-                if tl:
+            # TODO: Inefficient do it this way.
+            if tl:
+                for j in range(self.steps_per_action):
                     current_phase = [1]*len(self.tl_ids) # random phase
-                else:
+                    traci.simulationStep() 
+                    obs = self._get_observation(current_phase)
+                    _ = self._get_pressure_dict(self.corrected_occupancy_map)
+                    observation_buffer.append(obs)
+                    # No reward calculation
+                    # self.step_count += 1 # We are not counting the warmup steps in the total simulation steps
+            else: 
+                for j in range(self.steps_per_action):
                     current_phase = self._apply_action(action, j, switch_state)
-                traci.simulationStep() 
-                obs = self._get_observation(current_phase)
-                _ = self._get_pressure_dict(self.corrected_occupancy_map)
-                observation_buffer.append(obs)
-                # No reward calculation
-
-                # self.step_count += 1 # We are not counting the warmup steps in the total simulation steps
+                    traci.simulationStep() 
+                    obs = self._get_observation(current_phase)
+                    _ = self._get_pressure_dict(self.corrected_occupancy_map)
+                    observation_buffer.append(obs)
+                    # No reward calculation
+                    # self.step_count += 1 # We are not counting the warmup steps in the total simulation steps
 
         #print(f"Ended Warmup. Buffer length: {len(observation_buffer)}")
         observation_buffer = observation_buffer[-self.steps_per_action:] # Only keep the observation of thelast action
