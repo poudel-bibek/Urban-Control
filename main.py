@@ -333,7 +333,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
     if not is_sweep:
         writer.close()
 
-def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl= False, unsignalized= False):
+def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl=False, unsignalized=False):
     """
     - For the same demand, each worker runs n_iterations number of episodes and measures performance metrics at each iteration.
     - Each episode runs on a different random seed.
@@ -384,7 +384,7 @@ def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl= False, unsign
                 state = torch.FloatTensor(state).to(eval_worker_config['worker_device'])
                 action, _ = shared_policy.act(state)
                 action = action.detach().cpu() # sim runs in CPU
-                state, reward, done, truncated, _ = env.eval_step(action, tl, unsignalized = unsignalized)
+                state, reward, done, truncated, _ = env.eval_step(action, tl, unsignalized=unsignalized)
 
                 # During this step, get all vehicles and pedestrians
                 veh_waiting_time_this_step = env.get_vehicle_waiting_time()
@@ -405,7 +405,7 @@ def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl= False, unsign
     del env
     eval_queue.put((worker_demand_scale, worker_result))
 
-def eval(control_args, ppo_args, eval_args, policy_path=None, tl= False, unsignalized= False):
+def eval(control_args, ppo_args, eval_args, policy_path=None, tl=False, unsignalized=False):
     """
     Works to evaluate a policy during training as well as stand-alone policy vs real-world TL (tl = True) evaluation.
     - Each demand is run on a different worker
@@ -446,7 +446,7 @@ def eval(control_args, ppo_args, eval_args, policy_path=None, tl= False, unsigna
             }
             p = mp.Process(
                 target=parallel_eval_worker,
-                args=(rank, worker_config, eval_queue, tl))
+                args=(rank, worker_config, eval_queue, tl, unsignalized))
             
             p.start()
             eval_processes.append(p)
@@ -497,8 +497,8 @@ def main(config):
         eval_args['eval_save_dir'] = os.path.join('results', f'eval_{current_time}')
 
         ppo_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= False)
-        tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True) # supply a policy (wont be used for TL)
-        unsignalized_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized= True)
+        tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized=False) # supply a policy (wont be used for TL)
+        unsignalized_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized=True)
 
         plot_consolidated_results(unsignalized_results_path, 
                                   tl_results_path,
