@@ -144,10 +144,11 @@ def train(train_config, is_sweep=False, sweep_config=None):
     # Model saving and tensorboard 
     writer = SummaryWriter(log_dir=log_dir)
     save_dir = os.path.join('saved_models', current_time)
-    os.makedirs('./results', exist_ok=True)
-    eval_args['eval_save_dir'] = os.path.join('results', f'train_{current_time}')
-
     os.makedirs(save_dir, exist_ok=True)
+    eval_args['eval_save_dir'] = os.path.join('results', f'train_{current_time}')
+    os.makedirs(eval_args['eval_save_dir'], exist_ok=True)
+    os.makedirs('./results', exist_ok=True)
+
     control_args.update({
         'writer': writer,
         'save_dir': save_dir,
@@ -405,7 +406,7 @@ def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl=False, unsigna
     del env
     eval_queue.put((worker_demand_scale, worker_result))
 
-def eval(control_args, ppo_args, eval_args, policy_path=None, tl=False, unsignalized=False):
+def eval(control_args, ppo_args, eval_args, policy_path, tl=False, unsignalized=False):
     """
     Works to evaluate a policy during training as well as stand-alone policy vs real-world TL (tl = True) evaluation.
     - Each demand is run on a different worker
@@ -473,8 +474,8 @@ def eval(control_args, ppo_args, eval_args, policy_path=None, tl=False, unsignal
         tl_state = "tl"
     else:
         tl_state = "ppo"
-
-    result_json_path = os.path.join(eval_args['eval_save_dir'], f'eval_{policy_path.split("/")[2]}_{tl_state}.json')
+    
+    result_json_path = os.path.join(eval_args['eval_save_dir'], f'eval_{policy_path.split("/")[2].split(".")[0]}_{tl_state}.json')
     with open(result_json_path, 'w') as f:
         json.dump(all_results, f, indent=4)
     f.close()

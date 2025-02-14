@@ -61,7 +61,7 @@ def get_config():
         "l5": -0.1,  # switch penalty weight
 
         # Evaluation
-        "evaluate": True,  
+        "evaluate": False,  
         "eval_model_path": "./saved_models/Feb13_21-00-58/best_eval_policy.pth",  # Path to the saved PPO model for evaluation
         "eval_save_dir": None,
         "eval_n_timesteps": 400,  # Number of timesteps to each episode. Warmup not counted.

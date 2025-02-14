@@ -1,27 +1,30 @@
-***Starting server on port 42441 ***
-Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (17ms).
+***Starting server on port 33067 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (12ms).
 Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_1.xml'
 Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_1.xml'
 Loading done.
-Simulation started with time: 0.00.
-Simulation ended at time: 620.00.
+Simulation version UNKNOWN started with time: 0.00.
+Warning: Person '1945' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=469.00.
+Warning: Person '2039' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=524.00.
+Simulation ended at time: 550.00.
 Reason: TraCI requested termination.
 Performance:
- Duration: 120.18s
- TraCI-Duration: 108.53s
- Real time factor: 5.15889
- UPS: 73.272814
- UPS-Persons: 932.044167
+ Duration: 105.89s
+ TraCI-Duration: 105.29s
+ Real time factor: 5.19407
+ UPS: 103.966380
+ UPS-Persons: 904.032487
 Vehicles:
- Inserted: 61 (Loaded: 74)
- Running: 16
+ Inserted: 54 (Loaded: 59)
+ Running: 31
  Waiting: 0
 Persons:
- Inserted: 736
- Running: 249
-DijkstraRouter answered 7951 queries and explored 5.17 edges on average.
+ Inserted: 552
+ Running: 260
+ Jammed: 2
+DijkstraRouter answered 8808 queries and explored 5.54 edges on average.
 DijkstraRouter spent 0.01s answering queries (0.00ms on average).
-DijkstraRouter answered 565 queries and explored 483.96 edges on average.
-DijkstraRouter spent 0.03s answering queries (0.05ms on average).
-DijkstraRouter answered 61 queries and explored 57.93 edges on average.
-DijkstraRouter spent 0.00s answering queries (0.02ms on average).
+DijkstraRouter answered 502 queries and explored 476.31 edges on average.
+DijkstraRouter spent 0.05s answering queries (0.10ms on average).
+DijkstraRouter answered 54 queries and explored 57.93 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.00ms on average).
