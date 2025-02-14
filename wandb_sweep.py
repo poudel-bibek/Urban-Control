@@ -71,8 +71,8 @@ class HyperParameterTuner:
             sweep_config = {
             'method': 'bayes', 
             'metric': {
-                'name': 'avg_reward',
-                'goal': 'maximize'
+                'name': 'avg_eval',
+                'goal': 'minimize'
                 },
             'parameters': {
                 'lr': {
@@ -82,11 +82,11 @@ class HyperParameterTuner:
                 },
                 'gae_lambda': {
                     'min': 0.90,
-                    'max': 0.99,
+                    'max': 0.999,
                     'distribution': 'uniform'
                 },
                 'update_freq': {
-                    'values': [64], #128, 256, 512]
+                    'values': [128, 256, 512]
                 },
                 'gamma': {
                     'min': 0.90,
