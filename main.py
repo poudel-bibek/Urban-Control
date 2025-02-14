@@ -167,8 +167,8 @@ def train(train_config, is_sweep=False, sweep_config=None):
     best_loss = float('inf')
     best_eval = float('inf')
     avg_eval = float('inf')
-    eval_veh_avg_wait = float('inf')
-    eval_ped_avg_wait = float('inf')    
+    eval_veh_avg_wait = 1000.0 # arbitrary large number
+    eval_ped_avg_wait = 1000.0    
 
     # Every iteration, save all the sampled actions to a json file (by appending to the file).
     # A newer policy does importance sampling only every iteration. 
@@ -259,7 +259,9 @@ def train(train_config, is_sweep=False, sweep_config=None):
                         print(f"Evaluating policy: {latest_policy_path} at step {global_step}")
                         eval_json = eval(control_args_worker, ppo_args, eval_args, policy_path=latest_policy_path, tl= False) # which policy to evaluate?
                         _, eval_veh_avg_wait, eval_ped_avg_wait = get_averages(eval_json)
-                        avg_eval = (np.mean(eval_veh_avg_wait) + np.mean(eval_ped_avg_wait)) / 2
+                        eval_veh_avg_wait = np.mean(eval_veh_avg_wait)
+                        eval_ped_avg_wait = np.mean(eval_ped_avg_wait)
+                        avg_eval = ((eval_veh_avg_wait + eval_ped_avg_wait) / 2)
                         print(f"Eval veh avg wait: {eval_veh_avg_wait}, eval ped avg wait: {eval_ped_avg_wait}, avg eval: {avg_eval}")
 
                     # Save best policies 
