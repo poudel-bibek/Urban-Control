@@ -231,13 +231,8 @@ def train(train_config, is_sweep=False, sweep_config=None):
 
                 # Update PPO every n times (or close) action has been taken 
                 if action_timesteps >= control_args['update_freq']:
-                    update_count += 1
-                    print(f"Updating PPO with {len(all_memories.actions)} memories")
+                    print(f"Updating PPO with {len(all_memories.actions)} memories") 
 
-                    # Anneal after every update
-                    if control_args['anneal_lr']:
-                        current_lr = control_ppo.update_learning_rate(update_count, total_updates)
-                        
                     avg_reward = sum(all_memories.rewards) / control_args['num_processes'] # Averaged across processes.
                     print(f"\nAverage Reward (across processes): {avg_reward}\n")
                     #print(f"\nAll memories rewards: {all_memories.rewards}")
@@ -275,6 +270,11 @@ def train(train_config, is_sweep=False, sweep_config=None):
                         torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], 'best_eval_policy.pth'))
                         best_eval = avg_eval
 
+                    update_count += 1
+                    # Anneal after every update
+                    if control_args['anneal_lr']:
+                        current_lr = control_ppo.update_learning_rate(update_count, total_updates)
+
                     # logging
                     if is_sweep: # Wandb for hyperparameter tuning
                         wandb.log({ "iteration": iteration,
@@ -290,6 +290,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                                         "eval_ped_avg_wait": eval_ped_avg_wait,
                                         "avg_eval": avg_eval,
                                         "global_step": global_step })
+                        
                     else: # Tensorboard for regular training
                         writer.add_scalar('Training/Average_Reward', avg_reward, global_step)
                         writer.add_scalar('Training/Total_Policy_Updates', update_count, global_step)
