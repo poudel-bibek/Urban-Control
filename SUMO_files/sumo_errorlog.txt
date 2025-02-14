@@ -1,11 +1,4 @@
 Error: tcpip::Socket::recvAndCheck @ recv: Connection reset by peer
 Quitting (on error).
-202_#5more_w3', time=470.00.
-Warning: Person '2039' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=488.00.
-Warning: Teleporting vehicle '30'; waited too long (yield), lane='1078803478#0_1', time=489.00.
-Warning: Vehicle '30' ends teleporting on edge '16666012#2', time=489.00.
-Error: tcpip::Socket::recvAndCheck @ recv: Connection reset by peer
-Quitting (on error).
-ge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=478.00.
-Error: tcpip::Socket::recvAndCheck @ recv: Connection reset by peer
-Quitting (on error).
+202_#5more_w3', time=472.00.
+Warning: Person '2039' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=521.00.

@@ -166,8 +166,8 @@ def train(train_config, is_sweep=False, sweep_config=None):
     best_reward = float('-inf') 
     best_loss = float('inf')
     best_eval = float('inf')
-    avg_eval = float('inf')
-    eval_veh_avg_wait = 1000.0 # arbitrary large number
+    avg_eval = 1000.0 # arbitrary large number
+    eval_veh_avg_wait = 1000.0 
     eval_ped_avg_wait = 1000.0    
 
     # Every iteration, save all the sampled actions to a json file (by appending to the file).
@@ -248,6 +248,11 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     # Save both during sweep and non-sweep
                     # Save (and evaluate the latest policy) every save_freq updates
                     if update_count % control_args['save_freq'] == 0:
+                        update_count += 1
+                        # Anneal after every update
+                        if control_args['anneal_lr']:
+                            current_lr = control_ppo.update_learning_rate(update_count, total_updates)
+
                         latest_policy_path = os.path.join(control_args['save_dir'], f'policy_at_step_{global_step}.pth')
                         torch.save(control_ppo.policy.state_dict(), latest_policy_path)
                     
@@ -269,11 +274,6 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     if avg_eval < best_eval:
                         torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], 'best_eval_policy.pth'))
                         best_eval = avg_eval
-
-                    update_count += 1
-                    # Anneal after every update
-                    if control_args['anneal_lr']:
-                        current_lr = control_ppo.update_learning_rate(update_count, total_updates)
 
                     # logging
                     if is_sweep: # Wandb for hyperparameter tuning
