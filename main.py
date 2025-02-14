@@ -168,9 +168,9 @@ def train(train_config, is_sweep=False, sweep_config=None):
     best_reward = float('-inf') 
     best_loss = float('inf')
     best_eval = float('inf')
-    avg_eval = 1000.0 # arbitrary large number
-    eval_veh_avg_wait = 1000.0 
-    eval_ped_avg_wait = 1000.0    
+    avg_eval = 200.0 # arbitrary large number
+    eval_veh_avg_wait = 200.0 
+    eval_ped_avg_wait = 200.0    
 
     # Every iteration, save all the sampled actions to a json file (by appending to the file).
     # A newer policy does importance sampling only every iteration. 
