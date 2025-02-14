@@ -225,7 +225,7 @@ def plot_gradient_line(ax, x, y, cmap_name, label, lw, zorder):
                     markerfacecolor=color, markeredgecolor='k', label=label)
     return handle
 
-def plot_consolidated_results(tl_result_json_path, ppo_result_json_path, in_range_demand_scales, out_of_range_demand_scales):
+def plot_consolidated_results(*result_json_paths, in_range_demand_scales):
     """
     Plot consolidated results for both TL and PPO.
     There are two subplots:
@@ -235,43 +235,45 @@ def plot_consolidated_results(tl_result_json_path, ppo_result_json_path, in_rang
     and the y-axis shows the average waiting time.
     Dotted shading indicates regions outside the valid (in-range) demand area.
     """
-    # Get TL results.
-    tl_scales, tl_veh_avg, tl_ped_avg = get_averages(tl_result_json_path)
-    # Get PPO results.
-    ppo_scales, ppo_veh_avg, ppo_ped_avg = get_averages(ppo_result_json_path)
-
-    # If the evaluation scales differ, decide which array to use.
-    if not np.allclose(tl_scales, ppo_scales):
-        print("Warning: TL and PPO scales differ. Using TL scales for the x-axis.")
-    sorted_scales = tl_scales
-
     # Original demand values.
     original_vehicle_demand = 201.54    # veh/hr
     original_pedestrian_demand = 2222.80  # ped/hr
+    default_cmaps = ['Blues', 'Oranges', 'Greens', 'Purples', 'Reds', 'Greys']
 
-    # Compute actual demand values.
-    tl_veh_x = sorted_scales * original_vehicle_demand
-    tl_ped_x = sorted_scales * original_pedestrian_demand
-    ppo_veh_x = ppo_scales * original_vehicle_demand
-    ppo_ped_x = ppo_scales * original_pedestrian_demand
+    num_methods = len(result_json_paths)
+    if num_methods == 3:
+        labels = ['Unsignalized', 'TL', 'RL (Ours)']
+    else:
+        labels = [f"Method {i+1}" for i in range(num_methods)]
 
-    # Set a clean, publication-style theme with a white background.
+    results = []
+    for json_path in result_json_paths:
+        # get_averages() should return: scales, veh_avg, ped_avg
+        scales, veh_avg, ped_avg = get_averages(json_path)
+        results.append({'scales': scales, 'veh_avg': veh_avg, 'ped_avg': ped_avg})
+    
+    # Use the scales from the first JSON as a reference for ticks.
+    sorted_scales = results[0]['scales']
+    
+    # Compute actual demand values for each result.
+    for res in results:
+        res['veh_x'] = res['scales'] * original_vehicle_demand
+        res['ped_x'] = res['scales'] * original_pedestrian_demand
+
     sns.set_theme(style="whitegrid", context="talk")
-
-    # Create the figure and subplots.
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 8))
 
-    # Plot the vehicles subplot with gradient solid lines.
-    handle_tl = plot_gradient_line(ax1, tl_veh_x, tl_veh_avg, cmap_name='Blues',
-                                   label="TL", lw=2, zorder=2)
-    handle_rl = plot_gradient_line(ax1, ppo_veh_x, ppo_veh_avg, cmap_name='Oranges',
-                                   label="RL (Ours)", lw=2, zorder=2)
-
-    # Plot the pedestrians subplot with gradient solid lines.
-    handle_tl_ped = plot_gradient_line(ax2, tl_ped_x, tl_ped_avg, cmap_name='Blues',
-                                       label="TL", lw=2, zorder=2)
-    handle_rl_ped = plot_gradient_line(ax2, ppo_ped_x, ppo_ped_avg, cmap_name='Oranges',
-                                       label="RL (Ours)", lw=2, zorder=2)
+    # Plot each method’s data with its designated colormap.
+    handles_vehicle = []
+    handles_ped = []
+    for i, res in enumerate(results):
+        cmap = default_cmaps[i] if i < len(default_cmaps) else None  # Use None if we run out of defaults.
+        handle_v = plot_gradient_line(ax1, res['veh_x'], res['veh_avg'], cmap_name=cmap,
+                                      label=labels[i], lw=2, zorder=2)
+        handle_p = plot_gradient_line(ax2, res['ped_x'], res['ped_avg'], cmap_name=cmap,
+                                      label=labels[i], lw=2, zorder=2)
+        handles_vehicle.append(handle_v)
+        handles_ped.append(handle_p)
 
     # Set subplot titles and axis labels.
     ax1.set_title("Vehicle", fontweight="bold")
@@ -281,11 +283,11 @@ def plot_consolidated_results(tl_result_json_path, ppo_result_json_path, in_rang
     ax2.set_xlabel("Pedestrian demand (ped/hr)")
     ax2.set_ylabel("Average waiting time (s)")
 
-    # Compute a 5% margin for the x-axis limits.
-    veh_x_min = min(ppo_veh_x.min(), tl_veh_x.min())
-    veh_x_max = max(ppo_veh_x.max(), tl_veh_x.max())
-    ped_x_min = min(ppo_ped_x.min(), tl_ped_x.min())
-    ped_x_max = max(ppo_ped_x.max(), tl_ped_x.max())
+    # Determine the overall x-axis limits across all methods.
+    veh_x_min = min(res['veh_x'].min() for res in results)
+    veh_x_max = max(res['veh_x'].max() for res in results)
+    ped_x_min = min(res['ped_x'].min() for res in results)
+    ped_x_max = max(res['ped_x'].max() for res in results)
     veh_margin = 0.05 * (veh_x_max - veh_x_min)
     ped_margin = 0.05 * (ped_x_max - ped_x_min)
     veh_xlim = (veh_x_min - veh_margin, veh_x_max + veh_margin)
@@ -297,7 +299,7 @@ def plot_consolidated_results(tl_result_json_path, ppo_result_json_path, in_rang
     ax1.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x:.1f}"))
     ax2.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x:.1f}"))
 
-    # Reduce the number of x-ticks and customize tick labels.
+    # Set x-ticks (using the reference scales for spacing).
     veh_ticks = np.linspace(veh_xlim[0], veh_xlim[1], len(sorted_scales))[::2]
     ped_ticks = np.linspace(ped_xlim[0], ped_xlim[1], len(sorted_scales))[::2]
     ax1.set_xticks(veh_ticks)
@@ -307,11 +309,11 @@ def plot_consolidated_results(tl_result_json_path, ppo_result_json_path, in_rang
     ax1.set_xticklabels(veh_xtick_labels)
     ax2.set_xticklabels(ped_xtick_labels)
 
-    # Set grid lines with shorter dashes.
+    # Set grid lines with short dashes.
     ax1.grid(True, linestyle=(0, (3, 3)), linewidth=0.85)
     ax2.grid(True, linestyle=(0, (3, 3)), linewidth=0.85)
 
-    # Determine the valid (non-shaded) demand region using the in_range_demand_scales.
+    # Determine the valid (non-shaded) demand region.
     valid_min_scale = min(in_range_demand_scales)
     valid_max_scale = max(in_range_demand_scales)
     veh_valid_min = valid_min_scale * original_vehicle_demand
@@ -325,9 +327,9 @@ def plot_consolidated_results(tl_result_json_path, ppo_result_json_path, in_rang
     ax2.axvspan(ped_xlim[0], ped_valid_min, facecolor='grey', alpha=0.2, zorder=0)
     ax2.axvspan(ped_valid_max, ped_xlim[1], facecolor='grey', alpha=0.2, zorder=0)
 
-    # Place legends in the upper right corners and lift them above shading.
-    leg1 = ax1.legend(handles=[handle_tl, handle_rl], loc='upper right')
-    leg2 = ax2.legend(handles=[handle_tl_ped, handle_rl_ped], loc='upper right')
+    # Create legends and bring them above the shaded areas.
+    leg1 = ax1.legend(handles=handles_vehicle, loc='upper right')
+    leg2 = ax2.legend(handles=handles_ped, loc='upper right')
     leg1.set_zorder(10)
     leg2.set_zorder(10)
 
@@ -335,9 +337,8 @@ def plot_consolidated_results(tl_result_json_path, ppo_result_json_path, in_rang
     for ax in [ax1, ax2]:
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
-        # Optionally, you can also adjust the bottom and left spines if needed.
 
-    # Adjust y-axes so that both subplots use the same number of ticks.
+    # Adjust the y-axes so that both subplots use the same number of ticks.
     for ax in [ax1, ax2]:
         ymin, ymax = ax.get_ylim()
         yticks = ax.get_yticks()
@@ -386,3 +387,134 @@ def get_averages(result_json_path):
     ped_avg = ped_avg[sort_idx]
 
     return sorted_scales, veh_avg, ped_avg
+
+def plot_sampled_actions(actions_json):
+    """
+    Plot the sampled actions for PPO.
+    """
+    pass
+
+# def plot_consolidated_results(tl_result_json_path, ppo_result_json_path, in_range_demand_scales, out_of_range_demand_scales):
+#     """
+    
+#     """
+#     # Get TL results.
+#     tl_scales, tl_veh_avg, tl_ped_avg = get_averages(tl_result_json_path)
+#     # Get PPO results.
+#     ppo_scales, ppo_veh_avg, ppo_ped_avg = get_averages(ppo_result_json_path)
+
+#     # If the evaluation scales differ, decide which array to use.
+#     if not np.allclose(tl_scales, ppo_scales):
+#         print("Warning: TL and PPO scales differ. Using TL scales for the x-axis.")
+#     sorted_scales = tl_scales
+
+#     # Original demand values.
+#     original_vehicle_demand = 201.54    # veh/hr
+#     original_pedestrian_demand = 2222.80  # ped/hr
+
+#     # Compute actual demand values.
+#     tl_veh_x = sorted_scales * original_vehicle_demand
+#     tl_ped_x = sorted_scales * original_pedestrian_demand
+#     ppo_veh_x = ppo_scales * original_vehicle_demand
+#     ppo_ped_x = ppo_scales * original_pedestrian_demand
+
+#     # Set a clean, publication-style theme with a white background.
+#     sns.set_theme(style="whitegrid", context="talk")
+
+#     # Create the figure and subplots.
+#     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 8))
+
+#     # Plot the vehicles subplot with gradient solid lines.
+#     handle_tl = plot_gradient_line(ax1, tl_veh_x, tl_veh_avg, cmap_name='Blues',
+#                                    label="TL", lw=2, zorder=2)
+#     handle_rl = plot_gradient_line(ax1, ppo_veh_x, ppo_veh_avg, cmap_name='Oranges',
+#                                    label="RL (Ours)", lw=2, zorder=2)
+
+#     # Plot the pedestrians subplot with gradient solid lines.
+#     handle_tl_ped = plot_gradient_line(ax2, tl_ped_x, tl_ped_avg, cmap_name='Blues',
+#                                        label="TL", lw=2, zorder=2)
+#     handle_rl_ped = plot_gradient_line(ax2, ppo_ped_x, ppo_ped_avg, cmap_name='Oranges',
+#                                        label="RL (Ours)", lw=2, zorder=2)
+
+#     # Set subplot titles and axis labels.
+#     ax1.set_title("Vehicle", fontweight="bold")
+#     ax2.set_title("Pedestrian", fontweight="bold")
+#     ax1.set_xlabel("Vehicle demand (veh/hr)")
+#     ax1.set_ylabel("Average waiting time (s)")
+#     ax2.set_xlabel("Pedestrian demand (ped/hr)")
+#     ax2.set_ylabel("Average waiting time (s)")
+
+#     # Compute a 5% margin for the x-axis limits.
+#     veh_x_min = min(ppo_veh_x.min(), tl_veh_x.min())
+#     veh_x_max = max(ppo_veh_x.max(), tl_veh_x.max())
+#     ped_x_min = min(ppo_ped_x.min(), tl_ped_x.min())
+#     ped_x_max = max(ppo_ped_x.max(), tl_ped_x.max())
+#     veh_margin = 0.05 * (veh_x_max - veh_x_min)
+#     ped_margin = 0.05 * (ped_x_max - ped_x_min)
+#     veh_xlim = (veh_x_min - veh_margin, veh_x_max + veh_margin)
+#     ped_xlim = (ped_x_min - ped_margin, ped_x_max + ped_margin)
+#     ax1.set_xlim(veh_xlim)
+#     ax2.set_xlim(ped_xlim)
+
+#     # Format y-axis ticks to one decimal place.
+#     ax1.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x:.1f}"))
+#     ax2.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x:.1f}"))
+
+#     # Reduce the number of x-ticks and customize tick labels.
+#     veh_ticks = np.linspace(veh_xlim[0], veh_xlim[1], len(sorted_scales))[::2]
+#     ped_ticks = np.linspace(ped_xlim[0], ped_xlim[1], len(sorted_scales))[::2]
+#     ax1.set_xticks(veh_ticks)
+#     ax2.set_xticks(ped_ticks)
+#     veh_xtick_labels = [f"{int(round(val))}" for val in veh_ticks]
+#     ped_xtick_labels = [f"{int(round(val))}" for val in ped_ticks]
+#     ax1.set_xticklabels(veh_xtick_labels)
+#     ax2.set_xticklabels(ped_xtick_labels)
+
+#     # Set grid lines with shorter dashes.
+#     ax1.grid(True, linestyle=(0, (3, 3)), linewidth=0.85)
+#     ax2.grid(True, linestyle=(0, (3, 3)), linewidth=0.85)
+
+#     # Determine the valid (non-shaded) demand region using the in_range_demand_scales.
+#     valid_min_scale = min(in_range_demand_scales)
+#     valid_max_scale = max(in_range_demand_scales)
+#     veh_valid_min = valid_min_scale * original_vehicle_demand
+#     veh_valid_max = valid_max_scale * original_vehicle_demand
+#     ped_valid_min = valid_min_scale * original_pedestrian_demand
+#     ped_valid_max = valid_max_scale * original_pedestrian_demand
+
+#     # Shade the areas outside the valid demand limits.
+#     ax1.axvspan(veh_xlim[0], veh_valid_min, facecolor='grey', alpha=0.2, zorder=0)
+#     ax1.axvspan(veh_valid_max, veh_xlim[1], facecolor='grey', alpha=0.2, zorder=0)
+#     ax2.axvspan(ped_xlim[0], ped_valid_min, facecolor='grey', alpha=0.2, zorder=0)
+#     ax2.axvspan(ped_valid_max, ped_xlim[1], facecolor='grey', alpha=0.2, zorder=0)
+
+#     # Place legends in the upper right corners and lift them above shading.
+#     leg1 = ax1.legend(handles=[handle_tl, handle_rl], loc='upper right')
+#     leg2 = ax2.legend(handles=[handle_tl_ped, handle_rl_ped], loc='upper right')
+#     leg1.set_zorder(10)
+#     leg2.set_zorder(10)
+
+#     # Remove the top and right spines for a cleaner look.
+#     for ax in [ax1, ax2]:
+#         ax.spines['top'].set_visible(False)
+#         ax.spines['right'].set_visible(False)
+#         # Optionally, you can also adjust the bottom and left spines if needed.
+
+#     # Adjust y-axes so that both subplots use the same number of ticks.
+#     for ax in [ax1, ax2]:
+#         ymin, ymax = ax.get_ylim()
+#         yticks = ax.get_yticks()
+#         if len(yticks) > 1:
+#             spacing = yticks[-1] - yticks[-2]
+#         else:
+#             spacing = (ymax - ymin) / 5
+#         ax.set_ylim(ymin, ymax + spacing)
+#     n_ticks = max(len(ax1.get_yticks()), len(ax2.get_yticks()))
+#     ax1.yaxis.set_major_locator(LinearLocator(numticks=n_ticks))
+#     ax2.yaxis.set_major_locator(LinearLocator(numticks=n_ticks))
+#     ax1.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x:.1f}"))
+#     ax2.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x:.1f}"))
+
+#     plt.tight_layout()
+#     plt.savefig("consolidated_results.pdf", dpi=300)
+#     plt.show()

@@ -25,8 +25,8 @@ def get_config():
         # PPO (general params)
         "seed": None,  # Random seed (default: None)
         "gpu": True,  # Use GPU if available (default: use CPU)
-        "total_timesteps": 3000000,  # Total number of timesteps the simulation will run
-        "max_timesteps": 360,  # Maximum number of steps in one episode (make this multiple of 16*10)
+        "total_timesteps": 300000,  # Total number of timesteps the simulation will run
+        "max_timesteps": 400,  # Maximum number of steps in one episode (make this multiple of 16*10)
         "total_sweep_trials": 128,  # Total number of trials for the wandb sweep
         "memory_transfer_freq": 16,  # Frequency of memory transfer from worker to main process 
         "per_timestep_state_dim": 96,  # Number of features per timestep
@@ -45,7 +45,7 @@ def get_config():
         "ent_coef": 0.005,  # Entropy coefficient
         "vf_coef": 0.75,  # Value function coefficient
         "batch_size": 32,  # Batch size
-        "num_processes": 10,  # Number of parallel processes to use (agent has multiple workers)
+        "num_processes": 12,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.25,  # Dropout rate for CNN
@@ -62,13 +62,20 @@ def get_config():
 
         # Evaluation
         "evaluate": False,  
-        "eval_model_path": "./saved_models/Feb10_18-02-35/best_control_model.pth",  # Path to the saved PPO model for evaluation
-        "eval_n_iterations": 2,  # Number of iterations to repeat for each demand
-        "eval_n_timesteps": 360,  # Number of timesteps to each episode. Warmup not counted.
+        "eval_model_path": "./saved_models/Feb13_21-00-58/best_eval_policy.pth",  # Path to the saved PPO model for evaluation
+        "eval_save_dir": None,
+        "eval_n_timesteps": 400,  # Number of timesteps to each episode. Warmup not counted.
         "eval_n_workers": 8,  # Parallelizes how many demands can be evaluated at the same time.
         "eval_worker_device": "gpu",  # Policy during eval can be run in GPU
+        # during training
+        "eval_n_iterations": 1,  # Number of iterations to repeat for each demand
         "in_range_demand_scales": [1.0, 1.5, 2.0, 2.5], # The demand scales that are used for training.
         "out_of_range_demand_scales": [0.25, 0.75, 2.75, 3.25], # The demand scales that are used ONLY for evaluation.
+
+        # during evaluation
+        # "eval_n_iterations": 5,  # Number of iterations to repeat for each demand
+        # "in_range_demand_scales": [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5], 
+        # "out_of_range_demand_scales": [0.25, 0.5, 0.75, 2.75, 3.0, 3.25], 
     }
 
 
@@ -140,6 +147,7 @@ def classify_and_return_args(train_config, device):
     
     eval_args = {
         'eval_model_path': train_config['eval_model_path'],
+        'eval_save_dir': train_config['eval_save_dir'],
         'eval_n_iterations': train_config['eval_n_iterations'],
         'eval_n_timesteps': train_config['eval_n_timesteps'],
         'eval_n_workers': train_config['eval_n_workers'],

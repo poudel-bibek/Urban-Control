@@ -144,6 +144,8 @@ def train(train_config, is_sweep=False, sweep_config=None):
     # Model saving and tensorboard 
     writer = SummaryWriter(log_dir=log_dir)
     save_dir = os.path.join('saved_models', current_time)
+    os.makedirs('./results', exist_ok=True)
+    eval_args['eval_save_dir'] = os.path.join('results', f'train_{current_time}')
 
     os.makedirs(save_dir, exist_ok=True)
     control_args.update({
@@ -331,7 +333,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
     if not is_sweep:
         writer.close()
 
-def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl= False):
+def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl= False, unsignalized= False):
     """
     - For the same demand, each worker runs n_iterations number of episodes and measures performance metrics at each iteration.
     - Each episode runs on a different random seed.
@@ -343,6 +345,7 @@ def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl= False):
         - Create a single shared policy, and share among workers.
     - For TL:
         - Just pass tl = True
+        - If unsignalized, all midblock TLs have no lights (equivalent to having all phases green)
     """
     
     shared_policy = eval_worker_config['shared_policy']
@@ -381,7 +384,7 @@ def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl= False):
                 state = torch.FloatTensor(state).to(eval_worker_config['worker_device'])
                 action, _ = shared_policy.act(state)
                 action = action.detach().cpu() # sim runs in CPU
-                state, reward, done, truncated, _ = env.eval_step(action, tl)
+                state, reward, done, truncated, _ = env.eval_step(action, tl, unsignalized = unsignalized)
 
                 # During this step, get all vehicles and pedestrians
                 veh_waiting_time_this_step = env.get_vehicle_waiting_time()
@@ -402,7 +405,7 @@ def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl= False):
     del env
     eval_queue.put((worker_demand_scale, worker_result))
 
-def eval(control_args, ppo_args, eval_args, policy_path=None, tl= False):
+def eval(control_args, ppo_args, eval_args, policy_path=None, tl= False, unsignalized= False):
     """
     Works to evaluate a policy during training as well as stand-alone policy vs real-world TL (tl = True) evaluation.
     - Each demand is run on a different worker
@@ -464,9 +467,14 @@ def eval(control_args, ppo_args, eval_args, policy_path=None, tl= False):
     del shared_policy
 
     print(f"All results: {all_results}")    
-    current_time = datetime.now().strftime('%b%d_%H-%M-%S')
-    os.makedirs('./results', exist_ok=True)
-    result_json_path = os.path.join('./results', f'eval_{policy_path.split("/")[2].split(".")[0] if policy_path else "tl"}_{current_time}.json')
+    if tl and unsignalized:
+        tl_state = "unsignalized"
+    elif tl:
+        tl_state = "tl"
+    else:
+        tl_state = "ppo"
+
+    result_json_path = os.path.join(eval_args['eval_save_dir'], f'eval_{policy_path.split("/")[2]}_{tl_state}.json')
     with open(result_json_path, 'w') as f:
         json.dump(all_results, f, indent=4)
     f.close()
@@ -481,10 +489,21 @@ def main(config):
     # Spawn means create a new process. There is a fork method as well which will create a copy of the current process.
     mp.set_start_method('spawn') 
     if config['evaluate']: 
-        control_args, ppo_args, eval_args = classify_and_return_args(config, config['eval_worker_device'])
-        tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True) # supply a ploicy (wont be used)
+        device = torch.device("cuda") if config['eval_worker_device']=='gpu' and torch.cuda.is_available() else torch.device("cpu")
+        control_args, ppo_args, eval_args = classify_and_return_args(config, device)
+        current_time = datetime.now().strftime('%b%d_%H-%M-%S')
+        os.makedirs(f'./results', exist_ok=True)
+        os.makedirs(f'./results/eval_{current_time}', exist_ok=True)
+        eval_args['eval_save_dir'] = os.path.join('results', f'eval_{current_time}')
+
         ppo_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= False)
-        plot_consolidated_results(tl_results_path, ppo_results_path, eval_args['in_range_demand_scales'], eval_args['out_of_range_demand_scales'])
+        tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True) # supply a policy (wont be used for TL)
+        unsignalized_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized= True)
+
+        plot_consolidated_results(unsignalized_results_path, 
+                                  tl_results_path,
+                                  ppo_results_path,
+                                  in_range_demand_scales = eval_args['in_range_demand_scales'])
 
     elif config['sweep']:
         tuner = HyperParameterTuner(config, train)

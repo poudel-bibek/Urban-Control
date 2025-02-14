@@ -515,7 +515,7 @@ class ControlEnv(gym.Env):
         #visualize_observation(observation)
         return observation, reward, done, False, {} # info is empty
     
-    def eval_step(self, action, tl= False):
+    def eval_step(self, action, tl= False, unsignalized= False):
         """
         Step during evaluation.
         """
@@ -532,13 +532,27 @@ class ControlEnv(gym.Env):
         switch_state = self._detect_switch(action, self.previous_action)
 
         #TODO: Placing an if-else here (at almost the innermost loop) is very inefficient.
-        if tl: # Apply action for TL (For evaluation)
-            for i in range(self.steps_per_action): # Run simulation steps for the duration of the action
-                current_phase = [1]*len(self.tl_ids) # random phase
-                traci.simulationStep() # Step length is the simulation time that elapses when each time this is called.
-                self.step_count += 1
-                obs = self._get_observation(current_phase)
-                observation_buffer.append(obs)
+        if tl: 
+            if unsignalized: # Set all Midblock as green.
+                for i in range(self.steps_per_action): # Run simulation steps for the duration of the action
+                    current_phase = [1]*len(self.tl_ids) # random phase
+                    # Midblock
+                    for j in range(1, len(self.tl_ids)):
+                        tl_id = self.tl_ids[j]
+                        mb_phase_string = "GgggggGG" if tl_id == "cluster_9740157181_9740483933" else "GGG"
+                        traci.trafficlight.setRedYellowGreenState(tl_id, mb_phase_string)
+                    traci.simulationStep() # Step length is the simulation time that elapses when each time this is called.
+                    self.step_count += 1
+                    obs = self._get_observation(current_phase)
+                    observation_buffer.append(obs)
+
+            else: # Apply action for TL (For evaluation)
+                for i in range(self.steps_per_action): # Run simulation steps for the duration of the action
+                    current_phase = [1]*len(self.tl_ids) # random phase
+                    traci.simulationStep() # Step length is the simulation time that elapses when each time this is called.
+                    self.step_count += 1
+                    obs = self._get_observation(current_phase)
+                    observation_buffer.append(obs)
         else: 
             # Only apply the action from policy if not TL.   
             for i in range(self.steps_per_action): # Run simulation steps for the duration of the action

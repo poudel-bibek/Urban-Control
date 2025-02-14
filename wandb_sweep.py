@@ -89,7 +89,7 @@ class HyperParameterTuner:
                     'values': [128, 256, 512]
                 },
                 'gamma': {
-                    'min': 0.90,
+                    'min': 0.95,
                     'max': 0.999,
                     'distribution': 'uniform'
                 },
@@ -116,7 +116,7 @@ class HyperParameterTuner:
                 },
                 # policy:
                 'model_type': {
-                    'values': ['cnn', 'mlp']
+                    'values': ['cnn']
                 },
                 'size': {
                     'values': ['small', 'medium']
