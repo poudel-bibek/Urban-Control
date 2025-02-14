@@ -229,9 +229,14 @@ def train(train_config, is_sweep=False, sweep_config=None):
                 print(f"Action timesteps: {action_timesteps}, global step: {global_step}")
                 del memory #https://pytorch.org/docs/stable/multiprocessing.html
 
-                # Update PPO every n times (or close) action has been taken 
+                # Update PPO every n times (or close to n) action has been taken 
                 if action_timesteps >= control_args['update_freq']:
                     print(f"Updating PPO with {len(all_memories.actions)} memories") 
+
+                    update_count += 1
+                    # Anneal after every update
+                    if control_args['anneal_lr']:
+                        current_lr = control_ppo.update_learning_rate(update_count, total_updates)
 
                     avg_reward = sum(all_memories.rewards) / control_args['num_processes'] # Averaged across processes.
                     print(f"\nAverage Reward (across processes): {avg_reward}\n")
@@ -248,11 +253,6 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     # Save both during sweep and non-sweep
                     # Save (and evaluate the latest policy) every save_freq updates
                     if update_count % control_args['save_freq'] == 0:
-                        update_count += 1
-                        # Anneal after every update
-                        if control_args['anneal_lr']:
-                            current_lr = control_ppo.update_learning_rate(update_count, total_updates)
-
                         latest_policy_path = os.path.join(control_args['save_dir'], f'policy_at_step_{global_step}.pth')
                         torch.save(control_ppo.policy.state_dict(), latest_policy_path)
                     
