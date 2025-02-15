@@ -1030,13 +1030,13 @@ class ControlEnv(gym.Env):
         """
         MWAQ_VEH_NORMALIZER = 10.0
         MWAQ_PED_NORMALIZER = 10.0
-        VEH_THRESHOLD_SPEED = 0.1 # m/s
-        PED_THRESHOLD_SPEED = 0.1 # m/s # 0.1 is the threshold in SUMO by default (i.e. wait time is counted when speed is below 0.1 m/s)
+        VEH_THRESHOLD_SPEED = 0.2 # m/s
+        PED_THRESHOLD_SPEED = 0.5 # m/s # 0.1 is the threshold in SUMO by default (i.e. wait time is counted when speed is below 0.1 m/s)
 
         # Intersection 
         # Vehicle
         int_veh_mwaq = 0
-        max_wait_time_veh_int = 0.0
+        max_wait_time_veh_int = 0.5
         veh_queue_length = 0
 
         for direction_turn in self.direction_turn_intersection_incoming:
@@ -1057,7 +1057,7 @@ class ControlEnv(gym.Env):
 
         # Pedestrian
         int_ped_mwaq = 0
-        max_wait_time_ped_int = 0.0
+        max_wait_time_ped_int = 0.5
         ped_queue_length = 0
         for direction in self.directions:
             int_pedestrians = corrected_occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["pedestrian"]["incoming"][direction]["main"]
@@ -1078,7 +1078,7 @@ class ControlEnv(gym.Env):
         norm_mb_veh_mwaq_per_tl = {}
         for tl_id in self.tl_ids[1:]:
             tl_veh_mwaq = 0
-            max_wait_time_veh_mb = 0.0
+            max_wait_time_veh_mb = 0.5
             veh_queue_length = 0
             for direction in self.direction_turn_midblock:
                 mb_vehicles = corrected_occupancy_map[tl_id]["vehicle"]["incoming"][direction]
@@ -1101,7 +1101,7 @@ class ControlEnv(gym.Env):
         norm_mb_ped_mwaq_per_tl = {}
         for tl_id in self.tl_ids[1:]:
             tl_ped_mwaq = 0
-            max_wait_time_ped_mb = 0.0
+            max_wait_time_ped_mb = 0.5
             ped_queue_length = 0
             mb_pedestrians = corrected_occupancy_map[tl_id]["pedestrian"]["incoming"]["north"]["main"] # only one direction # 
             for ped_id in mb_pedestrians:
@@ -1111,7 +1111,6 @@ class ControlEnv(gym.Env):
                 # wait time
                 wait_time = traci.person.getWaitingTime(ped_id)
                 if wait_time > max_wait_time_ped_mb:
-
                     max_wait_time_ped_mb = wait_time
 
             tl_ped_mwaq = ped_queue_length * max_wait_time_ped_mb
@@ -1139,7 +1138,7 @@ class ControlEnv(gym.Env):
         reward = -1 * (final_int_veh + final_int_ped + final_mb_veh + final_mb_ped)
 
         # Clip the reward (In an appropriately chosen range) before returning. 
-        clipped_reward = np.clip(reward, -10000, 10000)
+        clipped_reward = np.clip(reward, -100000, 100000)
 
         if print_reward:
             print(f"Intersection Reward Components:\n"
