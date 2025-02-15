@@ -86,7 +86,7 @@ class HyperParameterTuner:
                     'distribution': 'uniform'
                 },
                 'update_freq': {
-                    'values': [128, 256, 512]
+                    'values': [256, 512, 1024]
                 },
                 'gamma': {
                     'min': 0.95,
@@ -94,7 +94,7 @@ class HyperParameterTuner:
                     'distribution': 'uniform'
                 },
                 'K_epochs': {
-                    'values': [2, 4, 8]
+                    'values': [4, 8]
                 },
                 'eps_clip': {
                     'min': 0.05,
@@ -112,11 +112,11 @@ class HyperParameterTuner:
                     'distribution': 'uniform'
                 },
                 'batch_size': {
-                    'values': [64, 128, 256]
+                    'values': [64, 128]
                 },
                 # policy:
                 'model_type': {
-                    'values': ['cnn']
+                    'values': ['mlp']
                 },
                 'size': {
                     'values': ['small', 'medium']
@@ -124,9 +124,9 @@ class HyperParameterTuner:
                 'activation': {
                     'values': ["tanh", "relu", "leakyrelu"]
                 },
-                'kernel_size': { # ignored if model_type is mlp
-                    'values': [3, 5, 7]
-                },
+                # 'kernel_size': { # ignored if model_type is mlp
+                #     'values': [3, 5, 7]
+                # },
                 # Reward-related lambdas: continuous range 
                 # 'l1': {
                 #     'min': -1.0,

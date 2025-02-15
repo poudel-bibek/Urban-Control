@@ -1,1 +1,6 @@
-Warning: Person '1945' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=489.00.
+Warning: Person '1945' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=469.00.
+Warning: Person '2039' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=516.00.
+Warning: Person '57' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=540.00.
+Warning: Person '1948' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=582.00.
+Warning: Teleporting vehicle '129'; waited too long (yield), lane='-16666012#2_0', time=592.00.
+Warning: Vehicle '129' ends teleporting on edge '773672649#1', time=592.00.
