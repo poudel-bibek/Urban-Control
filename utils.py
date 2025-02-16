@@ -460,5 +460,5 @@ def plot_avg_consecutive_ones(file_path):
     plt.show()
 
 # Plot samples 1's
-sampled_actions_file_path = "./saved_models/Feb15_21-48-30/sampled_actions.json"
-plot_avg_consecutive_ones(sampled_actions_file_path)
+# sampled_actions_file_path = "./saved_models/Feb15_21-48-30/sampled_actions.json"
+# plot_avg_consecutive_ones(sampled_actions_file_path)

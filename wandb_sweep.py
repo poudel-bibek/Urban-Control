@@ -107,7 +107,7 @@ class HyperParameterTuner:
                     'distribution': 'uniform'
                 },
                 'vf_coef': {
-                    'min': 0.25,
+                    'min': 0.55,
                     'max': 1.0,
                     'distribution': 'uniform'
                 },

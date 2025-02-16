@@ -54,12 +54,12 @@ def parallel_train_worker(rank, shared_policy_old, control_args, train_queue, wo
             action = action.detach().cpu().numpy() # 1D
             value = value.item() # Scalar
             logprob = logprob.item() # Scalar
-            # print(f"State: {state}, Action: {action}, Value: {value}, Logprob: {logprob}")
+            # print(f"State: {state}")
 
         # Perform action
         # These reward and next_state are for the action_duration timesteps.
         next_state, reward, done, truncated, _ = worker_env.train_step(action) # need the returned state to be 2D
-        reward = shared_reward_normalizer.normalize(reward).item()
+        #reward = shared_reward_normalizer.normalize(reward).item()
         ep_reward += reward
 
         # Store data in memory

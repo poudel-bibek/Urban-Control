@@ -805,9 +805,9 @@ class ControlEnv(gym.Env):
         # return self._get_pressure_based_reward(pressure_dict, switch_state)
         # return self._get_mwaq_reward(corrected_occupancy_map, switch_state)
         # return self._get_mwaq_reward_exponential(corrected_occupancy_map, switch_state, print_reward=False)
-        #return self._get_vehicle_wait_time_reward(corrected_occupancy_map)
-        return self._get_mwaq_reward_logistic(corrected_occupancy_map, switch_state, print_reward=False)
-
+        # return self._get_vehicle_wait_time_reward(corrected_occupancy_map)
+        # return self._get_mwaq_reward_logistic(corrected_occupancy_map, switch_state, print_reward=False)
+        return self._get_normalized_high_level_reward(corrected_occupancy_map, switch_state, print_reward=False)
 
     def _get_vehicle_wait_time_reward(self, corrected_occupancy_map):
         """
@@ -1320,6 +1320,47 @@ class ControlEnv(gym.Env):
             print(f"Clipped Reward: {clipped_reward:.3f}\n")
 
         return clipped_reward
+
+    def _get_normalized_high_level_reward(self, corrected_occupancy_map, switch_state, print_reward=False):
+        """
+        High-level reward based on average waiting times:
+        - Penalize average vehicle waiting time
+        - Penalize average pedestrian waiting time
+
+        This reward is defined as the negative sum of the average waiting times per vehicle and per pedestrian.
+        Mathematically, if:
+            Total Vehicle Wait = ∑_{v ∈ V} W(v)  and  N_v = |Vehicles waiting|,
+            Total Ped Wait = ∑_{p ∈ P} W(p)   and  N_p = |Pedestrians waiting|,
+        then we define:
+            R = - [ (Total Vehicle Wait / N_v) + (Total Ped Wait / N_p) ]
+        This normalization makes the reward less sensitive to variations in demand (which is not controlled by the agent).
+        """
+        THRESHOLD_WAIT_VELOCITY = 0.1 # default used by sim
+
+        veh_ids = traci.vehicle.getIDList()
+        ped_ids = traci.person.getIDList()
+        
+        # Get waiting time is already accumulative in nature.
+        total_veh_wait_time = sum(traci.vehicle.getWaitingTime(veh_id) for veh_id in veh_ids)
+        total_ped_wait_time = sum(traci.person.getWaitingTime(ped_id) for ped_id in ped_ids)
+        total_veh_waiting_count = sum(1 for veh_id in veh_ids if traci.vehicle.getSpeed(veh_id) < THRESHOLD_WAIT_VELOCITY)
+        total_ped_waiting_count = sum(1 for ped_id in ped_ids if traci.person.getSpeed(ped_id) < THRESHOLD_WAIT_VELOCITY)
+
+        # Normalize by the number of vehicles and pedestrians that are waiting (NOT by ALL)
+        avg_veh_wait = total_veh_wait_time / max(total_veh_waiting_count, 1) # Handle division by zero cases
+        avg_ped_wait = total_ped_wait_time / max(total_ped_waiting_count, 1)
+        
+        reward = - (avg_veh_wait + avg_ped_wait)
+        # clip the reward
+        reward = np.clip(reward, -200, 0)
+
+        if print_reward:
+            print(f"Avg Vehicle Wait: {avg_veh_wait:.3f} sec")
+            print(f"Avg Pedestrian Wait: {avg_ped_wait:.3f} sec")
+            print(f"Reward: {reward:.3f}")
+        
+        return reward
+
 
     def _check_done(self):
         """

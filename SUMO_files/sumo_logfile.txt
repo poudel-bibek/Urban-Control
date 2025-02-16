@@ -1,0 +1,30 @@
+***Starting server on port 38549 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (26ms).
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_1.xml'
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_1.xml'
+Loading done.
+Simulation version UNKNOWN started with time: 0.00.
+Warning: Person '2039' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w4', time=523.00.
+Warning: Person '1948' is jammed on edge ':cluster_172228464_482708521_9687148201_9687148202_#5more_w3', time=570.00.
+Simulation ended at time: 640.00.
+Reason: TraCI requested termination.
+Performance:
+ Duration: 134.98s
+ TraCI-Duration: 134.18s
+ Real time factor: 4.74162
+ UPS: 85.208372
+ UPS-Persons: 888.897944
+Vehicles:
+ Inserted: 62 (Loaded: 74)
+ Running: 23
+ Waiting: 0
+Persons:
+ Inserted: 736
+ Running: 264
+ Jammed: 2
+DijkstraRouter answered 12576 queries and explored 5.75 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.00ms on average).
+DijkstraRouter answered 591 queries and explored 478.53 edges on average.
+DijkstraRouter spent 0.04s answering queries (0.06ms on average).
+DijkstraRouter answered 62 queries and explored 57.90 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.05ms on average).
