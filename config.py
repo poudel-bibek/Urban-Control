@@ -25,7 +25,7 @@ def get_config():
         # PPO (general params)
         "seed": None,  # Random seed (default: None)
         "gpu": True,  # Use GPU if available (default: use CPU)
-        "total_timesteps": 300000,  # Total number of timesteps the simulation will run
+        "total_timesteps": 500000,  # Total number of timesteps the simulation will run
         "max_timesteps": 400,  # Maximum number of steps in one episode (make this multiple of 16*10)
         "total_sweep_trials": 128,  # Total number of trials for the wandb sweep
         "memory_transfer_freq": 16,  # Frequency of memory transfer from worker to main process 
