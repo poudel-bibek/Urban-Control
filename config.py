@@ -4,7 +4,7 @@ def get_config():
     """
     config = {
         # Simulation
-        "sweep": False,  # Use wandb sweeps for hyperparameter tuning
+        "sweep": True,  # Use wandb sweeps for hyperparameter tuning
         "gui": False,  # Use SUMO GUI (default: False)
         "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
         "action_duration": 10,  # Duration of each action (default: 10.0)
@@ -61,21 +61,12 @@ def get_config():
         "l5": -0.1,  # switch penalty weight
 
         # Evaluation
-        "evaluate": True,  
+        "evaluate": False,  
         "eval_model_path": "./saved_models/Feb15_11-54-42/best_eval_policy.pth",  # Path to the saved PPO model for evaluation
         "eval_save_dir": None,
         "eval_n_timesteps": 400,  # Number of timesteps to each episode. Warmup not counted.
         "eval_n_workers": 8,  # Parallelizes how many demands can be evaluated at the same time.
-        "eval_worker_device": "gpu",  # Policy during eval can be run in GPU
-        # during training
-        # "eval_n_iterations": 2,  # Number of iterations to repeat for each demand
-        # "in_range_demand_scales": [1.0, 1.5, 2.0, 2.5], # The demand scales that are used for training.
-        # "out_of_range_demand_scales": [0.25, 0.75, 2.75, 3.25], # The demand scales that are used ONLY for evaluation.
-
-        # during evaluation
-        "eval_n_iterations": 10,  # Number of iterations to repeat for each demand
-        "in_range_demand_scales": [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5], 
-        "out_of_range_demand_scales": [0.25, 0.5, 0.75, 2.75, 3.0, 3.25], 
+        "eval_worker_device": "gpu",  # Policy during eval can be run in GPU 
     }
     return config
 
@@ -143,15 +134,26 @@ def classify_and_return_args(train_config, device):
         'model_kwargs': model_kwargs
     }
     
+    if train_config['evaluate']:
+        # during evaluation
+        eval_n_iterations = 5
+        in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5] 
+        out_of_range_demand_scales = [0.25, 0.5, 0.75, 2.75, 3.0, 3.25]
+    else: 
+        # during training
+        eval_n_iterations = 2
+        in_range_demand_scales = [1.0, 1.5, 2.0, 2.5] # The demand scales that are used for training.
+        out_of_range_demand_scales = [0.25, 0.75, 2.75, 3.25] # The demand scales that are used ONLY for evaluation.
+    
     eval_args = {
         'eval_model_path': train_config['eval_model_path'],
         'eval_save_dir': train_config['eval_save_dir'],
-        'eval_n_iterations': train_config['eval_n_iterations'],
         'eval_n_timesteps': train_config['eval_n_timesteps'],
         'eval_n_workers': train_config['eval_n_workers'],
         'eval_worker_device': train_config['eval_worker_device'],
-        'in_range_demand_scales': train_config['in_range_demand_scales'],
-        'out_of_range_demand_scales': train_config['out_of_range_demand_scales'],
+        'eval_n_iterations': eval_n_iterations,
+        'in_range_demand_scales': in_range_demand_scales,
+        'out_of_range_demand_scales': out_of_range_demand_scales,
     }
 
     return control_args, ppo_args, eval_args

@@ -2508,10 +2508,10 @@
     </edge>
 
     <tlLogic id="9727816623" type="static" programID="0" offset="0">
-        <phase duration="20" state="rrG"/>
         <phase duration="2"  state="rrr"/>
         <phase duration="45" state="GGr"/>
         <phase duration="4"  state="yyr"/>
+        <phase duration="20" state="rrG"/>
     </tlLogic>
     <tlLogic id="9727816850" type="static" programID="0" offset="0">
         <phase duration="45" state="GGr"/>
@@ -2532,16 +2532,16 @@
         <phase duration="2"  state="rrr"/>
     </tlLogic>
     <tlLogic id="9740157209" type="static" programID="0" offset="0">
-        <phase duration="20" state="rrG"/>
         <phase duration="2"  state="rrr"/>
         <phase duration="45" state="GGr"/>
         <phase duration="4"  state="yyr"/>
+        <phase duration="20" state="rrG"/>
     </tlLogic>
     <tlLogic id="9740484527" type="static" programID="0" offset="0">
-        <phase duration="45" state="GGr"/>
         <phase duration="4"  state="yyr"/>
         <phase duration="20" state="rrG"/>
         <phase duration="2"  state="rrr"/>
+        <phase duration="45" state="GGr"/>
     </tlLogic>
     <tlLogic id="cluster_9740157181_9740483933" type="static" programID="0" offset="0">
         <phase duration="45" state="GgggggGr"/>

@@ -241,8 +241,8 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     if control_args['anneal_lr']:
                         current_lr = control_ppo.update_learning_rate(update_count, total_updates)
 
-                    avg_reward = sum(all_memories.rewards) / control_args['num_processes'] # Averaged across processes.
-                    print(f"\nAverage Reward (across processes): {avg_reward}\n")
+                    avg_reward = sum(all_memories.rewards) / len(all_memories.rewards)
+                    print(f"\nAverage Reward (across all memories): {avg_reward}\n")
                     #print(f"\nAll memories rewards: {all_memories.rewards}")
 
                     loss = control_ppo.update(deepcopy(all_memories))
