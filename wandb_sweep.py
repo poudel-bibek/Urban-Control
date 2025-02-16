@@ -81,15 +81,15 @@ class HyperParameterTuner:
                     'distribution': 'log_uniform_values'
                 },
                 'gae_lambda': {
-                    'min': 0.90,
+                    'min': 0.92,
                     'max': 0.999,
                     'distribution': 'uniform'
                 },
                 'update_freq': {
-                    'values': [256, 512, 1024]
+                    'values': [512, 1024, 2048]
                 },
                 'gamma': {
-                    'min': 0.95,
+                    'min': 0.97,
                     'max': 0.999,
                     'distribution': 'uniform'
                 },
