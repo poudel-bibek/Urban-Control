@@ -68,8 +68,8 @@ def parallel_train_worker(rank, shared_policy_old, control_args, train_queue, wo
 
         if steps_since_update >= memory_transfer_freq or done or truncated:
             # Put local memory in the queue for the main process to collect
-            memory_copy = deepcopy(local_memory)
-            train_queue.put((rank, memory_copy))
+            # memory_copy = deepcopy(local_memory)
+            train_queue.put((rank, local_memory))
             local_memory = Memory()  # Reset local memory
             steps_since_update = 0
 
@@ -245,8 +245,9 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     print(f"\nAverage Reward (across all memories): {avg_reward}\n")
                     #print(f"\nAll memories rewards: {all_memories.rewards}")
 
-                    loss = control_ppo.update(deepcopy(all_memories))
-        
+                    # loss = control_ppo.update(deepcopy(all_memories))
+                    loss = control_ppo.update(all_memories)
+
                     # Reset all memories
                     del all_memories
                     all_memories = Memory() 

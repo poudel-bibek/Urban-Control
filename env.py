@@ -764,7 +764,8 @@ class ControlEnv(gym.Env):
 
         current_phase.append(int_vehicle_phase_group)
         pedestrian_phase_abcd = self.int_crosswalk_phase_groups[int_action]
-        pedestrian_phase_string = pedestrian_phase_abcd['A'] + pedestrian_phase_abcd['B'] + 'r' + pedestrian_phase_abcd['C'] + 'r' + pedestrian_phase_abcd['D']
+        # ArBCrD
+        pedestrian_phase_string = pedestrian_phase_abcd['A'] + 'r' + pedestrian_phase_abcd['B'] + pedestrian_phase_abcd['C'] + 'r' + pedestrian_phase_abcd['D']
         int_state = vehicle_phase_string + pedestrian_phase_string
         traci.trafficlight.setRedYellowGreenState(self.tl_ids[0], int_state)
         

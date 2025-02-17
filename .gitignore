@@ -10,6 +10,8 @@ runs/
 
 # Saved models
 saved_models/
+./Best_models
+Best_models/
 ./results/
 results/
 ./wandb

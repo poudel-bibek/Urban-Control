@@ -114,7 +114,7 @@ def get_intersection_phase_groups():
         1: "rrrrGGrrrrrrGGrr", # north-straight, north-right, south-straight, south-right
         2: "rrrrrrGGrrrrrrGG", # north-east, south-west (for visuals, make u-turn ON as well)
         3: "rrrrrrrrrrrrrrrr", # all red
-        4: { 0: "yyrrrrrryyrrrrrr",
+        4: { 0: "yyrrrrrryyrrrrrr", # switch from 0 to 1
             1: "yyrrrrrryyrrrrrr",
             2: "yyrrrrrryyrrrrrr",
             3: "yyrrrrrryyrrrrrr",
@@ -125,24 +125,24 @@ def get_intersection_phase_groups():
             8: "rrrrGGrrrrrrGGrr",
             9: "rrrrGGrrrrrrGGrr",
         }, 
-        5: { 0: "rrrryyrrrrrryyrr",
+        5: { 0: "rrrryyrrrrrryyrr", # switch from 1 to 0
             1: "rrrryyrrrrrryyrr",
             2: "rrrryyrrrrrryyrr",
             3: "rrrryyrrrrrryyrr",
             4: "rrrrrrrrrrrrrrrr",
-            5: "GGrrrrrrGGrrrrrr",
-            6: "GGrrrrrrGGrrrrrr",
-            7: "GGrrrrrrGGrrrrrr",
-            8: "GGrrrrrrGGrrrrrr",
-            9: "GGrrrrrrGGrrrrrr",
+            5: "GGGGrrrrGGGGrrrr",
+            6: "GGGGrrrrGGGGrrrr",
+            7: "GGGGrrrrGGGGrrrr",
+            8: "GGGGrrrrGGGGrrrr",
+            9: "GGGGrrrrGGGGrrrr",
         }
     }
             
     int_crosswalk_phase_groups = {
-        0: {'A': 'r', 'B': 'G', 'C': 'r', 'D': 'G'}, 
-        1: {'A': 'G', 'B': 'r', 'C': 'G', 'D': 'r'}, 
-        2: {'A': 'r', 'B': 'r', 'C': 'r', 'D': 'r'}, 
-        3: {'A': 'G', 'B': 'G', 'C': 'G', 'D': 'G'}, 
+        0: {'A': 'G', 'B': 'r', 'C': 'G', 'D': 'r'}, # N-S Green, E-W Red 
+        1: {'A': 'r', 'B': 'G', 'C': 'r', 'D': 'G'}, # E-W Green, N-S Red
+        2: {'A': 'r', 'B': 'r', 'C': 'r', 'D': 'r'}, # All Red
+        3: {'A': 'G', 'B': 'G', 'C': 'G', 'D': 'G'}, # All Green
     }
     return int_tl_phase_groups, int_crosswalk_phase_groups
 

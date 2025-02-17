@@ -76,43 +76,43 @@ class HyperParameterTuner:
                 },
             'parameters': {
                 'lr': {
-                    'min': 1e-5,
-                    'max': 0.01,
+                    'min': 1e-4,
+                    'max': 0.001,
                     'distribution': 'log_uniform_values'
                 },
                 'gae_lambda': {
-                    'min': 0.92,
-                    'max': 0.999,
+                    'min': 0.95,
+                    'max': 0.99,
                     'distribution': 'uniform'
                 },
                 'update_freq': {
-                    'values': [512, 1024, 2048]
+                    'values': [64, 128] #, 1024, 2048]
                 },
                 'gamma': {
-                    'min': 0.97,
-                    'max': 0.999,
+                    'min': 0.98,
+                    'max': 0.995,
                     'distribution': 'uniform'
                 },
                 'K_epochs': {
-                    'values': [4, 8]
+                    'values': [4] #, 8]
                 },
-                'eps_clip': {
-                    'min': 0.05,
-                    'max': 0.30,
-                    'distribution': 'uniform'
-                },
-                'ent_coef': {
-                    'min': 0.0001,  
-                    'max': 0.01,  
-                    'distribution': 'uniform'
-                },
-                'vf_coef': {
-                    'min': 0.55,
-                    'max': 1.0,
-                    'distribution': 'uniform'
-                },
+                # 'eps_clip': {
+                #     'min': 0.05,
+                #     'max': 0.30,
+                #     'distribution': 'uniform'
+                # },
+                # 'ent_coef': {
+                #     'min': 0.0001,  
+                #     'max': 0.01,  
+                #     'distribution': 'uniform'
+                # },
+                # 'vf_coef': {
+                #     'min': 0.55,
+                #     'max': 1.0,
+                #     'distribution': 'uniform'
+                # },
                 'batch_size': {
-                    'values': [64, 128]
+                    'values': [8, 16]
                 },
                 # policy:
                 'model_type': {
@@ -122,7 +122,7 @@ class HyperParameterTuner:
                     'values': ['small', 'medium']
                 },
                 'activation': {
-                    'values': ["tanh", "relu", "leakyrelu"]
+                    'values': ["tanh", "relu"]
                 },
                 # 'kernel_size': { # ignored if model_type is mlp
                 #     'values': [3, 5, 7]
