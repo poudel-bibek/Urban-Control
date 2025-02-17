@@ -244,7 +244,7 @@ def plot_consolidated_results(*result_json_paths, in_range_demand_scales):
     if num_methods == 3:
         labels = ['Unsignalized', 'TL', 'RL (Ours)']
     else:
-        labels = [f"Method {i+1}" for i in range(num_methods)]
+        labels = ['TL', 'RL (Ours)']
 
     results = []
     for json_path in result_json_paths:

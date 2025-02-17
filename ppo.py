@@ -249,6 +249,7 @@ class PPO:
 
                 # Evaluating old actions and values using current policy network
                 logprobs, state_values, dist_entropy = self.policy.evaluate(states_batch.to(self.device), actions_batch.to(self.device))
+                state_values = state_values.squeeze(-1)
 
                 # Finding the ratio (pi_theta / pi_theta_old) for importance sampling (we want to use the samples obtained from old policy to get the new policy)
                 logratios = logprobs - old_logprobs_batch.squeeze(-1) # New log probs, state_values, dist_entropy need to remain attached to the graph.
@@ -256,6 +257,9 @@ class PPO:
                 print(f"\nLogprobs: {logprobs.shape}")
                 print(f"\nOld logprobs: {old_logprobs_batch.squeeze(-1).shape}")
                 print(f"\nRatios: {ratios.shape}: {ratios}")
+                print(f"\nOld values batch: {old_values_batch.shape}: {old_values_batch}")
+                print(f"\nState values: {state_values.shape}: {state_values}")
+                print(f"\nReturns batch: {returns_batch.shape}: {returns_batch}")
 
                 # Finding Surrogate Loss
                 surr1 = ratios * advantages_batch

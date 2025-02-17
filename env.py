@@ -479,8 +479,8 @@ class ControlEnv(gym.Env):
         """
         If Tl = True, operating in eval mode with TL.
         """
-        if not self.sumo_running:
-            raise Exception("Environment is not running. Call reset() to start the environment.")
+        # if not self.sumo_running:
+        #     raise Exception("Environment is not running. Call reset() to start the environment.")
         if self.previous_action is None:
             self.previous_action = action
 
@@ -562,9 +562,8 @@ class ControlEnv(gym.Env):
                 self.step_count += 1
                 obs = self._get_observation(current_phase)
                 observation_buffer.append(obs)
-            
-        # outside the loop
-        # Do before reward calculation
+        
+        # Outside the loop, before reward calculation
         # pressure_dict = self._get_pressure_dict(self.corrected_occupancy_map)
         # Reward outside the loop (only once per duration)
         reward = self._get_reward(self.corrected_occupancy_map, switch_state, pressure_dict = None) # pressure dict used only in pressure-based reward

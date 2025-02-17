@@ -59,7 +59,7 @@ def parallel_train_worker(rank, shared_policy_old, control_args, train_queue, wo
         # Perform action
         # These reward and next_state are for the action_duration timesteps.
         next_state, reward, done, truncated, _ = worker_env.train_step(action) # need the returned state to be 2D
-        #reward = shared_reward_normalizer.normalize(reward).item()
+        reward = shared_reward_normalizer.normalize(reward).item()
         ep_reward += reward
 
         # Store data in memory
@@ -500,9 +500,9 @@ def main(config):
 
         ppo_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= False)
         tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized=False) # supply a policy (wont be used for TL)
-        unsignalized_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized=True)
+        #unsignalized_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized=True)
 
-        plot_consolidated_results(unsignalized_results_path, 
+        plot_consolidated_results(#unsignalized_results_path, 
                                   tl_results_path,
                                   ppo_results_path,
                                   in_range_demand_scales = eval_args['in_range_demand_scales'])

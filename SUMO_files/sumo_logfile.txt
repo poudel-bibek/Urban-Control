@@ -1,0 +1,33 @@
+***Starting server on port 48397 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (27ms).
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_0.xml'
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_0.xml'
+Loading done.
+Simulation version UNKNOWN started with time: 0.00.
+Simulation ended at time: 570.00.
+Reason: TraCI requested termination.
+Performance:
+ Duration: 179.16s
+ TraCI-Duration: 173.43s
+ Real time factor: 3.18157
+ UPS: 44.659154
+ UPS-Persons: 370.886987
+Vehicles:
+ Inserted: 37 (Loaded: 41)
+ Running: 16
+ Waiting: 0
+Persons:
+ Inserted: 366
+ Running: 184
+DijkstraRouter answered 4591 queries and explored 4.99 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.00ms on average).
+DijkstraRouter answered 349 queries and explored 487.25 edges on average.
+DijkstraRouter spent 0.03s answering queries (0.09ms on average).
+DijkstraRouter answered 37 queries and explored 57.73 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.05ms on average).
+
+
+er spent 0.05s answering queries (0.09ms on average).
+DijkstraRouter answered 68 queries and explored 57.90 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.01ms on average).
+rage).

@@ -20,7 +20,7 @@ def get_config():
         "manual_demand_veh": None,  # Manually scale vehicle demand before starting the simulation (veh/hr)
         "manual_demand_ped": None,  # Manually scale pedestrian demand before starting the simulation (ped/hr)
         "demand_scale_min": 1.0,  # Minimum demand scaling factor for automatic scaling
-        "demand_scale_max": 2.5,  # Maximum demand scaling factor for automatic scaling
+        "demand_scale_max": 2.25,  # Maximum demand scaling factor for automatic scaling
 
         # PPO (general params)
         "seed": None,  # Random seed (default: None)
@@ -36,7 +36,7 @@ def get_config():
         "anneal_lr": True,  # Anneal learning rate
         "gae_lambda": 0.96,  # GAE lambda
         "max_grad_norm": 1.0,  # Maximum gradient norm for gradient clipping
-        "vf_clip_param": 6000,  # Value function clipping parameter
+        "vf_clip_param": 1.0,  # Value function clipping parameter
         "update_freq": 1024,  # Number of action timesteps between each policy update
         "lr": 1e-4,  # Learning rate
         "gamma": 0.96,  # Discount factor
@@ -46,7 +46,7 @@ def get_config():
         "ent_coef": 0.001,  # Entropy coefficient
         "vf_coef": 0.65,  # Value function coefficient
         "batch_size": 32,  # Batch size
-        "num_processes": 20,  # Number of parallel processes to use (agent has multiple workers)
+        "num_processes": 24,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.25,  # Dropout rate for CNN
@@ -139,13 +139,13 @@ def classify_and_return_args(train_config, device):
     if train_config['evaluate']:
         # during evaluation
         eval_n_iterations = 5
-        in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5] 
-        out_of_range_demand_scales = [0.25, 0.5, 0.75, 2.75, 3.0, 3.25]
+        in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25] 
+        out_of_range_demand_scales = [0.5, 0.75, 2.5, 2.75]
     else: 
         # during training
         eval_n_iterations = 2
-        in_range_demand_scales = [1.0, 1.5, 2.0, 2.5] # The demand scales that are used for training.
-        out_of_range_demand_scales = [0.25, 0.75, 2.75, 3.25] # The demand scales that are used ONLY for evaluation.
+        in_range_demand_scales = [1.0, 1.5, 2.0, 2.25] # The demand scales that are used for training.
+        out_of_range_demand_scales = [0.5, 0.75, 2.5, 2.75] # The demand scales that are used ONLY for evaluation.
     
     eval_args = {
         'eval_model_path': train_config['eval_model_path'],
