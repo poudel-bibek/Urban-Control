@@ -105,6 +105,7 @@ class PPO:
                  batch_size, 
                  gae_lambda,
                  max_grad_norm,
+                 vf_clip_param,
                  model_type,
                  model_kwargs):
         
@@ -119,7 +120,7 @@ class PPO:
         self.batch_size = batch_size
         self.gae_lambda = gae_lambda
         self.max_grad_norm = max_grad_norm
-
+        self.vf_clip_param = vf_clip_param
         if model_type == "cnn":
             self.policy = CNNActorCritic(self.model_dim, self.action_dim, **model_kwargs).to(self.device)
             self.policy_old = CNNActorCritic(self.model_dim, self.action_dim, **model_kwargs).to(self.device) # old policy network (used for importance sampling)
@@ -197,25 +198,25 @@ class PPO:
 
         states = torch.stack(memories.states, dim=0)
         actions = torch.stack(memories.actions, dim=0)
-        values = torch.tensor(memories.values, dtype=torch.float32)
+        old_values = torch.tensor(memories.values, dtype=torch.float32)
         old_logprobs = torch.tensor(memories.logprobs, dtype=torch.float32)
         rewards = torch.tensor(memories.rewards, dtype=torch.float32)
         is_terminals = torch.tensor(memories.is_terminals, dtype=torch.bool)
 
         print(f"\nStates shape: {states.shape}")
         print(f"\nActions shape: {actions.shape}")
-        print(f"\nValues shape: {values.shape}")
+        print(f"\nOld Values shape: {old_values.shape}")
         print(f"\nOld logprobs shape: {old_logprobs.shape}")
         print(f"\nRewards shape: {rewards.shape}")
         print(f"\nIs terminals shape: {is_terminals.shape}")
 
         # Compute GAE
-        advantages = self.compute_gae(rewards, values, is_terminals, self.gamma, self.gae_lambda)
+        advantages = self.compute_gae(rewards, old_values, is_terminals, self.gamma, self.gae_lambda)
 
         # Advantage = how much better is it to take a specific action compared to the average action. 
         # GAE = difference between the empirical return and the value function estimate.
         # advantages + val = Reconstruction of empirical returns. Because we want the critic to predict the empirical returns.
-        returns = advantages + values
+        returns = advantages + old_values
         print(f"\nAdvantages: {advantages}, shape: {advantages.shape}")
         print(f"\nReturns: {returns}, shape: {returns.shape}")
 
@@ -224,7 +225,7 @@ class PPO:
         print(f"\nAdvantages after normalization: {advantages}, shape: {advantages.shape}")
 
         # Create a dataloader for mini-batching 
-        dataset = TensorDataset(states, actions, old_logprobs, advantages, returns)
+        dataset = TensorDataset(states, actions, old_logprobs, advantages, returns, old_values)
         dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
 
         avg_policy_loss = 0
@@ -234,14 +235,17 @@ class PPO:
 
         # Optimize policy for K epochs (terminology used in PPO paper)
         for _ in range(self.K_epochs):
-            for states_batch, actions_batch, old_logprobs_batch, advantages_batch, returns_batch in dataloader:
+            for states_batch, actions_batch, old_logprobs_batch, advantages_batch, returns_batch, old_values_batch in dataloader:
                 
                 old_logprobs_batch = old_logprobs_batch.to(self.device)
                 advantages_batch = advantages_batch.to(self.device)
                 returns_batch = returns_batch.to(self.device)
+                old_values_batch = old_values_batch.to(self.device)
+
                 print(f"\nOld logprobs batch shape: {old_logprobs_batch.shape}")
                 print(f"\nAdvantages batch shape: {advantages_batch.shape}")
                 print(f"\nReturns batch shape: {returns_batch.shape}")
+                print(f"\nOld values batch shape: {old_values_batch.shape}")
 
                 # Evaluating old actions and values using current policy network
                 logprobs, state_values, dist_entropy = self.policy.evaluate(states_batch.to(self.device), actions_batch.to(self.device))
@@ -263,7 +267,17 @@ class PPO:
                 policy_loss = torch.min(surr1, surr2).mean() # Equation 7 in the paper
                 print(f"\nPolicy loss: {policy_loss.item()}")
 
-                value_loss = 0.5 * ((state_values - returns_batch) ** 2).mean() # MSE. Value loss is clipped (0.5)
+                # Value function clipping
+                clipped_state_values = old_values_batch + torch.clamp(state_values - old_values_batch, -self.vf_clip_param, self.vf_clip_param)
+
+                # compute both the clipped and unclipped value losses (MSE)
+                clipped_value_loss = (clipped_state_values - returns_batch) ** 2 # square first
+                unclipped_value_loss = (state_values - returns_batch) ** 2
+                print(f"\nClipped value loss: {clipped_value_loss.mean()}")
+                print(f"\nUnclipped value loss: {unclipped_value_loss.mean()}")
+
+                # Value loss is scaled by 0.5 
+                value_loss = 0.5 * (torch.max(clipped_value_loss, unclipped_value_loss).mean()) # then mean
                 print(f"\nValue loss: {value_loss.item()}")
 
                 print(f"\nDist entropy: {dist_entropy.shape}")

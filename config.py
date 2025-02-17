@@ -36,6 +36,7 @@ def get_config():
         "anneal_lr": True,  # Anneal learning rate
         "gae_lambda": 0.96,  # GAE lambda
         "max_grad_norm": 1.0,  # Maximum gradient norm for gradient clipping
+        "vf_clip_param": 6000,  # Value function clipping parameter
         "update_freq": 1024,  # Number of action timesteps between each policy update
         "lr": 1e-4,  # Learning rate
         "gamma": 0.96,  # Discount factor
@@ -45,7 +46,7 @@ def get_config():
         "ent_coef": 0.001,  # Entropy coefficient
         "vf_coef": 0.65,  # Value function coefficient
         "batch_size": 32,  # Batch size
-        "num_processes": 16,  # Number of parallel processes to use (agent has multiple workers)
+        "num_processes": 20,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.25,  # Dropout rate for CNN
@@ -130,6 +131,7 @@ def classify_and_return_args(train_config, device):
         'batch_size': train_config['batch_size'],
         'gae_lambda': train_config['gae_lambda'],
         'max_grad_norm': train_config['max_grad_norm'],
+        'vf_clip_param': train_config['vf_clip_param'],
         'model_type': train_config['model_type'],
         'model_kwargs': model_kwargs
     }
