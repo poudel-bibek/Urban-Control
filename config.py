@@ -4,8 +4,8 @@ def get_config():
     """
     config = {
         # Simulation
-        "sweep": False,  # Use wandb sweeps for hyperparameter tuning
-        "gui": True,  # Use SUMO GUI (default: False)
+        "sweep": True,  # Use wandb sweeps for hyperparameter tuning
+        "gui": False,  # Use SUMO GUI (default: False)
         "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
         "action_duration": 10,  # Duration of each action (default: 10.0)
         "warmup_steps": [100, 250],  # Number of steps to run before collecting data
@@ -25,7 +25,7 @@ def get_config():
         # PPO (general params)
         "seed": None,  # Random seed (default: None)
         "gpu": True,  # Use GPU if available (default: use CPU)
-        "total_timesteps": 500000,  # Total number of timesteps the simulation will run
+        "total_timesteps": 10000000,  # Total number of timesteps the simulation will run
         "max_timesteps": 400,  # Maximum number of steps in one episode (make this multiple of 16*10)
         "total_sweep_trials": 128,  # Total number of trials for the wandb sweep
         "memory_transfer_freq": 16,  # Frequency of memory transfer from worker to main process 
@@ -36,16 +36,16 @@ def get_config():
         "anneal_lr": True,  # Anneal learning rate
         "gae_lambda": 0.96,  # GAE lambda
         "max_grad_norm": 1.0,  # Maximum gradient norm for gradient clipping
-        "update_freq": 512,  # Number of action timesteps between each policy update
-        "lr": 2.5e-3,  # Learning rate
+        "update_freq": 1024,  # Number of action timesteps between each policy update
+        "lr": 1e-4,  # Learning rate
         "gamma": 0.96,  # Discount factor
         "K_epochs": 4,  # Number of epochs to update policy
         "eps_clip": 0.2,  # Clip parameter for PPO
         "save_freq": 5,  # Save model after every n updates (0 to disable). Also decided how often to evaluate
-        "ent_coef": 0.005,  # Entropy coefficient
-        "vf_coef": 0.75,  # Value function coefficient
+        "ent_coef": 0.001,  # Entropy coefficient
+        "vf_coef": 0.65,  # Value function coefficient
         "batch_size": 32,  # Batch size
-        "num_processes": 12,  # Number of parallel processes to use (agent has multiple workers)
+        "num_processes": 16,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.25,  # Dropout rate for CNN
@@ -61,7 +61,7 @@ def get_config():
         "l5": -0.1,  # switch penalty weight
 
         # Evaluation
-        "evaluate": True,  
+        "evaluate": False,  
         "eval_model_path": "./Best_models/Feb16_13-09-44/best_eval_policy.pth",  # Path to the saved PPO model for evaluation
         "eval_save_dir": None,
         "eval_n_timesteps": 400,  # Number of timesteps to each episode. Warmup not counted.

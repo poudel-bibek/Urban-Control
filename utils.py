@@ -460,5 +460,14 @@ def plot_avg_consecutive_ones(file_path):
     plt.show()
 
 # Plot samples 1's
-# sampled_actions_file_path = "./saved_models/Feb15_21-48-30/sampled_actions.json"
+# sampled_actions_file_path = "./Best_models/Feb16_13-09-44/sampled_actions.json"
 # plot_avg_consecutive_ones(sampled_actions_file_path)
+
+# unsignalized_results_path = "./results/eval_Feb17_08-17-07/eval_Feb16_13-09-44_unsignalized.json"
+# tl_results_path = "./results/eval_Feb17_08-17-07/eval_Feb16_13-09-44_tl.json"
+# ppo_results_path = "./results/eval_Feb17_08-17-07/eval_Feb16_13-09-44_ppo.json"
+
+# plot_consolidated_results(unsignalized_results_path, 
+#                                   tl_results_path,
+#                                   ppo_results_path,
+#                                   in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5]  )

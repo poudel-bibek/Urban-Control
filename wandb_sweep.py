@@ -76,22 +76,16 @@ class HyperParameterTuner:
                 },
             'parameters': {
                 'lr': {
-                    'min': 1e-4,
-                    'max': 0.001,
-                    'distribution': 'log_uniform_values'
+                    'values': [1e-4]
                 },
                 'gae_lambda': {
-                    'min': 0.95,
-                    'max': 0.99,
-                    'distribution': 'uniform'
+                    'values': [0.95]
                 },
                 'update_freq': {
-                    'values': [64, 128] #, 1024, 2048]
+                    'values': [1024] #, 1024, 2048]
                 },
                 'gamma': {
-                    'min': 0.98,
-                    'max': 0.995,
-                    'distribution': 'uniform'
+                    'values': [0.99]
                 },
                 'K_epochs': {
                     'values': [4] #, 8]
@@ -112,14 +106,14 @@ class HyperParameterTuner:
                 #     'distribution': 'uniform'
                 # },
                 'batch_size': {
-                    'values': [8, 16]
+                    'values': [16, 32, 64]
                 },
                 # policy:
                 'model_type': {
                     'values': ['mlp']
                 },
                 'size': {
-                    'values': ['small', 'medium']
+                    'values': ['medium']
                 },
                 'activation': {
                     'values': ["tanh", "relu"]

@@ -758,9 +758,12 @@ class ControlEnv(gym.Env):
             if int_action == 1:
                 int_vehicle_phase_group = 4
                 vehicle_phase_string = self.int_tl_phase_groups[int_vehicle_phase_group][current_action_step]
-            else:
+            elif int_action == 0:
                 int_vehicle_phase_group = 5
                 vehicle_phase_string = self.int_tl_phase_groups[int_vehicle_phase_group][current_action_step]
+            else: # coming from dedicated left turn (keep as is)
+                int_vehicle_phase_group = int_action
+                vehicle_phase_string = self.int_tl_phase_groups[int_vehicle_phase_group]
 
         current_phase.append(int_vehicle_phase_group)
         pedestrian_phase_abcd = self.int_crosswalk_phase_groups[int_action]

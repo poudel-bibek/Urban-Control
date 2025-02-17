@@ -1,27 +1,27 @@
-***Starting server on port 46863 ***
-Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (29ms).
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_2.xml'
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_2.xml'
+***Starting server on port 36217 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (18ms).
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_0.xml'
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_0.xml'
 Loading done.
 Simulation started with time: 0.00.
-Simulation ended at time: 560.00.
+Simulation ended at time: 510.00.
 Reason: TraCI requested termination.
 Performance:
- Duration: 196.13s
- TraCI-Duration: 173.94s
- Real time factor: 2.85529
- UPS: 77.062312
- UPS-Persons: 914.356514
+ Duration: 311.73s
+ TraCI-Duration: 87.27s
+ Real time factor: 1.63604
+ UPS: 29.435918
+ UPS-Persons: 404.176077
 Vehicles:
- Inserted: 90 (Loaded: 98)
- Running: 27
+ Inserted: 45 (Loaded: 56)
+ Running: 22
  Waiting: 0
 Persons:
- Inserted: 1017
- Running: 479
-DijkstraRouter answered 16739 queries and explored 5.67 edges on average.
-DijkstraRouter spent 0.02s answering queries (0.00ms on average).
-DijkstraRouter answered 948 queries and explored 475.81 edges on average.
-DijkstraRouter spent 0.06s answering queries (0.06ms on average).
-DijkstraRouter answered 91 queries and explored 58.13 edges on average.
-DijkstraRouter spent 0.01s answering queries (0.05ms on average).
+ Inserted: 844
+ Running: 370
+DijkstraRouter answered 9230 queries and explored 5.11 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.00ms on average).
+DijkstraRouter answered 701 queries and explored 478.30 edges on average.
+DijkstraRouter spent 0.03s answering queries (0.04ms on average).
+DijkstraRouter answered 45 queries and explored 57.67 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.02ms on average).
