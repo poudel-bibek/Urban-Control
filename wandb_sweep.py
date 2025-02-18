@@ -106,7 +106,7 @@ class HyperParameterTuner:
                 #     'distribution': 'uniform'
                 # },
                 'batch_size': {
-                    'values': [32, 64]
+                    'values': [64]
                 },
                 # policy:
                 'model_type': {

@@ -26,7 +26,7 @@ def get_config():
         "seed": None,  # Random seed (default: None)
         "gpu": True,  # Use GPU if available (default: use CPU)
         "total_timesteps": 10000000,  # Total number of timesteps the simulation will run
-        "max_timesteps": 400,  # Maximum number of steps in one episode (make this multiple of 16*10)
+        "max_timesteps": 750,  # Maximum number of steps in one episode (make this multiple of 16*10)
         "total_sweep_trials": 128,  # Total number of trials for the wandb sweep
         "memory_transfer_freq": 16,  # Frequency of memory transfer from worker to main process 
         "per_timestep_state_dim": 96,  # Number of features per timestep
@@ -35,7 +35,7 @@ def get_config():
         # PPO
         "anneal_lr": True,  # Anneal learning rate
         "gae_lambda": 0.96,  # GAE lambda
-        "max_grad_norm": 1.0,  # Maximum gradient norm for gradient clipping
+        "max_grad_norm": 0.5,  # Maximum gradient norm for gradient clipping
         "vf_clip_param": 1.0,  # Value function clipping parameter
         "update_freq": 1024,  # Number of action timesteps between each policy update
         "lr": 1e-4,  # Learning rate
@@ -65,7 +65,7 @@ def get_config():
         "evaluate": False,  
         "eval_model_path": "./Best_models/Feb16_13-09-44/best_eval_policy.pth",  # Path to the saved PPO model for evaluation
         "eval_save_dir": None,
-        "eval_n_timesteps": 400,  # Number of timesteps to each episode. Warmup not counted.
+        "eval_n_timesteps": 750,  # Number of timesteps to each episode. Warmup not counted.
         "eval_n_workers": 8,  # Parallelizes how many demands can be evaluated at the same time.
         "eval_worker_device": "gpu",  # Policy during eval can be run in GPU 
     }
