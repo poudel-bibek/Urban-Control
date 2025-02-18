@@ -45,14 +45,14 @@ def get_config():
         "save_freq": 5,  # Save model after every n updates (0 to disable). Also decided how often to evaluate
         "ent_coef": 0.001,  # Entropy coefficient
         "vf_coef": 0.65,  # Value function coefficient
-        "batch_size": 32,  # Batch size
+        "batch_size": 64,  # Batch size
         "num_processes": 1,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.25,  # Dropout rate for CNN
         "action_dim": 7 + 4,  # 7 + 4 for simple action. Number of action logits (not the same as number of actions. think)
         "in_channels": 1, # in_channels for cnn
-        "activation": "leakyrelu",  # Policy activation function
+        "activation": "relu",  # Policy activation function
 
         # PPO reward weights
         "l1": -0.20,  # intersection vehicle
@@ -62,11 +62,11 @@ def get_config():
         "l5": -0.1,  # switch penalty weight
 
         # Evaluation
-        "evaluate": False,  
-        "eval_model_path": "./Best_models/Feb16_13-09-44/best_eval_policy.pth",  # Path to the saved PPO model for evaluation
+        "evaluate": True,  
+        "eval_model_path": "./Best_models/Feb17_17-36-27/best_eval_policy.pth",  # Path to the saved PPO model for evaluation
         "eval_save_dir": None,
         "eval_n_timesteps": 750,  # Number of timesteps to each episode. Warmup not counted.
-        "eval_n_workers": 8,  # Parallelizes how many demands can be evaluated at the same time.
+        "eval_n_workers": 10,  # Parallelizes how many demands can be evaluated at the same time.
         "eval_worker_device": "gpu",  # Policy during eval can be run in GPU 
     }
     return config

@@ -1480,9 +1480,9 @@ class ControlEnv(gym.Env):
             self.sumo_running = False
 
     # Eval specific methods
-    def get_vehicle_waiting_time(self):
+    def get_vehicle_waiting_time(self,):
         """
-        Returns the incremental waiting time for vehicles at the current simulation step.
+        The cumulative incremental wait time for all vehicles.
         Instead of summing the cumulative waiting time each step, we add only the difference since the last call.
         """
         incremental_wait = 0.0
@@ -1502,7 +1502,7 @@ class ControlEnv(gym.Env):
 
     def get_pedestrian_waiting_time(self):
         """
-        Returns the incremental waiting time for pedestrians at the current simulation step.
+        The cumulative incremental wait time for all pedestrians.
         Only the increase in waiting time since the last call is accumulated.
         """
         incremental_wait = 0.0
