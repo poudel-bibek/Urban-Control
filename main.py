@@ -398,6 +398,8 @@ def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl=False, unsigna
                 veh_unique_ids_this_episode, ped_unique_ids_this_episode = env.total_unique_ids()
 
         # gather performance metrics
+        worker_result[i]['total_veh_waiting_time'] = veh_waiting_time_this_episode
+        worker_result[i]['total_ped_waiting_time'] = ped_waiting_time_this_episode
         worker_result[i]['veh_avg_waiting_time'] = veh_waiting_time_this_episode / veh_unique_ids_this_episode
         worker_result[i]['ped_avg_waiting_time'] = ped_waiting_time_this_episode / ped_unique_ids_this_episode
 
@@ -506,6 +508,12 @@ def main(config):
                                   tl_results_path,
                                   ppo_results_path,
                                   in_range_demand_scales = eval_args['in_range_demand_scales'])
+        
+        plot_consolidated_results(#unsignalized_results_path, 
+                                  tl_results_path,
+                                  ppo_results_path,
+                                  in_range_demand_scales = eval_args['in_range_demand_scales'],
+                                  total=True)
 
     elif config['sweep']:
         tuner = HyperParameterTuner(config, train)

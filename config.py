@@ -4,8 +4,8 @@ def get_config():
     """
     config = {
         # Simulation
-        "sweep": True,  # Use wandb sweeps for hyperparameter tuning
-        "gui": False,  # Use SUMO GUI (default: False)
+        "sweep": False,  # Use wandb sweeps for hyperparameter tuning
+        "gui": True,  # Use SUMO GUI (default: False)
         "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
         "action_duration": 10,  # Duration of each action (default: 10.0)
         "warmup_steps": [100, 250],  # Number of steps to run before collecting data
@@ -46,7 +46,7 @@ def get_config():
         "ent_coef": 0.001,  # Entropy coefficient
         "vf_coef": 0.65,  # Value function coefficient
         "batch_size": 32,  # Batch size
-        "num_processes": 24,  # Number of parallel processes to use (agent has multiple workers)
+        "num_processes": 1,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.25,  # Dropout rate for CNN

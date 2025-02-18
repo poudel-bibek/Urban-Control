@@ -225,14 +225,14 @@ def plot_gradient_line(ax, x, y, cmap_name, label, lw, zorder):
                     markerfacecolor=color, markeredgecolor='k', label=label)
     return handle
 
-def plot_consolidated_results(*result_json_paths, in_range_demand_scales):
+def plot_consolidated_results(*result_json_paths, in_range_demand_scales, total=False):
     """
     Plot consolidated results for both TL and PPO.
     There are two subplots:
-      • Left: Vehicle average waiting times
-      • Right: Pedestrian average waiting times
+      • Left: Vehicle waiting times (average or total)
+      • Right: Pedestrian waiting times (average or total)
     For each subplot, the x-axis shows the actual demand (scale × original demand)
-    and the y-axis shows the average waiting time.
+    and the y-axis shows the waiting time.
     Dotted shading indicates regions outside the valid (in-range) demand area.
     """
     # Original demand values.
@@ -248,9 +248,9 @@ def plot_consolidated_results(*result_json_paths, in_range_demand_scales):
 
     results = []
     for json_path in result_json_paths:
-        # get_averages() should return: scales, veh_avg, ped_avg
-        scales, veh_avg, ped_avg = get_averages(json_path)
-        results.append({'scales': scales, 'veh_avg': veh_avg, 'ped_avg': ped_avg})
+        # get_averages() should return: scales, veh_time, ped_time
+        scales, veh_time, ped_time = get_averages(json_path, total=total)
+        results.append({'scales': scales, 'veh_time': veh_time, 'ped_time': ped_time})
     
     # Use the scales from the first JSON as a reference for ticks.
     sorted_scales = results[0]['scales']
@@ -268,20 +268,22 @@ def plot_consolidated_results(*result_json_paths, in_range_demand_scales):
     handles_ped = []
     for i, res in enumerate(results):
         cmap = default_cmaps[i] if i < len(default_cmaps) else None  # Use None if we run out of defaults.
-        handle_v = plot_gradient_line(ax1, res['veh_x'], res['veh_avg'], cmap_name=cmap,
+        handle_v = plot_gradient_line(ax1, res['veh_x'], res['veh_time'], cmap_name=cmap,
                                       label=labels[i], lw=2, zorder=2)
-        handle_p = plot_gradient_line(ax2, res['ped_x'], res['ped_avg'], cmap_name=cmap,
+        handle_p = plot_gradient_line(ax2, res['ped_x'], res['ped_time'], cmap_name=cmap,
                                       label=labels[i], lw=2, zorder=2)
         handles_vehicle.append(handle_v)
         handles_ped.append(handle_p)
 
-    # Set subplot titles and axis labels.
+    # Set subplot titles and axis labels
+    time_type_veh = "Total vehicle wait time" if total else "Average wait time per vehicle"
+    time_type_ped = "Total pedestrian wait time" if total else "Average wait time per pedestrian"
     ax1.set_title("Vehicle", fontweight="bold")
     ax2.set_title("Pedestrian", fontweight="bold")
     ax1.set_xlabel("Vehicle demand (veh/hr)")
-    ax1.set_ylabel("Average waiting time (s)")
+    ax1.set_ylabel(f"{time_type_veh} (s)")
     ax2.set_xlabel("Pedestrian demand (ped/hr)")
-    ax2.set_ylabel("Average waiting time (s)")
+    ax2.set_ylabel(f"{time_type_ped} (s)")
 
     # Determine the overall x-axis limits across all methods.
     veh_x_min = min(res['veh_x'].min() for res in results)
@@ -354,39 +356,43 @@ def plot_consolidated_results(*result_json_paths, in_range_demand_scales):
     ax2.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x:.1f}"))
 
     plt.tight_layout()
-    plt.savefig("consolidated_results.pdf", dpi=300)
+    plt.savefig(f"consolidated_results_{'total' if total else 'avg'}.pdf", dpi=300)
     plt.show()
 
-def get_averages(result_json_path):
+def get_averages(result_json_path, total=False):
     """
     Helper function that reads a JSON file with results and returns the scales and the
-    average waiting times for vehicles and pedestrians.
+    waiting times (total or average) for vehicles and pedestrians.
     """
     with open(result_json_path, 'r') as f:
         results = json.load(f)
 
-    scales, veh_avg, ped_avg = [], [], []
+    scales, veh_time, ped_time = [], [], []
     for scale_str, runs in results.items():
         scale = float(scale_str)
         scales.append(scale)
         veh_vals = []
         ped_vals = []
         for run in runs.values():
-            veh_vals.append(run["veh_avg_waiting_time"])
-            ped_vals.append(run["ped_avg_waiting_time"])
-        veh_avg.append(np.mean(veh_vals))
-        ped_avg.append(np.mean(ped_vals))
+            if total:
+                veh_vals.append(run["total_veh_waiting_time"])
+                ped_vals.append(run["total_ped_waiting_time"])
+            else:
+                veh_vals.append(run["veh_avg_waiting_time"])
+                ped_vals.append(run["ped_avg_waiting_time"])
+        veh_time.append(np.mean(veh_vals))
+        ped_time.append(np.mean(ped_vals))
 
     scales = np.array(scales)
-    veh_avg = np.array(veh_avg)
-    ped_avg = np.array(ped_avg)
+    veh_time = np.array(veh_time)
+    ped_time = np.array(ped_time)
 
     sort_idx = np.argsort(scales)
     sorted_scales = scales[sort_idx]
-    veh_avg = veh_avg[sort_idx]
-    ped_avg = ped_avg[sort_idx]
+    veh_time = veh_time[sort_idx]
+    ped_time = ped_time[sort_idx]
 
-    return sorted_scales, veh_avg, ped_avg
+    return sorted_scales, veh_time, ped_time
 
 def plot_sampled_actions(actions_json):
     """
