@@ -424,7 +424,7 @@ def plot_individual_results(*result_json_paths, in_range_demand_scales, total=Fa
     ax2.set_ylim(ax2_ymin, ax2_ymax)
 
     # Save with bbox_inches to ensure legend is included in saved file
-    plt.savefig(f"individual_results_{'total' if total else 'avg'}.pdf", 
+    plt.savefig(f"./results/individual_results_{'total' if total else 'avg'}.pdf", 
                 dpi=300, 
                 bbox_inches='tight')
     plt.show()
@@ -539,7 +539,7 @@ def plot_avg_consecutive_ones(file_path):
     ax.spines['right'].set_visible(False)
 
     plt.tight_layout()
-    plt.savefig("sampled_actions.pdf", dpi=300)
+    plt.savefig("./results/sampled_actions.pdf", dpi=300)
     plt.show()
 
 # Plot samples 1's
@@ -561,7 +561,7 @@ def plot_avg_consecutive_ones(file_path):
 #                             in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25],
 #                             total=True)
 
-def plot_consolidated_results(*json_paths, in_range_demand_scales, save_path=None, show_scales=True):
+def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=True):
     """
     Plot consolidated results from multiple JSON files into a single figure with 4 subplots.
     """
@@ -795,7 +795,7 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, save_path=Non
     # Adjust subplot spacing
     plt.tight_layout()
     plt.subplots_adjust(left=0.1, right=0.95, bottom=0.15, wspace=0.25)
-    plt.savefig("./consolidated_results.pdf", bbox_inches='tight', dpi=300)
+    plt.savefig("./results/consolidated_results.pdf", bbox_inches='tight', dpi=300)
     plt.show()
     plt.close()
 

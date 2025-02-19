@@ -537,6 +537,9 @@ def main(config):
         os.makedirs(f'./results/eval_{current_time}', exist_ok=True)
         eval_args['eval_save_dir'] = os.path.join('results', f'eval_{current_time}')
 
+        dummy_env = ControlEnv(control_args, worker_id=None)
+        eval_args['state_dim'] = dummy_env.observation_space.shape
+        
         ppo_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= False)
         tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized=False) # supply a policy (wont be used for TL)
         unsignalized_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized=True)
