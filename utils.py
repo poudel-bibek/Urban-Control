@@ -801,9 +801,9 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, save_path=Non
 
 
 # unsignalized_results_path = "./results/eval_Feb17_08-17-07/eval_Feb16_13-09-44_unsignalized.json"
-tl_results_path = "./results/eval_Feb18_16-13-39/eval_Feb17_17-36-27_tl.json"
-ppo_results_path = "./results/eval_Feb18_16-13-39/eval_Feb17_17-36-27_ppo.json"
+# tl_results_path = "./results/eval_Feb18_16-13-39/eval_Feb17_17-36-27_tl.json"
+# ppo_results_path = "./results/eval_Feb18_16-13-39/eval_Feb17_17-36-27_ppo.json"
 
-plot_consolidated_results(tl_results_path, 
-                         ppo_results_path,
-                         in_range_demand_scales=[1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
+# plot_consolidated_results(tl_results_path, 
+#                          ppo_results_path,
+#                          in_range_demand_scales=[1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
