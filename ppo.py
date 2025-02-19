@@ -41,6 +41,15 @@ class WelfordNormalizer:
         self.count = mp.Value('i', 0) # A variable i that is shared between processe and is init to 0.
         self.eps = eps
         self.lock = mp.Lock()
+        self.training = True # Only update the normalizer when training is True.
+
+    def eval(self,):
+        self.training = False
+
+    def manual_load(self, mean, M2, count):
+        self.mean.copy_(mean)
+        self.M2.copy_(M2)
+        self.count.value = count
 
     def update(self, x):
         """
@@ -77,7 +86,8 @@ class WelfordNormalizer:
         - update (bool): If True, update the running statistics with x.
         - Returns the normalized sample.
         """
-        self.update(x)
+        if self.training:
+            self.update(x)
         return (x - self.mean) / self.std()
     
 class PPO:

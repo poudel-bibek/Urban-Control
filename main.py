@@ -94,6 +94,30 @@ def save_config(config, save_path):
     with open(save_path, 'w') as f:
         json.dump(config_to_save, f, indent=4)
 
+def save_policy(policy, normalizer, save_path):  
+    """
+    Save policy state dict and welford normalizer stats.
+    """
+    torch.save({  
+        'policy_state_dict': policy.state_dict(),  
+        'state_normalizer_mean': normalizer.mean.numpy(),  
+        'state_normalizer_M2': normalizer.M2.numpy(),  
+        'state_normalizer_count': normalizer.count.value  
+    }, save_path)
+
+def load_policy(policy, normalizer, load_path):
+    """
+    Load policy state dict and welford normalizer stats.
+    """
+    checkpoint = torch.load(load_path)
+    # In place operations
+    policy.load_state_dict(checkpoint['policy_state_dict'])
+    normalizer.manual_load(
+        mean=torch.from_numpy(checkpoint['state_normalizer_mean']),  
+        M2=torch.from_numpy(checkpoint['state_normalizer_M2']),  
+        count=checkpoint['state_normalizer_count']
+    )
+
 def train(train_config, is_sweep=False, sweep_config=None):
     """
     High level training orchestration.
@@ -133,7 +157,9 @@ def train(train_config, is_sweep=False, sweep_config=None):
     print(f"\tOptions per action dimension: {dummy_env.action_space.nvec}")
 
     # use the dummy env shapes to init normalizers
-    shared_state_normalizer = WelfordNormalizer(dummy_env.observation_space.shape)
+    obs_shape = dummy_env.observation_space.shape
+    eval_args['state_dim'] = obs_shape
+    shared_state_normalizer = WelfordNormalizer(obs_shape)
     shared_reward_normalizer = WelfordNormalizer(1)
     dummy_env.close()
 
@@ -258,7 +284,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     # Save (and evaluate the latest policy) every save_freq updates
                     if update_count % control_args['save_freq'] == 0:
                         latest_policy_path = os.path.join(control_args['save_dir'], f'policy_at_step_{global_step}.pth')
-                        torch.save(control_ppo.policy.state_dict(), latest_policy_path)
+                        save_policy(control_ppo.policy, shared_state_normalizer, latest_policy_path)
                     
                         print(f"Evaluating policy: {latest_policy_path} at step {global_step}")
                         eval_json = eval(control_args_worker, ppo_args, eval_args, policy_path=latest_policy_path, tl= False) # which policy to evaluate?
@@ -270,13 +296,13 @@ def train(train_config, is_sweep=False, sweep_config=None):
 
                     # Save best policies 
                     if avg_reward > best_reward:
-                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], 'best_reward_policy.pth'))
+                        save_policy(control_ppo.policy, shared_state_normalizer, os.path.join(control_args['save_dir'], 'best_reward_policy.pth'))
                         best_reward = avg_reward
                     if loss['total_loss'] < best_loss:
-                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], 'best_loss_policy.pth'))
+                        save_policy(control_ppo.policy, shared_state_normalizer, os.path.join(control_args['save_dir'], 'best_loss_policy.pth'))
                         best_loss = loss['total_loss']
                     if avg_eval < best_eval:
-                        torch.save(control_ppo.policy.state_dict(), os.path.join(control_args['save_dir'], 'best_eval_policy.pth'))
+                        save_policy(control_ppo.policy, shared_state_normalizer, os.path.join(control_args['save_dir'], 'best_eval_policy.pth'))
                         best_eval = avg_eval
 
                     # logging
@@ -308,6 +334,11 @@ def train(train_config, is_sweep=False, sweep_config=None):
                         writer.add_scalar('Evaluation/Ped_Avg_Wait', eval_ped_avg_wait, global_step)
                         writer.add_scalar('Evaluation/Avg_Eval', avg_eval, global_step)
                     print(f"\nLogged data at step {global_step}\n")
+
+                    # At the end of update, save normalizer stats
+                    state_normalizer_mean = shared_state_normalizer.mean.numpy()  
+                    state_normalizer_M2 = shared_state_normalizer.M2.numpy()  
+                    state_normalizer_count = shared_state_normalizer.count.value  
 
         # Clean up. The join() method ensures that the main program waits for all processes to complete before continuing.
         for p in train_processes:
@@ -372,7 +403,8 @@ def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl=False, unsigna
             torch.cuda.manual_seed_all(SEED)
 
         worker_result[i]['SEED'] = SEED
-
+        worker_device = eval_worker_config['worker_device']
+        shared_eval_normalizer = eval_worker_config['shared_eval_normalizer']
         # Run the worker (reset includes warmup)
         state, _ = env.reset(tl = tl)
         veh_waiting_time_this_episode = 0
@@ -382,8 +414,10 @@ def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl=False, unsigna
 
         with torch.no_grad():
             for _ in range(eval_worker_config['total_action_timesteps_per_episode']):
-            
-                state = torch.FloatTensor(state).to(eval_worker_config['worker_device'])
+                state = torch.FloatTensor(state)
+                state = shared_eval_normalizer.normalize(state)
+                state = state.to(worker_device)
+
                 action, _ = shared_policy.act(state)
                 action = action.detach().cpu() # sim runs in CPU
                 state, reward, done, truncated, _ = env.eval_step(action, tl, unsignalized=unsignalized)
@@ -422,7 +456,9 @@ def eval(control_args, ppo_args, eval_args, policy_path, tl=False, unsignalized=
     all_results = {}
 
     eval_ppo = PPO(**ppo_args)
-    eval_ppo.policy.load_state_dict(torch.load(policy_path))
+    shared_eval_normalizer = WelfordNormalizer(eval_args['state_dim'])
+    shared_eval_normalizer.eval()
+    load_policy(eval_ppo.policy, shared_eval_normalizer, policy_path)
     shared_policy = eval_ppo.policy.to(eval_device)
     shared_policy.share_memory()
 
@@ -447,6 +483,7 @@ def eval(control_args, ppo_args, eval_args, policy_path, tl=False, unsignalized=
                 'shared_policy': shared_policy,
                 'control_args': control_args,
                 'worker_device': eval_device,
+                'shared_eval_normalizer': shared_eval_normalizer
             }
             p = mp.Process(
                 target=parallel_eval_worker,

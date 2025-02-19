@@ -148,6 +148,7 @@ def classify_and_return_args(train_config, device):
         out_of_range_demand_scales = [0.5, 0.75, 2.5, 2.75] # The demand scales that are used ONLY for evaluation.
     
     eval_args = {
+        'state_dim': None,
         'eval_model_path': train_config['eval_model_path'],
         'eval_save_dir': train_config['eval_save_dir'],
         'eval_n_timesteps': train_config['eval_n_timesteps'],

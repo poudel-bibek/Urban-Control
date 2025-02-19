@@ -1,0 +1,28 @@
+***Starting server on port 35177 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (15ms).
+Loading done.
+Simulation started with time: 0.00.
+Error: Could not load '/home/bibek/Desktop/Urban-Control/SUMO_files/Images/Google_earth_craver.jpg'.
+Loading failed!
+Simulation ended at time: 860.00
+Reason: TraCI requested termination.
+Performance: 
+ Duration: 715.46s
+ TraCI-Duration: 658.33s
+ Real time factor: 1.20202
+ UPS: 33.459405
+ UPS-Persons: 451.314112
+Vehicles: 
+ Inserted: 135 (Loaded: 161)
+ Running: 24
+ Waiting: 0
+Persons: 
+ Inserted: 1705
+ Running: 465
+
+DijkstraRouter answered 29302 queries and explored 5.63 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.00ms on average).
+DijkstraRouter answered 1438 queries and explored 479.84 edges on average.
+DijkstraRouter spent 0.07s answering queries (0.05ms on average).
+DijkstraRouter answered 135 queries and explored 58.77 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.00ms on average).
