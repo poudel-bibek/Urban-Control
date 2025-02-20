@@ -4,8 +4,8 @@ def get_config():
     """
     config = {
         # Simulation
-        "sweep": True,  # Use wandb sweeps for hyperparameter tuning
-        "gui": False,  # Use SUMO GUI (default: False)
+        "sweep": False,  # Use wandb sweeps for hyperparameter tuning
+        "gui": True,  # Use SUMO GUI (default: False)
         "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
         "action_duration": 10,  # Duration of each action (default: 10.0)
         "warmup_steps": [100, 250],  # Number of steps to run before collecting data
@@ -52,7 +52,7 @@ def get_config():
         "dropout_rate": 0.25,  # Dropout rate for CNN
         "action_dim": 7 + 4,  # 7 + 4 for simple action. Number of action logits (not the same as number of actions. think)
         "in_channels": 1, # in_channels for cnn
-        "activation": "relu",  # Policy activation function
+        "activation": "tanh",  # Policy activation function
 
         # PPO reward weights
         "l1": -0.20,  # intersection vehicle
@@ -62,8 +62,8 @@ def get_config():
         "l5": -0.1,  # switch penalty weight
 
         # Evaluation
-        "evaluate": False,  
-        "eval_model_path": "./Best_models/Feb18_18-38-41/best_eval_policy.pth",  # Path to the saved PPO model for evaluation
+        "evaluate": True,  
+        "eval_model_path": "./Best_models/Feb19_18-26-49/best_eval_policy.pth",  # Path to the saved PPO model for evaluation
         "eval_save_dir": None,
         "eval_n_timesteps": 750,  # Number of timesteps to each episode. Warmup not counted.
         "eval_n_workers": 10,  # Parallelizes how many demands can be evaluated at the same time.
@@ -138,7 +138,7 @@ def classify_and_return_args(train_config, device):
     
     if train_config['evaluate']:
         # during evaluation
-        eval_n_iterations = 5
+        eval_n_iterations = 10
         in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25] 
         out_of_range_demand_scales = [0.5, 0.75, 2.5, 2.75]
     else: 

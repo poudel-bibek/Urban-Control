@@ -680,8 +680,8 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
     ax_veh_avg.set_title('Vehicle', fontweight='bold', fontsize=fs)
     
     # Set y-axis labels with consistent alignment
-    fig.text(0.029, 0.74, 'Average Wait Time (s)', va='center', rotation='vertical', fontsize=fs-2)
-    fig.text(0.029, 0.32, 'Total Wait Time (×10³ s)', va='center', rotation='vertical', fontsize=fs-2)
+    fig.text(0.039, 0.74, 'Average Wait Time (s)', va='center', rotation='vertical', fontsize=fs-2)
+    fig.text(0.039, 0.32, 'Total Wait Time (×10³ s)', va='center', rotation='vertical', fontsize=fs-2)
     
     # Right side (Vehicle)
     fig.text(0.50, 0.74, 'Average Wait Time (s)', va='center', rotation='vertical', fontsize=fs-2)
@@ -782,7 +782,7 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
     # Legend with consistent font size
     leg = fig.legend(legend_handles, legend_labels, 
                     loc='center', 
-                    bbox_to_anchor=(0.5, 0.06),
+                    bbox_to_anchor=(0.5, 0.04),
                     ncol=len(legend_handles),
                     frameon=True,
                     framealpha=1.0,
@@ -800,10 +800,11 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
     plt.close()
 
 
-# unsignalized_results_path = "./results/eval_Feb17_08-17-07/eval_Feb16_13-09-44_unsignalized.json"
-# tl_results_path = "./results/eval_Feb18_16-13-39/eval_Feb17_17-36-27_tl.json"
-# ppo_results_path = "./results/eval_Feb18_16-13-39/eval_Feb17_17-36-27_ppo.json"
+# unsignalized_results_path = "./results/results_unsignalized.json"
+# tl_results_path = "./results/results_tl.json"
+# ppo_results_path = "./results/eval_Feb19_18-26-49_ppo.json"
 
-# plot_consolidated_results(tl_results_path, 
+# plot_consolidated_results(unsignalized_results_path, 
+#                          tl_results_path, 
 #                          ppo_results_path,
 #                          in_range_demand_scales=[1.0, 1.25, 1.5, 1.75, 2.0, 2.25])

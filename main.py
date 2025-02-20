@@ -541,19 +541,19 @@ def main(config):
         eval_args['state_dim'] = dummy_env.observation_space.shape
         
         ppo_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= False)
-        tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized=False) # supply a policy (wont be used for TL)
-        unsignalized_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized=True)
+        # tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized=False) # supply a policy (wont be used for TL)
+        # unsignalized_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized=True)
 
-        plot_individual_results(unsignalized_results_path, 
-                                  tl_results_path,
-                                  ppo_results_path,
-                                  in_range_demand_scales = eval_args['in_range_demand_scales'])
+        # plot_individual_results(unsignalized_results_path, 
+        #                           tl_results_path,
+        #                           ppo_results_path,
+        #                           in_range_demand_scales = eval_args['in_range_demand_scales'])
         
-        plot_individual_results(unsignalized_results_path, 
-                                  tl_results_path,
-                                  ppo_results_path,
-                                  in_range_demand_scales = eval_args['in_range_demand_scales'],
-                                  total=True)
+        # plot_individual_results(unsignalized_results_path, 
+        #                           tl_results_path,
+        #                           ppo_results_path,
+        #                           in_range_demand_scales = eval_args['in_range_demand_scales'],
+        #                           total=True)
 
     elif config['sweep']:
         tuner = HyperParameterTuner(config, train)
