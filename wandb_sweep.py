@@ -76,11 +76,14 @@ class HyperParameterTuner:
                 },
             'parameters': {
                 'lr': {
-                    'values': [0.01, 1e-4],
-                    'distribution': 'log_uniform_values'
+                    'min': 1e-5,
+                    'max': 0.1,
+                    'distribution': 'uniform'
                 },
                 'gae_lambda': {
-                    'values': [0.94, 0.95, 0.96, 0.97],
+                    'min': 0.94,
+                    'max': 0.97,
+                    'distribution': 'uniform'
                 },
                 'update_freq': {
                     'values': [1024, 2048]
@@ -98,8 +101,8 @@ class HyperParameterTuner:
                 },
                 'ent_coef': {
                     'min': 0.0001,  
-                    'max': 0.01,  
-                    'distribution': 'uniform'
+                    'max': 0.1,  
+                    'distribution': 'log_uniform_values'
                 },
                 'vf_coef': {
                     'min': 0.4,
@@ -107,14 +110,16 @@ class HyperParameterTuner:
                     'distribution': 'uniform'
                 },
                 'vf_clip_param': {
-                    'values': [0.1, 0.2, 0.3, 0.4, 0.5]
+                    'min': 0.1,
+                    'max': 0.5,
+                    'distribution': 'uniform'
                 },
                 'batch_size': {
                     'values': [32, 64, 128]
                 },
                 # policy:
                 'model_type': {
-                    'values': ['mlp', 'cnn']
+                    'values': ['cnn'] # , 'mlp']
                 },
                 'size': {
                     'values': ['medium', 'small']

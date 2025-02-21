@@ -25,8 +25,8 @@ def get_config():
         # PPO (general params)
         "seed": None,  # Random seed (default: None)
         "gpu": True,  # Use GPU if available (default: use CPU)
-        "total_timesteps": 2000000,  # Total number of timesteps the simulation will run
-        "max_timesteps": 750,  # Maximum number of steps in one episode (make this multiple of 16*10)
+        "total_timesteps": 2800000,  # Total number of timesteps the simulation will run
+        "max_timesteps": 600,  # Maximum number of steps in one episode (make this multiple of 16*10)
         "total_sweep_trials": 128,  # Total number of trials for the wandb sweep
         "memory_transfer_freq": 16,  # Frequency of memory transfer from worker to main process 
         "per_timestep_state_dim": 96,  # Number of features per timestep
@@ -65,7 +65,7 @@ def get_config():
         "evaluate": False,  
         "eval_model_path": "./Best_models/Feb19_18-26-49/best_eval_policy.pth",  # Path to the saved PPO model for evaluation
         "eval_save_dir": None,
-        "eval_n_timesteps": 750,  # Number of timesteps to each episode. Warmup not counted.
+        "eval_n_timesteps": 600,  # Number of timesteps to each episode. Warmup not counted.
         "eval_n_workers": 10,  # Parallelizes how many demands can be evaluated at the same time.
         "eval_worker_device": "gpu",  # Policy during eval can be run in GPU 
     }
@@ -143,8 +143,8 @@ def classify_and_return_args(train_config, device):
         out_of_range_demand_scales = [0.5, 0.75, 2.5, 2.75]
     else: 
         # during training
-        eval_n_iterations = 2
-        in_range_demand_scales = [1.0, 1.5, 2.0, 2.25] # The demand scales that are used for training.
+        eval_n_iterations = 3
+        in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25] # The demand scales that are used for training.
         out_of_range_demand_scales = [0.5, 0.75, 2.5, 2.75] # The demand scales that are used ONLY for evaluation.
     
     eval_args = {

@@ -542,25 +542,6 @@ def plot_avg_consecutive_ones(file_path):
     plt.savefig("./results/sampled_actions.pdf", dpi=300)
     plt.show()
 
-# Plot samples 1's
-# sampled_actions_file_path = "./Best_models/Feb18_18-38-41/sampled_actions.json"
-# plot_avg_consecutive_ones(sampled_actions_file_path)
-
-
-###### SEPARATE PLOTS FOR AVERAGE AND TOTAL ######
-# unsignalized_results_path = "./results/eval_Feb17_08-17-07/eval_Feb16_13-09-44_unsignalized.json"
-# tl_results_path = "./results/eval_Feb18_16-13-39/eval_Feb17_17-36-27_tl.json"
-# ppo_results_path = "./results/eval_Feb18_16-13-39/eval_Feb17_17-36-27_ppo.json"
-
-# plot_individual_results(tl_results_path,
-#                             ppo_results_path,
-#                             in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
-
-# plot_individual_results(tl_results_path,
-#                             ppo_results_path,
-#                             in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25],
-#                             total=True)
-
 def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=True):
     """
     Plot consolidated results from multiple JSON files into a single figure with 4 subplots.
@@ -808,3 +789,22 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
 #                          tl_results_path, 
 #                          ppo_results_path,
 #                          in_range_demand_scales=[1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
+
+# Plot samples 1's
+# sampled_actions_file_path = "./Best_models/Feb18_18-38-41/sampled_actions.json"
+# plot_avg_consecutive_ones(sampled_actions_file_path)
+
+
+###### SEPARATE PLOTS FOR AVERAGE AND TOTAL ######
+# unsignalized_results_path = "./results/eval_Feb17_08-17-07/eval_Feb16_13-09-44_unsignalized.json"
+# tl_results_path = "./results/eval_Feb18_16-13-39/eval_Feb17_17-36-27_tl.json"
+# ppo_results_path = "./results/eval_Feb18_16-13-39/eval_Feb17_17-36-27_ppo.json"
+
+# plot_individual_results(tl_results_path,
+#                             ppo_results_path,
+#                             in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
+
+# plot_individual_results(tl_results_path,
+#                             ppo_results_path,
+#                             in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25],
+#                             total=True)

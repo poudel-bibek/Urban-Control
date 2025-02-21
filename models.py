@@ -538,7 +538,6 @@ class MLPActorCritic(nn.Module):
         self.critic_layers = nn.Sequential(*critic_layers)
         self.critic_value = layer_init(nn.Linear(input_size_critic, 1)) # Last layer, no activation
 
-
     def actor(self, state):
         """
         First Flatten the input from 4D (B, C, D, S) to 2D (B, -1)
