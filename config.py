@@ -4,8 +4,8 @@ def get_config():
     """
     config = {
         # Simulation
-        "sweep": False,  # Use wandb sweeps for hyperparameter tuning
-        "gui": True,  # Use SUMO GUI (default: False)
+        "sweep": True,  # Use wandb sweeps for hyperparameter tuning
+        "gui": False,  # Use SUMO GUI (default: False)
         "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
         "action_duration": 10,  # Duration of each action (default: 10.0)
         "warmup_steps": [100, 250],  # Number of steps to run before collecting data
@@ -25,7 +25,7 @@ def get_config():
         # PPO (general params)
         "seed": None,  # Random seed (default: None)
         "gpu": True,  # Use GPU if available (default: use CPU)
-        "total_timesteps": 10000000,  # Total number of timesteps the simulation will run
+        "total_timesteps": 2000000,  # Total number of timesteps the simulation will run
         "max_timesteps": 750,  # Maximum number of steps in one episode (make this multiple of 16*10)
         "total_sweep_trials": 128,  # Total number of trials for the wandb sweep
         "memory_transfer_freq": 16,  # Frequency of memory transfer from worker to main process 
@@ -62,7 +62,7 @@ def get_config():
         "l5": -0.1,  # switch penalty weight
 
         # Evaluation
-        "evaluate": True,  
+        "evaluate": False,  
         "eval_model_path": "./Best_models/Feb19_18-26-49/best_eval_policy.pth",  # Path to the saved PPO model for evaluation
         "eval_save_dir": None,
         "eval_n_timesteps": 750,  # Number of timesteps to each episode. Warmup not counted.

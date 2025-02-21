@@ -76,44 +76,48 @@ class HyperParameterTuner:
                 },
             'parameters': {
                 'lr': {
-                    'values': [1e-4]
+                    'values': [0.01, 1e-4],
+                    'distribution': 'log_uniform_values'
                 },
                 'gae_lambda': {
-                    'values': [0.95]
+                    'values': [0.94, 0.95, 0.96, 0.97],
                 },
                 'update_freq': {
-                    'values': [1024] #, 1024, 2048]
+                    'values': [1024, 2048]
                 },
                 'gamma': {
                     'values': [0.99]
                 },
                 'K_epochs': {
-                    'values': [4] #, 8]
+                    'values': [4, 8]
                 },
-                # 'eps_clip': {
-                #     'min': 0.05,
-                #     'max': 0.30,
-                #     'distribution': 'uniform'
-                # },
-                # 'ent_coef': {
-                #     'min': 0.0001,  
-                #     'max': 0.01,  
-                #     'distribution': 'uniform'
-                # },
-                # 'vf_coef': {
-                #     'min': 0.55,
-                #     'max': 1.0,
-                #     'distribution': 'uniform'
-                # },
+                'eps_clip': {
+                    'min': 0.05,
+                    'max': 0.30,
+                    'distribution': 'uniform'
+                },
+                'ent_coef': {
+                    'min': 0.0001,  
+                    'max': 0.01,  
+                    'distribution': 'uniform'
+                },
+                'vf_coef': {
+                    'min': 0.4,
+                    'max': 1.0,
+                    'distribution': 'uniform'
+                },
+                'vf_clip_param': {
+                    'values': [0.1, 0.2, 0.3, 0.4, 0.5]
+                },
                 'batch_size': {
-                    'values': [64]
+                    'values': [32, 64, 128]
                 },
                 # policy:
                 'model_type': {
-                    'values': ['mlp']
+                    'values': ['mlp', 'cnn']
                 },
                 'size': {
-                    'values': ['medium']
+                    'values': ['medium', 'small']
                 },
                 'activation': {
                     'values': ["tanh", "relu", "leakyrelu"]

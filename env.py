@@ -808,10 +808,10 @@ class ControlEnv(gym.Env):
         """
         # return self._get_pressure_based_reward(pressure_dict, switch_state)
         # return self._get_mwaq_reward(corrected_occupancy_map, switch_state)
-        # return self._get_mwaq_reward_exponential(corrected_occupancy_map, switch_state, print_reward=False)
+        return self._get_mwaq_reward_exponential(corrected_occupancy_map, switch_state, print_reward=False)
         # return self._get_vehicle_wait_time_reward(corrected_occupancy_map)
         # return self._get_mwaq_reward_logistic(corrected_occupancy_map, switch_state, print_reward=False)
-        return self._get_normalized_high_level_reward(corrected_occupancy_map, switch_state, print_reward=False)
+        # return self._get_normalized_high_level_reward(corrected_occupancy_map, switch_state, print_reward=False)
 
     def _get_vehicle_wait_time_reward(self, corrected_occupancy_map):
         """
@@ -1128,7 +1128,7 @@ class ControlEnv(gym.Env):
         # Final reward calculation
         # For the intersection, exponent the current normalized value (for both veh and ped)
         final_int_veh = np.exp(norm_int_veh_mwaq) # Alpha value of 0.5 to reduce sensitivity 
-        final_int_ped = np.exp(norm_int_ped_mwaq)
+        final_int_ped = np.exp(0.75*norm_int_ped_mwaq) # PED scaled down by 0.75 to give more weight to veh
 
         # For the midblock, compute an L2 norm over the vector of normalized values for each TL, then exponentiate (for both veh and ped)
         norm_mb_veh_l2 = np.linalg.norm(np.array(list(norm_mb_veh_mwaq_per_tl.values())))
@@ -1137,7 +1137,7 @@ class ControlEnv(gym.Env):
         # TODO: For Midblock: Can further, effectively "normalize" the L2 aggregation. By dividing ny sqrt(N). Reduce the effect of outliers.
         # Perhaps preserving outliers is beneficial.
         final_mb_veh = np.exp(norm_mb_veh_l2)
-        final_mb_ped = np.exp(norm_mb_ped_l2)
+        final_mb_ped = np.exp(0.75*norm_mb_ped_l2) # PED scaled down by 0.75 to give more weight to veh
 
         # Final reward is the negative sum of the four exponentiated values
         reward = -1 * (final_int_veh + final_int_ped + final_mb_veh + final_mb_ped)
@@ -1299,8 +1299,8 @@ class ControlEnv(gym.Env):
         final_mb_ped = 1.0 + A * (sigmoid(B * avg_norm_mb_ped) - 0.5)
 
         # === Weighted Sum and Final Reward ===
-        weighted_int = w_int * (final_int_veh + final_int_ped)
-        weighted_mb = w_mb * (final_mb_veh + final_mb_ped)
+        weighted_int = w_int * (final_int_veh + 0.75*final_int_ped) # PED scaled down by 0.75 to give more weight to veh
+        weighted_mb = w_mb * (final_mb_veh + 0.75*final_mb_ped)
         weighted_sum = weighted_int + weighted_mb
 
         # Final reward: offset minus the weighted sum (ideal state yields offset; any congestion increases the sum, making reward negative)
@@ -1354,7 +1354,7 @@ class ControlEnv(gym.Env):
         avg_veh_wait = total_veh_wait_time / max(total_veh_waiting_count, 1) # Handle division by zero cases
         avg_ped_wait = total_ped_wait_time / max(total_ped_waiting_count, 1)
         
-        reward = - (avg_veh_wait + avg_ped_wait)
+        reward = - (avg_veh_wait + 0.75*avg_ped_wait) # PED scaled down by 0.75 to give more weight to veh
         # clip the reward
         reward = np.clip(reward, -200, 0)
 

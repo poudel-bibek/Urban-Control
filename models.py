@@ -17,6 +17,233 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
 class CNNActorCritic(nn.Module):
     def __init__(self, in_channels, action_dim, **kwargs):
         """
+        This CNN-based Actor-Critic architecture uses two separate convolutional
+        backbones for the actor and the critic respectively while keeping the head's
+        structure (MLP layers, normalization, and activation) the same.
+
+        The choices:
+          - Small: 3 Conv layers, 3 Linear layers with hidden_dim=128.
+          - Medium: 5 Conv layers, 3 Linear layers with hidden_dim=256.
+
+        Some kwargs:
+            action_duration: height of the 2D input.
+            per_timestep_state_dim: width of the 2D input.
+            model_size: 'small' or 'medium'
+            kernel_size: kernel size for the conv layers.
+            activation: one of ['tanh', 'relu', 'leakyrelu']
+        """
+        super(CNNActorCritic, self).__init__()
+        self.in_channels = in_channels
+        self.action_dim = action_dim 
+        self.action_duration = kwargs.get('action_duration')
+        self.per_timestep_state_dim = kwargs.get('per_timestep_state_dim')
+
+        model_size = kwargs.get('model_size')
+        kernel_size = kwargs.get('kernel_size')
+        padding = kernel_size // 2
+        activation_str = kwargs.get('activation')
+
+        if activation_str == "tanh":
+            activation = nn.Tanh
+        elif activation_str == "relu":
+            activation = nn.ReLU
+        elif activation_str == "leakyrelu":
+            activation = nn.LeakyReLU
+        else:
+            raise ValueError("Unknown activation chosen.")
+
+        # Build separate CNN backbones for actor and critic.
+        if model_size == 'small':
+            self.actor_cnn = nn.Sequential(
+                nn.Conv2d(self.in_channels, 16, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.BatchNorm2d(16),
+                activation(),
+                nn.Conv2d(16, 32, kernel_size=kernel_size, stride=2, padding=padding),
+                nn.BatchNorm2d(32),
+                activation(),
+                nn.Conv2d(32, 64, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.BatchNorm2d(64),
+                activation(),
+                nn.Flatten(),
+            )
+            self.critic_cnn = nn.Sequential(
+                nn.Conv2d(self.in_channels, 16, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.BatchNorm2d(16),
+                activation(),
+                nn.Conv2d(16, 32, kernel_size=kernel_size, stride=2, padding=padding),
+                nn.BatchNorm2d(32),
+                activation(),
+                nn.Conv2d(32, 64, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.BatchNorm2d(64),
+                activation(),
+                nn.Flatten(),
+            )
+            hidden_dim = 128
+
+        else:  # medium
+            self.actor_cnn = nn.Sequential(
+                nn.Conv2d(self.in_channels, 16, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.BatchNorm2d(16),
+                activation(),
+                nn.Conv2d(16, 32, kernel_size=kernel_size, stride=2, padding=padding),
+                nn.BatchNorm2d(32),
+                activation(),
+                nn.Conv2d(32, 64, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.BatchNorm2d(64),
+                activation(),
+                nn.Conv2d(64, 128, kernel_size=kernel_size, stride=2, padding=padding),
+                nn.BatchNorm2d(128),
+                activation(),
+                nn.Conv2d(128, 128, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.BatchNorm2d(128),
+                activation(),
+                nn.Flatten(),
+            )
+            self.critic_cnn = nn.Sequential(
+                nn.Conv2d(self.in_channels, 16, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.BatchNorm2d(16),
+                activation(),
+                nn.Conv2d(16, 32, kernel_size=kernel_size, stride=2, padding=padding),
+                nn.BatchNorm2d(32),
+                activation(),
+                nn.Conv2d(32, 64, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.BatchNorm2d(64),
+                activation(),
+                nn.Conv2d(64, 128, kernel_size=kernel_size, stride=2, padding=padding),
+                nn.BatchNorm2d(128),
+                activation(),
+                nn.Conv2d(128, 128, kernel_size=kernel_size, stride=1, padding=padding),
+                nn.BatchNorm2d(128),
+                activation(),
+                nn.Flatten(),
+            )
+            hidden_dim = 256
+
+        # Calculate CNN output dimensions separately for actor and critic.
+        with torch.no_grad():
+            sample_input = torch.zeros(1, self.in_channels, self.action_duration, self.per_timestep_state_dim)
+            actor_cnn_output_size = self.actor_cnn(sample_input).shape[1]
+            critic_cnn_output_size = self.critic_cnn(sample_input).shape[1]
+
+        # Build the actor head.
+        self.actor_layers = nn.Sequential(
+            layer_init(nn.Linear(actor_cnn_output_size, hidden_dim)),
+            nn.LayerNorm(hidden_dim),
+            activation(),
+            layer_init(nn.Linear(hidden_dim, hidden_dim // 2)),
+            nn.LayerNorm(hidden_dim // 2),
+            activation(),
+            layer_init(nn.Linear(hidden_dim // 2, self.action_dim))
+        )
+        
+        # Build the critic head.
+        self.critic_layers = nn.Sequential(
+            layer_init(nn.Linear(critic_cnn_output_size, hidden_dim)),
+            nn.LayerNorm(hidden_dim),
+            activation(),
+            layer_init(nn.Linear(hidden_dim, hidden_dim // 2)),
+            nn.LayerNorm(hidden_dim // 2),
+            activation(),
+            layer_init(nn.Linear(hidden_dim // 2, 1))
+        )
+
+    def actor(self, state):
+        """
+        Processes the input state through the actor's CNN backbone and MLP head
+        to produce the raw action logits.
+        """
+        features = self.actor_cnn(state)
+        logits = self.actor_layers(features)
+        return logits
+    
+    def critic(self, state):
+        """
+        Processes the input state through the critic's CNN backbone and MLP head
+        to produce the state-value estimate.
+        """
+        if state.ndim == 3:
+            state = state.unsqueeze(0)
+        features = self.critic_cnn(state)
+        return self.critic_layers(features)
+    
+    def act(self, state):
+        """
+        Select an action based on the current state:
+          - The first 4 logits correspond to an intersection (Categorical distribution).
+          - The next 7 logits correspond to midblock signals (Bernoulli distribution).
+        Adjusts the input shape if necessary and returns the combined action and the joint log probability.
+        """
+        # Adjust the state shape if needed.
+        if state.ndim == 2:  # shape: [action_duration, per_timestep_state_dim]
+            state = state.unsqueeze(0).unsqueeze(0)
+        elif state.ndim == 3:  # shape: [batch, action_duration, per_timestep_state_dim]
+            state = state.unsqueeze(1)
+
+        action_logits = self.actor(state)
+        intersection_logits = action_logits[:, :4]  # first 4 logits for intersection choices
+        midblock_logits = action_logits[:, 4:]        # last 7 logits for midblock binary choices
+
+        intersection_dist = Categorical(logits=intersection_logits)
+        intersection_action = intersection_dist.sample()
+
+        midblock_dist = Bernoulli(logits=midblock_logits)
+        midblock_actions = midblock_dist.sample()
+
+        # Combine the outputs; note that squeeze is used to remove any extra dimension.
+        combined_action = torch.cat([intersection_action, midblock_actions.squeeze(0)], dim=0)
+        log_prob = intersection_dist.log_prob(intersection_action) + midblock_dist.log_prob(midblock_actions).sum()
+        return combined_action.int(), log_prob
+
+    def evaluate(self, states, actions):
+        """
+        For a batch of states and already-sampled actions, compute:
+          1. The joint log probability of taking each action.
+          2. The entropy of the actions' distributions (used for exploration regularization).
+          3. The critic's state value estimates.
+        """
+        # Reshape states to [batch, channel, action_duration, per_timestep_state_dim]
+        states = states.unsqueeze(0)
+        states = states.permute(1, 0, 2, 3)
+        action_logits = self.actor(states)
+
+        # Split the logits
+        intersection_logits = action_logits[:, :4]
+        midblock_logits = action_logits[:, 4:]
+
+        intersection_dist = Categorical(logits=intersection_logits)
+        midblock_dist = Bernoulli(logits=midblock_logits)
+
+        # Actions: intersection is the first column, midblock the rest.
+        intersection_action = actions[:, :1].squeeze(1).long()  # Categorical expects long
+        midblock_actions = actions[:, 1:].float()
+
+        intersection_log_probs = intersection_dist.log_prob(intersection_action)
+        midblock_log_probs = midblock_dist.log_prob(midblock_actions)
+        action_log_probs = intersection_log_probs + midblock_log_probs.sum(dim=1)
+
+        total_entropy = intersection_dist.entropy() + midblock_dist.entropy().sum(dim=1)
+
+        state_values = self.critic(states)
+        return action_log_probs, state_values, total_entropy
+
+    def param_count(self):
+        """
+        Returns a dictionary with parameter counts of the actor and critic networks separately.
+        """
+        actor_params = sum(p.numel() for p in self.actor_layers.parameters()) + \
+                       sum(p.numel() for p in self.actor_cnn.parameters())
+        critic_params = sum(p.numel() for p in self.critic_layers.parameters()) + \
+                        sum(p.numel() for p in self.critic_cnn.parameters())
+        
+        return {
+            "actor_total": actor_params,
+            "critic_total": critic_params,
+            "total": actor_params + critic_params
+        }
+    
+class CNNActorCriticShared(nn.Module):
+    def __init__(self, in_channels, action_dim, **kwargs):
+        """
         Model choices: 
             Small: 3 Conv layers, 3 Linear layers
             Medium: 5 Conv layers, 3 Linear layers
@@ -26,7 +253,7 @@ class CNNActorCritic(nn.Module):
         - Using strided convolutions instead of pooling layers
         - Shared CNN backbone useful because "feature extraction" is useful for both actor and critic.
         """
-        super(CNNActorCritic, self).__init__()
+        super(CNNActorCriticShared, self).__init__()
         self.in_channels = in_channels
         self.action_dim = action_dim 
         self.action_duration = kwargs.get('action_duration')
@@ -173,13 +400,11 @@ class CNNActorCritic(nn.Module):
         # print(f"\nIntersection logits: {intersection_logits}")
         # print(f"Midblock logits: {midblock_logits}")
         
-        intersection_probs = torch.softmax(intersection_logits, dim=1)
-        intersection_dist = Categorical(intersection_probs)
+        intersection_dist = Categorical(logits=intersection_logits)
         intersection_action = intersection_dist.sample() # This predicts 0, 1, 2, or 3
         # print(f"Intersection action: {intersection_action}, shape: {intersection_action.shape}")
 
-        midblock_probs = torch.sigmoid(midblock_logits)
-        midblock_dist = Bernoulli(midblock_probs)
+        midblock_dist = Bernoulli(logits=midblock_logits)
         midblock_actions = midblock_dist.sample() # This predicts 0 or 1
         # print(f"Midblock actions: {midblock_actions}, shape: {midblock_actions.shape}")
         
@@ -216,10 +441,8 @@ class CNNActorCritic(nn.Module):
         # print(f"\nIntersection logits: {intersection_logits}")
         # print(f"Midblock logits: {midblock_logits}")
 
-        intersection_probs = torch.softmax(intersection_logits, dim=1)
-        intersection_dist = Categorical(intersection_probs)
-        midblock_probs = torch.sigmoid(midblock_logits)
-        midblock_dist = Bernoulli(midblock_probs)
+        intersection_dist = Categorical(logits=intersection_logits)
+        midblock_dist = Bernoulli(logits=midblock_logits)
 
         # 2. Get log probs
         intersection_action = actions[:, :1].squeeze(1).long()  # (batch_size, 1) # Categorical expects long
@@ -415,5 +638,3 @@ class MLPActorCritic(nn.Module):
             "Critic": critic_params,
             "Total": actor_params + critic_params,
         }
-    
-
