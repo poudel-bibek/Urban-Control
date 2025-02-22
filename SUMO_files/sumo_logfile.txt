@@ -1,0 +1,25 @@
+***Starting server on port 43269 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (18ms).
+Loading done.
+Simulation version 1.20.0 started with time: 0.00.
+Error: tcpip::Socket::recvAndCheck @ recv: Connection reset by peer
+Quitting (on error).
+DijkstraRouter answered 12338 queries and explored 5.05 edges on average.
+DijkstraRouter spent 0.02s answering queries (0.00ms on average).
+DijkstraRouter answered 879 queries and explored 472.65 edges on average.
+DijkstraRouter spent 0.05s answering queries (0.06ms on average).
+DijkstraRouter answered 86 queries and explored 58.58 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.06ms on average).
+ Person '1571' is jammed on edge ':9740411701_w0', time=601.00.
+Warning: Person '2092' is jammed on edge ':9740411701_w0', time=604.00.
+Warning: Person '1459' is jammed on edge ':9740411701_w0', time=604.00.
+Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
+Quitting (on error).
+DijkstraRouter answered 11964 queries and explored 5.03 edges on average.
+DijkstraRouter spent 0.02s answering queries (0.00ms on average).
+DijkstraRouter answered 864 queries and explored 473.96 edges on average.
+DijkstraRouter spent 0.05s answering queries (0.06ms on average).
+DijkstraRouter answered 71 queries and explored 58.48 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.04ms on average).
+straRouter answered 83 queries and explored 58.59 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.06ms on average).

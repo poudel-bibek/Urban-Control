@@ -211,6 +211,7 @@ def train(train_config, is_sweep=False, sweep_config=None):
         
         old_policy = control_ppo.policy_old.to(device)
         old_policy.share_memory() # Dont pickle separate policy_old for each worker. Despite this, the old policy is still stale.
+        old_policy.eval() # So that dropout, batnorm, laternote etc. are not used during inference
 
         #print(f"Shared policy weights: {control_ppo.policy_old.state_dict()}")
         train_queue = mp.Queue()
@@ -461,7 +462,8 @@ def eval(control_args, ppo_args, eval_args, policy_path, tl=False, unsignalized=
     load_policy(eval_ppo.policy, shared_eval_normalizer, policy_path)
     shared_policy = eval_ppo.policy.to(eval_device)
     shared_policy.share_memory()
-
+    shared_policy.eval()
+    
     # number of times the n_workers have to be repeated to cover all eval demands
     num_times_workers_recycle = len(eval_demand_scales) if len(eval_demand_scales) < n_workers else (len(eval_demand_scales) // n_workers) + 1
     for i in range(num_times_workers_recycle):
