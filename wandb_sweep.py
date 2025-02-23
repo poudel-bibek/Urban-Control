@@ -76,53 +76,41 @@ class HyperParameterTuner:
                 },
             'parameters': {
                 'lr': {
-                    'min': 1e-5,
-                    'max': 0.1,
-                    'distribution': 'uniform'
+                    'values': [1e-4]
                 },
                 'gae_lambda': {
-                    'min': 0.94,
-                    'max': 0.97,
-                    'distribution': 'uniform'
+                    'values': [0.95, 0.97]
                 },
                 'update_freq': {
-                    'values': [1024, 2048]
+                    'values': [1024]
                 },
                 'gamma': {
                     'values': [0.99]
                 },
                 'K_epochs': {
-                    'values': [4, 8]
+                    'values': [4]
                 },
                 'eps_clip': {
-                    'min': 0.05,
-                    'max': 0.30,
-                    'distribution': 'uniform'
+                    'values': [0.2]
                 },
                 'ent_coef': {
-                    'min': 0.0001,  
-                    'max': 0.1,  
-                    'distribution': 'log_uniform_values'
+                    'values': [0.01]
                 },
                 'vf_coef': {
-                    'min': 0.4,
-                    'max': 1.0,
-                    'distribution': 'uniform'
+                    'values': [0.5]
                 },
                 'vf_clip_param': {
-                    'min': 0.1,
-                    'max': 0.5,
-                    'distribution': 'uniform'
+                    'values': [0.5]
                 },
                 'batch_size': {
-                    'values': [32, 64, 128]
+                    'values': [32, 64]
                 },
                 # policy:
                 'model_type': {
                     'values': ['mlp']
                 },
                 'size': {
-                    'values': ['medium', 'small']
+                    'values': ['medium']
                 },
                 'activation': {
                     'values': ["tanh", "relu", "leakyrelu"]

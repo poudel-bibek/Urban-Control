@@ -1033,7 +1033,7 @@ class ControlEnv(gym.Env):
 
         # TODO: Should we consider vicinity for pedestrians as well?
         """
-        MWAQ_VEH_NORMALIZER = 8.0
+        MWAQ_VEH_NORMALIZER = 7.0
         MWAQ_PED_NORMALIZER = 10.0
         VEH_THRESHOLD_SPEED = 0.2 # m/s
         PED_THRESHOLD_SPEED = 0.5 # m/s # 0.1 is the threshold in SUMO by default (i.e. wait time is counted when speed is below 0.1 m/s)

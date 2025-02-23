@@ -35,15 +35,15 @@ def get_config():
         # PPO
         "anneal_lr": True,  # Anneal learning rate
         "gae_lambda": 0.95,  # GAE lambda
-        "max_grad_norm": 0.5,  # Maximum gradient norm for gradient clipping
+        "max_grad_norm": 0.75,  # Maximum gradient norm for gradient clipping
         "vf_clip_param": 0.5,  # Value function clipping parameter
         "update_freq": 1024,  # Number of action timesteps between each policy update
         "lr": 1e-4,  # Learning rate
-        "gamma": 0.96,  # Discount factor
+        "gamma": 0.99,  # Discount factor
         "K_epochs": 4,  # Number of epochs to update policy
         "eps_clip": 0.2,  # Clip parameter for PPO
         "save_freq": 5,  # Save model after every n updates (0 to disable). Also decided how often to evaluate
-        "ent_coef": 0.001,  # Entropy coefficient
+        "ent_coef": 0.01,  # Entropy coefficient
         "vf_coef": 0.5,  # Value function coefficient
         "batch_size": 64,  # Batch size
         "num_processes": 24,  # Number of parallel processes to use (agent has multiple workers)
