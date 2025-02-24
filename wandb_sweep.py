@@ -113,7 +113,7 @@ class HyperParameterTuner:
                     'values': ['medium']
                 },
                 'activation': {
-                    'values': ["relu"]
+                    'values': ["tanh"]
                 },
                 # 'kernel_size': { # ignored if model_type is mlp
                 #     'values': [3, 5, 7]
