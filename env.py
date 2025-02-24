@@ -529,6 +529,9 @@ class ControlEnv(gym.Env):
         observation_buffer = []
         action = np.array(action)
         
+        # switch detection does not need to be done every timestep. 
+        switch_state = self._detect_switch(action, self.previous_action)
+        
         #TODO: Placing an if-else here (at almost the innermost loop) is very inefficient.
         if tl: 
             if unsignalized: # Set all Midblock as green.
@@ -552,9 +555,7 @@ class ControlEnv(gym.Env):
                     obs = self._get_observation(current_phase)
                     observation_buffer.append(obs)
         else: 
-            # switch detection does not need to be done every timestep. 
-            switch_state = self._detect_switch(action, self.previous_action)
-
+            
             # Only apply the action from policy if not TL.   
             for i in range(self.steps_per_action): # Run simulation steps for the duration of the action
                 # Apply action is called every timestep (return information useful for reward calculation)

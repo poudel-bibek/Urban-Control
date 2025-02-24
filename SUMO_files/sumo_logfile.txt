@@ -1,27 +1,14 @@
-***Starting server on port 44709 ***
-Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (22ms).
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_18.xml'
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_18.xml'
+***Starting server on port 40405 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (13ms).
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_8.xml'
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_8.xml'
 Loading done.
 Simulation version UNKNOWN started with time: 0.00.
-Simulation ended at time: 800.00.
-Reason: TraCI requested termination.
-Performance:
- Duration: 357.14s
- TraCI-Duration: 356.11s
- Real time factor: 2.24001
- UPS: 51.458668
- UPS-Persons: 411.859742
-Vehicles:
- Inserted: 96 (Loaded: 97)
- Running: 22
- Waiting: 0
-Persons:
- Inserted: 686
- Running: 228
-DijkstraRouter answered 9717 queries and explored 4.94 edges on average.
-DijkstraRouter spent 0.02s answering queries (0.00ms on average).
-DijkstraRouter answered 682 queries and explored 480.23 edges on average.
-DijkstraRouter spent 0.06s answering queries (0.09ms on average).
-DijkstraRouter answered 96 queries and explored 58.20 edges on average.
-DijkstraRouter spent 0.00s answering queries (0.04ms on average).
+Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
+Quitting (on error).
+DijkstraRouter answered 2701 queries and explored 5.15 edges on average.
+DijkstraRouter spent 0.01s answering queries (0.00ms on average).
+DijkstraRouter answered 335 queries and explored 488.95 edges on average.
+DijkstraRouter spent 0.02s answering queries (0.05ms on average).
+DijkstraRouter answered 36 queries and explored 57.58 edges on average.
+DijkstraRouter spent 0.00s answering queries (0.03ms on average).

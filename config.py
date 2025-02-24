@@ -62,8 +62,8 @@ def get_config():
         "l5": -0.1,  # switch penalty weight
 
         # Evaluation
-        "evaluate": False,  
-        "eval_model_path": "./Best_models/Feb19_18-26-49/best_eval_policy.pth",  # Path to the saved PPO model for evaluation
+        "evaluate": True,  
+        "eval_model_path": "./saved_models/Feb23_11-20-53/best_eval_policy.pth",  # Path to the saved PPO model for evaluation
         "eval_save_dir": None,
         "eval_n_timesteps": 600,  # Number of timesteps to each episode. Warmup not counted.
         "eval_n_workers": 10,  # Parallelizes how many demands can be evaluated at the same time.

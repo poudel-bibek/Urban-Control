@@ -792,8 +792,8 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
 #                          in_range_demand_scales=[1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
 
 ######  Plot samples 1's ###### 
-sampled_actions_file_path = "./Best_models/Feb23_11-25-20/sampled_actions.json"
-plot_avg_consecutive_ones(sampled_actions_file_path)
+# sampled_actions_file_path = "./saved_models/Feb23_11-20-53/sampled_actions.json"
+# plot_avg_consecutive_ones(sampled_actions_file_path)
 
 
 ###### SEPARATE PLOTS FOR AVERAGE AND TOTAL ######
