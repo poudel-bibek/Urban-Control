@@ -1,14 +1,29 @@
-***Starting server on port 40405 ***
-Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (13ms).
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_8.xml'
-Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_8.xml'
+***Starting server on port 46229 ***
+Loading net-file from './SUMO_files/Craver_traffic_lights_wide.net.xml' ... done (14ms).
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_vehtrips_9.xml'
+Loading route-files incrementally from './SUMO_files/scaled_trips/scaled_pedtrips_9.xml'
 Loading done.
-Simulation version UNKNOWN started with time: 0.00.
-Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
-Quitting (on error).
-DijkstraRouter answered 2701 queries and explored 5.15 edges on average.
+Simulation started with time: 0.00.
+Warning: Vehicle '83' performs emergency braking on lane '16666012#6_0' with decel=9.00, wished=4.50, severity=1.00, time=283.00.
+Simulation ended at time: 760.00.
+Reason: TraCI requested termination.
+Performance:
+ Duration: 173.45s
+ TraCI-Duration: 156.99s
+ Real time factor: 4.38172
+ UPS: 113.913104
+ UPS-Persons: 1545.437249
+Vehicles:
+ Inserted: 121 (Loaded: 127)
+ Running: 22
+ Waiting: 0
+ Emergency Braking: 1
+Persons:
+ Inserted: 1345
+ Running: 454
+DijkstraRouter answered 16173 queries and explored 4.77 edges on average.
 DijkstraRouter spent 0.01s answering queries (0.00ms on average).
-DijkstraRouter answered 335 queries and explored 488.95 edges on average.
-DijkstraRouter spent 0.02s answering queries (0.05ms on average).
-DijkstraRouter answered 36 queries and explored 57.58 edges on average.
+DijkstraRouter answered 1269 queries and explored 473.91 edges on average.
+DijkstraRouter spent 0.05s answering queries (0.04ms on average).
+DijkstraRouter answered 121 queries and explored 58.17 edges on average.
 DijkstraRouter spent 0.00s answering queries (0.03ms on average).

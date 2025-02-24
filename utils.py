@@ -6,6 +6,8 @@ import logging
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib import cm
+import matplotlib.lines as mlines
 from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
 from matplotlib.colors import LinearSegmentedColormap
@@ -471,29 +473,41 @@ def get_averages(result_json_path, total=False):
 
 def count_consecutive_ones_filtered(actions):
     """
-    Helper function to count consecutive occurrences of 1's in the mid-block actions list.
-    The first action (corresponding to intersection) in each list is ignored.
+    Helper function to count consecutive occurrences of 1's in the action list.
+    The first action (corresponding to intersection) is ignored.
+    Returns a list where each element is the length of a consecutive sequence of 1's.
+
+    Example:
+    [0, 1, 1, 0, 1, 0, 0, 1, 1, 1] → [2, 1, 3]
     """
+    if not actions or len(actions) <= 1:
+        return []
+
     counts = []
     count = 0
-    for action in actions[1:]:  # Ignore the first action
+
+    # Start from the second action (index 1)
+    for action in actions[1:]:
         if action == 1:
             count += 1
         else:
             if count > 0:
                 counts.append(count)
-            count = 0
+                count = 0
+
+    # Don't forget to add the last sequence if it ends with 1's
     if count > 0:
-        counts.append(count)  # Add the last streak if it ends at the last element
+        counts.append(count)
+
     return counts
 
 def plot_avg_consecutive_ones(file_path):
     """
-    Plots the average sum of consecutive occurrences of '1's per training iteration.
-    The first action in each list is ignored.
-    
+    Plots the average sum of consecutive occurrences of '1's per training iteration
+    as a scatter plot with a fit line. The first action in each list is ignored.
+
     Parameters:
-        data (dict): Dictionary where keys are iterations and values are lists of action sequences.
+        file_path (str): Path to the JSON file containing the data.
     """
     with open(file_path, "r") as file:
         data = json.load(file)
@@ -505,7 +519,11 @@ def plot_avg_consecutive_ones(file_path):
     for iteration, actions_list in data.items():
         iteration = int(iteration)  # Convert iteration key to integer
         consecutive_ones = [count_consecutive_ones_filtered(action_list) for action_list in actions_list]
-        avg_consecutive_ones = np.mean([sum(seq) for seq in consecutive_ones if seq]) if consecutive_ones else 0
+
+        # Calculate the sum of consecutive 1's for each sample, then average across samples
+        sums_of_consecutive_ones = [sum(seq) for seq in consecutive_ones if seq]
+        avg_consecutive_ones = np.mean(sums_of_consecutive_ones) if sums_of_consecutive_ones else 0
+
         iterations.append(iteration)
         avg_consecutive_ones_per_iteration.append(avg_consecutive_ones)
 
@@ -513,24 +531,34 @@ def plot_avg_consecutive_ones(file_path):
     iterations, avg_consecutive_ones_per_iteration = zip(*sorted(zip(iterations, avg_consecutive_ones_per_iteration)))
     iterations = np.array(iterations)
     avg_consecutive_ones_per_iteration = np.array(avg_consecutive_ones_per_iteration)
-    
+
     # Set style and create figure
     sns.set_theme(style="whitegrid", context="talk")
     fig, ax = plt.subplots(figsize=(12, 8))
-    
-    # Plot with green gradient
-    handle = plot_gradient_line(ax, iterations, avg_consecutive_ones_per_iteration, 
-                              cmap_name='Greens', label="Training Progress", lw=3, zorder=2)
-    
+
+    # Create scatter plot with green color and hollow markers with reduced opacity
+    scatter = ax.scatter(iterations, avg_consecutive_ones_per_iteration,
+                        color='green', s=100, edgecolors='green',
+                        facecolors='none', linewidth=1.5, alpha=0.5, zorder=2)
+
+    # Add fit line (polynomial fit of degree 1 - linear regression)
+    z = np.polyfit(iterations, avg_consecutive_ones_per_iteration, 1)
+    p = np.poly1d(z)
+    x_line = np.linspace(min(iterations), max(iterations), 100)
+    y_line = p(x_line)
+
+    # Plot the fit line with higher opacity
+    ax.plot(x_line, y_line, color='darkgreen', linewidth=3, alpha=0.9, zorder=3)
+
     # Set font size
     fs = 28  # Increased base font size
-    
+
     # Set labels with increased font size
     ax.set_xlabel("Training Iteration", fontsize=fs)
     ax.set_ylabel("Avg. Sum of Consecutive 1's", fontsize=fs)
     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x:.1f}"))
     ax.grid(True, linestyle=(0, (3, 3)), linewidth=0.85)
-    
+
     # Increase tick label size
     ax.tick_params(axis='both', which='major', labelsize=fs-4)
 
@@ -541,6 +569,145 @@ def plot_avg_consecutive_ones(file_path):
     plt.tight_layout()
     plt.savefig("./results/sampled_actions.pdf", dpi=300)
     plt.show()
+
+def plot_avg_consecutive_ones_retro(file_path, output_path="./results/sampled_actions_retro.pdf"):
+    """
+    Creates a clean, professional plot of the average sum of consecutive occurrences of '1's
+    per training iteration with a vibrant appearance.
+
+    Parameters:
+        file_path (str): Path to the JSON file containing the data.
+        output_path (str): Path to save the output PDF file.
+    """
+    import json
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import matplotlib.ticker as ticker
+    from matplotlib.ticker import FuncFormatter
+    import matplotlib.lines as mlines
+
+    # Load data
+    with open(file_path, "r") as file:
+        data = json.load(file)
+
+    # Compute the average sum of consecutive 1's per iteration
+    avg_consecutive_ones_per_iteration = []
+    iterations = []
+
+    for iteration, actions_list in data.items():
+        iteration = int(iteration)  # Convert iteration key to integer
+        consecutive_ones = [count_consecutive_ones_filtered(action_list) for action_list in actions_list]
+
+        # Calculate the sum of consecutive 1's for each sample, then average across samples
+        sums_of_consecutive_ones = [sum(seq) for seq in consecutive_ones if seq]
+        avg_consecutive_ones = np.mean(sums_of_consecutive_ones) if sums_of_consecutive_ones else 0
+
+        iterations.append(iteration)
+        avg_consecutive_ones_per_iteration.append(avg_consecutive_ones)
+
+    # Sort by iteration
+    iterations, avg_consecutive_ones_per_iteration = zip(*sorted(zip(iterations, avg_consecutive_ones_per_iteration)))
+    iterations = np.array(iterations)
+    avg_consecutive_ones_per_iteration = np.array(avg_consecutive_ones_per_iteration)
+
+    # Set base font size
+    fs = 24  # Base font size - adjust this to change all font sizes proportionally
+
+    # Set up the figure with a clean style
+    plt.rcParams['font.family'] = 'sans-serif'
+    plt.rcParams['font.sans-serif'] = ['Arial', 'Helvetica', 'DejaVu Sans']
+    plt.rcParams['axes.edgecolor'] = '#333333'
+    plt.rcParams['axes.linewidth'] = 1.0
+    plt.rcParams['xtick.major.size'] = 0
+    plt.rcParams['ytick.major.size'] = 0
+
+    # Create figure and axis
+    fig, ax = plt.subplots(figsize=(12, 8), facecolor='white')
+
+    # Set background color
+    ax.set_facecolor('white')
+
+    # Calculate y-axis limits with some padding
+    y_min = min(avg_consecutive_ones_per_iteration) * 0.9
+    y_max = max(avg_consecutive_ones_per_iteration) * 1.1
+
+    # Calculate x-axis limits with added margins
+    x_min = min(iterations) - (max(iterations) - min(iterations)) * 0.05  # 5% margin on left
+    x_max = max(iterations) + (max(iterations) - min(iterations)) * 0.05  # 5% margin on right
+
+    # Set axis limits
+    ax.set_ylim(y_min, y_max)
+    ax.set_xlim(x_min, x_max)
+
+    # Format y-axis with one decimal place
+    def format_with_decimals(x, pos):
+        return f'{x:.1f}'
+
+    ax.yaxis.set_major_formatter(FuncFormatter(format_with_decimals))
+
+    # Add light grid lines with slightly more visibility
+    ax.grid(True, linestyle='-', alpha=0.15, color='#333333')
+    ax.set_axisbelow(True)
+
+    # Remove top and right spines
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    # Use a more vibrant blue for the data points
+    VIBRANT_BLUE = '#2E5EAA'  # More vibrant blue for data points
+
+    # Create scatter plot with more vibrant, semi-transparent circles
+    scatter = ax.scatter(iterations, avg_consecutive_ones_per_iteration,
+                        s=110, edgecolors=VIBRANT_BLUE, facecolors='none',
+                        linewidth=2.0, alpha=0.75, zorder=3)
+
+    # Fit a trend line
+    z = np.polyfit(iterations, avg_consecutive_ones_per_iteration, 1)
+    p = np.poly1d(z)
+
+    # Create x values for the trend line (only within the data range)
+    x_trend = np.linspace(min(iterations), max(iterations), 100)
+    y_trend = p(x_trend)
+
+    # Use a very dark blue color for the trend line - almost navy blue
+    VERY_DARK_BLUE = '#0A2472'  # Very dark blue/navy color
+
+    # Plot the trend line as a solid, very dark line
+    trend_line = ax.plot(x_trend, y_trend, color=VERY_DARK_BLUE, linewidth=4.0, zorder=4)
+
+    # Set labels with increased font size and more vibrant color
+    LABEL_COLOR = '#1A1A1A'  # Slightly lighter than pure black for better contrast
+    ax.set_xlabel('Training Iteration', fontsize=fs*1.2, labelpad=10, color=LABEL_COLOR)
+    ax.set_ylabel('Avg. Sum of Consecutive 1\'s', fontsize=fs*1.2, labelpad=10, color=LABEL_COLOR)
+
+    # Line for trend line - use the very dark blue color
+    trend_line_handle = mlines.Line2D([], [], color=VERY_DARK_BLUE, linewidth=4.0,
+                                     label='Trend Line')
+
+    # Add the legend with the proper handles
+    ax.legend(handles=[trend_line_handle],
+             loc='upper right', frameon=True, framealpha=0.9,
+             edgecolor='#CCCCCC', fontsize=fs)
+
+    # Add padding between y-axis and tick labels
+    ax.tick_params(axis='y', pad=8)  # Add padding between y-axis and y-tick labels
+
+    # Customize tick parameters with larger font size and more vibrant color
+    ax.tick_params(axis='both', colors=LABEL_COLOR, labelsize=fs)
+
+    # Add a subtle border around the plot with slightly more visible color
+    for spine in ['left', 'bottom']:
+        ax.spines[spine].set_color('#AAAAAA')  # Slightly darker border
+        ax.spines[spine].set_linewidth(1.2)  # Slightly thicker border
+
+    # Add more padding around the entire plot
+    plt.tight_layout(pad=2.0)
+
+    # Save with extra padding
+    plt.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.3)
+    plt.show()
+
+    print(f"Plot saved to {output_path}")
 
 def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=True):
     """
@@ -578,7 +745,7 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
     
     # Set labels dictionary for methods
     if len(json_paths) == 3:
-        labels = ['Unsignalized', 'TL', 'RL (Ours)']
+        labels = ['MB-Unsignalized', 'TL', 'RL (Ours)']
     else:
         labels = ['TL', 'RL (Ours)']
     
@@ -792,9 +959,9 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
 #                          in_range_demand_scales=[1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
 
 ######  Plot samples 1's ###### 
-# sampled_actions_file_path = "./saved_models/Feb23_11-20-53/sampled_actions.json"
+sampled_actions_file_path = "./saved_models/sampled_actions.json"
 # plot_avg_consecutive_ones(sampled_actions_file_path)
-
+plot_avg_consecutive_ones_retro(sampled_actions_file_path)
 
 ###### SEPARATE PLOTS FOR AVERAGE AND TOTAL ######
 # unsignalized_results_path = "./results/eval_Feb17_08-17-07/eval_Feb16_13-09-44_unsignalized.json"

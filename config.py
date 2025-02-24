@@ -5,7 +5,7 @@ def get_config():
     config = {
         # Simulation
         "sweep": True,  # Use wandb sweeps for hyperparameter tuning
-        "gui": False,  # Use SUMO GUI (default: False)
+        "gui": True,  # Use SUMO GUI (default: False)
         "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
         "action_duration": 10,  # Duration of each action (default: 10.0)
         "warmup_steps": [100, 250],  # Number of steps to run before collecting data
