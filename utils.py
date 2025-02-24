@@ -781,18 +781,19 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
     plt.close()
 
 
+###### CONSOLIDATED PLOT ######
 # unsignalized_results_path = "./results/results_unsignalized.json"
 # tl_results_path = "./results/results_tl.json"
-# ppo_results_path = "./results/eval_Feb19_18-26-49_ppo.json"
+# ppo_results_path = "./results/eval_ppo_akash_best.json"
 
 # plot_consolidated_results(unsignalized_results_path, 
 #                          tl_results_path, 
 #                          ppo_results_path,
 #                          in_range_demand_scales=[1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
 
-# Plot samples 1's
-# sampled_actions_file_path = "./Best_models/Feb18_18-38-41/sampled_actions.json"
-# plot_avg_consecutive_ones(sampled_actions_file_path)
+######  Plot samples 1's ###### 
+sampled_actions_file_path = "./Best_models/Feb23_11-25-20/sampled_actions.json"
+plot_avg_consecutive_ones(sampled_actions_file_path)
 
 
 ###### SEPARATE PLOTS FOR AVERAGE AND TOTAL ######
