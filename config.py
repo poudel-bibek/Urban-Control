@@ -52,7 +52,7 @@ def get_config():
         "dropout_rate": 0.25,  # Dropout rate for CNN
         "action_dim": 7 + 4,  # 7 + 4 for simple action. Number of action logits (not the same as number of actions. think)
         "in_channels": 1, # in_channels for cnn
-        "activation": "tanh",  # Policy activation function
+        "activation": "relu",  # Policy activation function
 
         # PPO reward weights
         "l1": -0.20,  # intersection vehicle

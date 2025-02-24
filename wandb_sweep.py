@@ -79,7 +79,7 @@ class HyperParameterTuner:
                     'values': [1e-4]
                 },
                 'gae_lambda': {
-                    'values': [0.95, 0.97]
+                    'values': [0.95]
                 },
                 'update_freq': {
                     'values': [1024]
@@ -103,7 +103,7 @@ class HyperParameterTuner:
                     'values': [0.5]
                 },
                 'batch_size': {
-                    'values': [32, 64]
+                    'values': [64]
                 },
                 # policy:
                 'model_type': {
@@ -113,7 +113,7 @@ class HyperParameterTuner:
                     'values': ['medium']
                 },
                 'activation': {
-                    'values': ["tanh", "relu", "leakyrelu"]
+                    'values': ["relu"]
                 },
                 # 'kernel_size': { # ignored if model_type is mlp
                 #     'values': [3, 5, 7]
