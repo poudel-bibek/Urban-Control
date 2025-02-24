@@ -949,19 +949,19 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
 
 
 ###### CONSOLIDATED PLOT ######
-# unsignalized_results_path = "./results/results_unsignalized.json"
-# tl_results_path = "./results/results_tl.json"
-# ppo_results_path = "./results/eval_ppo_akash_best.json"
+unsignalized_results_path = "./results/eval_unsignalized.json"
+tl_results_path = "./results/eval_tl.json"
+ppo_results_path = "./results/eval_ppo_akash_best.json"
 
-# plot_consolidated_results(unsignalized_results_path, 
-#                          tl_results_path, 
-#                          ppo_results_path,
-#                          in_range_demand_scales=[1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
+plot_consolidated_results(unsignalized_results_path, 
+                         tl_results_path, 
+                         ppo_results_path,
+                         in_range_demand_scales=[1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
 
 ######  Plot samples 1's ###### 
-sampled_actions_file_path = "./saved_models/sampled_actions.json"
-# plot_avg_consecutive_ones(sampled_actions_file_path)
-plot_avg_consecutive_ones_retro(sampled_actions_file_path)
+# sampled_actions_file_path = "./saved_models/sampled_actions.json"
+# # plot_avg_consecutive_ones(sampled_actions_file_path)
+# plot_avg_consecutive_ones_retro(sampled_actions_file_path)
 
 ###### SEPARATE PLOTS FOR AVERAGE AND TOTAL ######
 # unsignalized_results_path = "./results/eval_Feb17_08-17-07/eval_Feb16_13-09-44_unsignalized.json"
