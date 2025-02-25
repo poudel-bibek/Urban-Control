@@ -8,6 +8,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import matplotlib.lines as mlines
+import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
 from matplotlib.colors import LinearSegmentedColormap
@@ -724,7 +725,7 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
     sns.set_theme(style="whitegrid", context="talk")
 
     # Set up the figure with a 2x2 grid
-    fig = plt.figure(figsize=(16, 7.5))
+    fig = plt.figure(figsize=(16, 7))
     gs = GridSpec(2, 2, figure=fig)
 
     # Create subplots with shared x-axes
@@ -989,16 +990,311 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
     plt.show()
     plt.close()
 
+def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=None, switching_freq_data=None):
+    """
+    Creates a consolidated figure with three subplots:
+    1. Left: Histogram of near-accident events (MB-Unsignalized vs RL)
+    2. Middle: Plot of average consecutive ones over training iterations
+    3. Right: TL as horizontal line and RL as histogram for switching frequency
+    """
+    # Import additional modules
+    from matplotlib.ticker import MaxNLocator
+
+    # Set base font size
+    fs = 24
+
+    # Set consistent number of y-ticks for all subplots
+    n_ticks = 7  # Define the number of y-ticks to use across all subplots
+
+    # Set up the figure with a 1x3 grid
+    fig = plt.figure(figsize=(24, 6.5))
+    gs = GridSpec(1, 3, figure=fig, width_ratios=[1, 1.2, 1])
+
+    # Create subplots
+    ax_near_accidents = fig.add_subplot(gs[0, 0])
+    ax_consecutive_ones = fig.add_subplot(gs[0, 1])
+    ax_switching_freq = fig.add_subplot(gs[0, 2])
+
+    # Set style
+    plt.rcParams['font.family'] = 'sans-serif'
+    plt.rcParams['font.sans-serif'] = ['Arial', 'Helvetica', 'DejaVu Sans']
+    plt.rcParams['axes.edgecolor'] = '#333333'
+    plt.rcParams['axes.linewidth'] = 1.0
+
+    # Define colors - keep original middle plot colors
+    VIBRANT_BLUE = '#2E5EAA'  # For middle plot - original color
+    VERY_DARK_BLUE = '#0A2472'  # For middle plot - original color
+
+    # For the left and right plots - use subtle gradients
+    SALMON = '#E29587'  # Subtle salmon for TL/Unsignalized
+    SEA_GREEN = '#85B79D'  # Subtle sea green for RL
+
+    # ========== LEFT SUBPLOT: Near-accident events ==========
+    if near_accident_data is None:
+        # Create placeholder data - UPDATED LABEL TO MB-Unsignalized
+        near_accident_data = {
+            'MB-Unsignalized': 15,
+            'RL (Ours)': 6
+        }
+
+    # Create bar chart with subtle gradient fill
+    methods = list(near_accident_data.keys())
+    values = list(near_accident_data.values())
+
+    # Create custom subtle gradient colors
+    colors = [
+        '#E29587',  # Lighter salmon for MB-Unsignalized
+        '#73C17E'   # Lighter sea green for RL
+    ]
+
+    # ADJUSTED: Further reduced width and controlled bar positions
+    # Use exact positions to control the gap
+    x_positions = [0.3, 0.9]  # Positioned closer together
+    width = 0.15  # Thinner bars to match right subplot
+
+    bars = ax_near_accidents.bar(x_positions, values, color=colors, width=width,
+                               edgecolor='#333333', linewidth=1.0)
+
+    # Add data labels on top of bars
+    for bar in bars:
+        height = bar.get_height()
+        ax_near_accidents.text(bar.get_x() + bar.get_width()/2., height + 0.5,
+                              f'{height}', ha='center', va='bottom', fontsize=fs-2)
+
+    # Set x-ticks at the bar positions with the appropriate labels
+    ax_near_accidents.set_xticks(x_positions)
+    ax_near_accidents.set_xticklabels(methods)
+
+    # Styling - UPDATED Y-AXIS LABEL
+    ax_near_accidents.set_ylabel('# of Unsafe Events', fontsize=fs)
+    ax_near_accidents.tick_params(axis='both', labelsize=fs-2)
+    ax_near_accidents.set_ylim(0, max(values)*1.2)  # Add space for labels
+
+    # Set proper x limits to center the bars
+    ax_near_accidents.set_xlim(0, 1.2)
+
+    # Make grid match middle plot (light lines behind data)
+    ax_near_accidents.grid(True, linestyle='-', alpha=0.15, color='#333333')
+    ax_near_accidents.set_axisbelow(True)
+
+    # Remove top and right spines to match middle plot
+    ax_near_accidents.spines['top'].set_visible(False)
+    ax_near_accidents.spines['right'].set_visible(False)
+
+    # Set consistent y-ticks
+    ax_near_accidents.yaxis.set_major_locator(MaxNLocator(n_ticks))
+
+    # ========== MIDDLE SUBPLOT: Average consecutive ones plot ==========
+    # Load data
+    with open(sampled_actions_file_path, "r") as file:
+        data = json.load(file)
+
+    # Compute the average sum of consecutive 1's per iteration
+    avg_consecutive_ones_per_iteration = []
+    iterations = []
+
+    for iteration, actions_list in data.items():
+        iteration = int(iteration)
+        consecutive_ones = [count_consecutive_ones_filtered(action_list) for action_list in actions_list]
+        sums_of_consecutive_ones = [sum(seq) for seq in consecutive_ones if seq]
+        avg_consecutive_ones = np.mean(sums_of_consecutive_ones) if sums_of_consecutive_ones else 0
+        iterations.append(iteration)
+        avg_consecutive_ones_per_iteration.append(avg_consecutive_ones)
+
+    # Sort by iteration
+    iterations, avg_consecutive_ones_per_iteration = zip(*sorted(zip(iterations, avg_consecutive_ones_per_iteration)))
+    iterations = np.array(iterations)
+    avg_consecutive_ones_per_iteration = np.array(avg_consecutive_ones_per_iteration)
+
+    # Set background color
+    ax_consecutive_ones.set_facecolor('white')
+
+    # Calculate y-axis limits with padding
+    y_min = min(avg_consecutive_ones_per_iteration) * 0.98
+    y_max = max(avg_consecutive_ones_per_iteration) * 1.03
+
+    # Calculate x-axis limits with margins
+    x_min = min(iterations) - (max(iterations) - min(iterations)) * 0.05
+    x_max = max(iterations) + (max(iterations) - min(iterations)) * 0.05
+
+    # Set axis limits
+    ax_consecutive_ones.set_ylim(y_min, y_max)
+    ax_consecutive_ones.set_xlim(x_min, x_max)
+
+    # Format y-axis with one decimal place
+    ax_consecutive_ones.yaxis.set_major_formatter(FuncFormatter(lambda x, pos: f'{x:.1f}'))
+
+    # Add light grid lines
+    ax_consecutive_ones.grid(True, linestyle='-', alpha=0.15, color='#333333')
+    ax_consecutive_ones.set_axisbelow(True)
+
+    # Remove top and right spines
+    ax_consecutive_ones.spines['top'].set_visible(False)
+    ax_consecutive_ones.spines['right'].set_visible(False)
+
+    # Create scatter plot - KEEPING ORIGINAL COLORS
+    scatter = ax_consecutive_ones.scatter(iterations, avg_consecutive_ones_per_iteration,
+                                        s=110, edgecolors=VIBRANT_BLUE, facecolors='none',
+                                        linewidth=2.0, alpha=0.75, zorder=3)
+
+    # Fit a trend line
+    z = np.polyfit(iterations, avg_consecutive_ones_per_iteration, 1)
+    p = np.poly1d(z)
+    x_trend = np.linspace(min(iterations), max(iterations), 100)
+    y_trend = p(x_trend)
+
+    # Plot the trend line - KEEPING ORIGINAL COLOR
+    trend_line = ax_consecutive_ones.plot(x_trend, y_trend, color=VERY_DARK_BLUE, linewidth=4.0, zorder=4)
+
+    # Set labels
+    ax_consecutive_ones.set_xlabel('Training Iteration', fontsize=fs)
+    ax_consecutive_ones.set_ylabel('# of Synchronized Green Signals', fontsize=fs)
+
+    # Trend line legend
+    trend_line_handle = mlines.Line2D([], [], color=VERY_DARK_BLUE, linewidth=4.0,
+                                    label='Trend Line')
+    ax_consecutive_ones.legend(handles=[trend_line_handle],
+                            loc='upper right', frameon=True, framealpha=0.9,
+                            edgecolor='#CCCCCC', fontsize=fs-4)
+
+    # Tick parameters
+    ax_consecutive_ones.tick_params(axis='both', labelsize=fs-2)
+
+    # Set consistent y-ticks
+    ax_consecutive_ones.yaxis.set_major_locator(MaxNLocator(n_ticks))
+
+    # ========== RIGHT SUBPLOT: Switching frequency with TL as horizontal line ==========
+    if switching_freq_data is None:
+        # Create placeholder data with TL having same value across demand scales
+        demands = [1.0, 1.5, 2.0, 2.5]
+        tl_value = 15  # Same value for all demand scales
+        switching_freq_data = {
+            'TS': [tl_value, tl_value, tl_value, tl_value],  # Same value across all demands
+            'RL (Ours)': [8, 10, 14, 17]  # Different values for RL
+        }
+    else:
+        demands = list(range(len(next(iter(switching_freq_data.values())))))
+        if len(demands) == 0:
+            demands = [1.0, 1.5, 2.0, 2.5]
+
+    # Get x positions for grouped bars
+    x = np.arange(len(demands))
+    width = 0.4  # Width of bars - keep the same
+
+    # Create subtle gradient for RL bars
+    rl_colors = [
+        '#A8D5BA',  # Lightest sea green
+        '#8CCB9B',  # Light sea green
+        '#73C17E',  # Medium sea green
+        '#5AB663'   # Deeper sea green
+    ]
+
+    # Ensure we have enough colors
+    if len(rl_colors) < len(demands):
+        rl_colors = rl_colors * (len(demands) // len(rl_colors) + 1)
+    rl_colors = rl_colors[:len(demands)]
+
+    # Get TL value (should be constant)
+    tl_values = switching_freq_data['TS']
+    tl_value = tl_values[0]  # All values should be the same
+
+    # Plot RL bars with gradient
+    rl_values = switching_freq_data['RL (Ours)']
+
+    for i, (value, color) in enumerate(zip(rl_values, rl_colors)):
+        ax_switching_freq.bar(x[i], value, width, color=color,
+                           edgecolor='#333333', linewidth=1.0)
+
+    # Add horizontal line for TL (constant value)
+    tl_line = ax_switching_freq.axhline(y=tl_value, color=SALMON, linewidth=3, linestyle='-', zorder=5)
+
+    # Create legend handles manually
+    tl_handle = mlines.Line2D([], [], color=SALMON, linewidth=3, linestyle='-', label='TS')
+    rl_handle = mpatches.Patch(facecolor=rl_colors[1], edgecolor='#333333', linewidth=1.0, label='RL (Ours)')
+
+    # Styling
+    ax_switching_freq.set_ylabel('Switching Frequency', fontsize=fs)
+    ax_switching_freq.set_xlabel('Demand Scale', fontsize=fs)
+    ax_switching_freq.set_xticks(x)
+
+    # Format x-ticks to show demand scale
+    demand_labels = [f"{d}x" for d in demands]
+    ax_switching_freq.set_xticklabels(demand_labels)
+
+    ax_switching_freq.tick_params(axis='both', labelsize=fs-2)
+
+    # Make grid match middle plot (light lines behind data)
+    ax_switching_freq.grid(True, linestyle='-', alpha=0.15, color='#333333')
+    ax_switching_freq.set_axisbelow(True)
+
+    # Remove top and right spines to match middle plot
+    ax_switching_freq.spines['top'].set_visible(False)
+    ax_switching_freq.spines['right'].set_visible(False)
+
+    # Set uniform margins in right subplot
+    # Calculate the total width needed based on number of bars and spacing
+    n_bars = len(demands)
+    # Calculate the margin to add on each side (half the width of a bar)
+    margin = 0.7
+    # Set the x-limits to create uniform margins
+    ax_switching_freq.set_xlim(-margin, n_bars - 1 + margin)
+
+    # Make sure horizontal line is above grid
+    tl_line.set_zorder(5)
+
+    # Set y-limits to provide some headroom
+    max_value = max(max(rl_values), tl_value)
+    ax_switching_freq.set_ylim(0, max_value * 1.15)
+
+    # Set consistent y-ticks
+    ax_switching_freq.yaxis.set_major_locator(MaxNLocator(n_ticks))
+
+    ax_switching_freq.legend(handles=[tl_handle, rl_handle], fontsize=fs-4)
+
+    # Apply tight layout to position all elements
+    plt.tight_layout()
+
+    # ========== Add (a), (b), (c) labels centered below each subplot ==========
+    # Get the exact position of each subplot after tight_layout
+    bbox1 = ax_near_accidents.get_position()
+    bbox2 = ax_consecutive_ones.get_position()
+    bbox3 = ax_switching_freq.get_position()
+
+    # Calculate the center x-coordinate for each subplot
+    x1 = bbox1.x0 + bbox1.width/2
+    x2 = bbox2.x0 + bbox2.width/2
+    x3 = bbox3.x0 + bbox3.width/2
+
+    # Define y position - a tiny bit lower than before
+    label_y = -0.06  # Moved down slightly from -0.01 to -0.03
+
+    # Add the labels at the exact centers
+    fig.text(x1, label_y, '(a)', ha='center', va='center', fontsize=fs+4, fontweight='bold')
+    fig.text(x2, label_y, '(b)', ha='center', va='center', fontsize=fs+4, fontweight='bold')
+    fig.text(x3, label_y, '(c)', ha='center', va='center', fontsize=fs+4, fontweight='bold')
+
+    # ========== Figure-level adjustments ==========
+    plt.subplots_adjust(wspace=0.23, bottom=0.1)  # Adjusted bottom margin to make room for labels
+
+    # Save figure
+    plt.savefig("./results/consolidated_insights.pdf", dpi=300, bbox_inches='tight', pad_inches=0.1)
+
+    plt.show()
+    return fig
+
+####### CONSOLIDATED 3 SUBPLOTS ######
+sampled_actions_file_path = "./saved_models/sampled_actions.json"
+plot_consolidated_insights(sampled_actions_file_path)
 
 # ###### CONSOLIDATED PLOT ######
-unsignalized_results_path = "./results/eval_unsignalized.json"
-tl_results_path = "./results/eval_tl.json"
-ppo_results_path = "./results/eval_ppo.json"
+# unsignalized_results_path = "./results/eval_unsignalized.json"
+# tl_results_path = "./results/eval_tl.json"
+# ppo_results_path = "./results/eval_ppo.json"
 
-plot_consolidated_results(unsignalized_results_path, 
-                         tl_results_path, 
-                         ppo_results_path,
-                         in_range_demand_scales=[1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
+# plot_consolidated_results(unsignalized_results_path, 
+#                          tl_results_path, 
+#                          ppo_results_path,
+#                          in_range_demand_scales=[1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
 
 ######  Plot samples 1's ###### 
 # sampled_actions_file_path = "./saved_models/sampled_actions.json"
