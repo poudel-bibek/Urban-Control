@@ -678,7 +678,7 @@ def plot_avg_consecutive_ones_retro(file_path, output_path="./results/sampled_ac
     # Set labels with increased font size and more vibrant color
     LABEL_COLOR = '#1A1A1A'  # Slightly lighter than pure black for better contrast
     ax.set_xlabel('Training Iteration', fontsize=fs*1.2, labelpad=10, color=LABEL_COLOR)
-    ax.set_ylabel('Avg. Sum of Consecutive 1\'s', fontsize=fs*1.2, labelpad=10, color=LABEL_COLOR)
+    ax.set_ylabel('# of Synchronized Green Signals', fontsize=fs*1.2, labelpad=10, color=LABEL_COLOR)
 
     # Line for trend line - use the very dark blue color
     trend_line_handle = mlines.Line2D([], [], color=VERY_DARK_BLUE, linewidth=4.0,
@@ -716,25 +716,27 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
     # Original demand values
     original_vehicle_demand = 201.54    # veh/hr
     original_pedestrian_demand = 2222.80  # ped/hr
-    default_cmaps = ['Blues', 'Oranges', 'Greens', 'Purples', 'Reds', 'Greys']
-    
+
+    # Custom color map assignment - TL orange, unsignalized blue, RL green
+    custom_cmaps = ['Oranges', 'Blues', 'Greens']
+
     # Set style
     sns.set_theme(style="whitegrid", context="talk")
-    
+
     # Set up the figure with a 2x2 grid
-    fig = plt.figure(figsize=(15, 9))
+    fig = plt.figure(figsize=(16, 7.5))
     gs = GridSpec(2, 2, figure=fig)
-    
+
     # Create subplots with shared x-axes
     ax_ped_avg = fig.add_subplot(gs[0, 0])
     ax_ped_total = fig.add_subplot(gs[1, 0], sharex=ax_ped_avg)
     ax_veh_avg = fig.add_subplot(gs[0, 1])
     ax_veh_total = fig.add_subplot(gs[1, 1], sharex=ax_veh_avg)
-    
+
     # Store legend handles and labels
     legend_handles = []
     legend_labels = []
-    
+
     # Calculate valid demand ranges
     valid_min_scale = min(in_range_demand_scales)
     valid_max_scale = max(in_range_demand_scales)
@@ -742,13 +744,28 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
     veh_valid_max = valid_max_scale * original_vehicle_demand
     ped_valid_min = valid_min_scale * original_pedestrian_demand
     ped_valid_max = valid_max_scale * original_pedestrian_demand
-    
-    # Set labels dictionary for methods
+
+    # Set labels dictionary for methods and reorder TL to be first
     if len(json_paths) == 3:
-        labels = ['MB-Unsignalized', 'TL', 'RL (Ours)']
+        # Get the indices of each method
+        tl_idx = [i for i, path in enumerate(json_paths) if 'tl' in path.lower()][0]
+        us_idx = [i for i, path in enumerate(json_paths) if 'unsignalized' in path.lower()][0]
+        rl_idx = [i for i, path in enumerate(json_paths) if 'ppo' in path.lower()][0]
+
+        # Reorder json_paths to have TL first
+        json_paths = list(json_paths)
+        json_paths = [json_paths[tl_idx], json_paths[us_idx], json_paths[rl_idx]]
+        labels = ['TS', 'MB-unsignalized', 'RL (Ours)']
     else:
-        labels = ['TL', 'RL (Ours)']
-    
+        # Get the indices of each method
+        tl_idx = [i for i, path in enumerate(json_paths) if 'tl' in path.lower()][0]
+        rl_idx = [i for i, path in enumerate(json_paths) if 'ppo' in path.lower()][0]
+
+        # Reorder json_paths to have TL first
+        json_paths = list(json_paths)
+        json_paths = [json_paths[tl_idx], json_paths[rl_idx]]
+        labels = ['TS', 'RL (Ours)']
+
     # First get the data range to set proper limits
     all_ped_demands = []
     all_veh_demands = []
@@ -756,85 +773,85 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
         scales, _, _, _, _ = get_averages(json_path, total=False)
         all_ped_demands.extend(scales * original_pedestrian_demand)
         all_veh_demands.extend(scales * original_vehicle_demand)
-    
+
     # Calculate the limits with symmetrical margins (like in plot_individual_results)
     ped_min, ped_max = min(all_ped_demands), max(all_ped_demands)
     veh_min, veh_max = min(all_veh_demands), max(all_veh_demands)
     ped_margin = 0.05 * (ped_max - ped_min)  # 5% margin on both sides
     veh_margin = 0.05 * (veh_max - veh_min)  # 5% margin on both sides
-    
+
     # Set the limits for all plots with symmetrical margins
     for ax in [ax_ped_avg, ax_ped_total]:
         ax.set_xlim(ped_min - ped_margin, ped_max + ped_margin)
     for ax in [ax_veh_avg, ax_veh_total]:
         ax.set_xlim(veh_min - veh_margin, veh_max + veh_margin)
-    
+
     # Now add the shading using the full plot limits
     for ax in [ax_ped_avg, ax_ped_total]:
         xlim = ax.get_xlim()
         ax.axvspan(xlim[0], ped_valid_min, facecolor='grey', alpha=0.25, zorder=-1)
         ax.axvspan(ped_valid_max, xlim[1], facecolor='grey', alpha=0.25, zorder=-1)
-    
+
     for ax in [ax_veh_avg, ax_veh_total]:
         xlim = ax.get_xlim()
         ax.axvspan(xlim[0], veh_valid_min, facecolor='grey', alpha=0.25, zorder=-1)
         ax.axvspan(veh_valid_max, xlim[1], facecolor='grey', alpha=0.25, zorder=-1)
-    
+
     for idx, json_path in enumerate(json_paths):
         # Get data using the helper function
         scales, veh_mean, ped_mean, veh_std, ped_std = get_averages(json_path, total=False)
         _, veh_total, ped_total, veh_total_std, ped_total_std = get_averages(json_path, total=True)
-        
+
         # Use labels instead of raw method name
         method_name = labels[idx]
-        
+
         # Convert scales to actual demands
         veh_demands = scales * original_vehicle_demand
         ped_demands = scales * original_pedestrian_demand
-        
-        # Get color map for this method
-        cmap = default_cmaps[idx] if idx < len(default_cmaps) else None
-        
+
+        # Get color map for this method - use custom color assignment
+        cmap = custom_cmaps[idx] if idx < len(custom_cmaps) else None
+
         # Plot pedestrian data with gradient lines
-        handle_ped_avg = plot_gradient_line(ax_ped_avg, ped_demands, ped_mean, 
+        handle_ped_avg = plot_gradient_line(ax_ped_avg, ped_demands, ped_mean,
                                           std=ped_std, cmap_name=cmap,
                                           label=method_name, lw=2, zorder=2)
-        
-        handle_ped_total = plot_gradient_line(ax_ped_total, ped_demands, ped_total, 
+
+        handle_ped_total = plot_gradient_line(ax_ped_total, ped_demands, ped_total,
                                             std=ped_total_std, cmap_name=cmap,
                                             label=method_name, lw=2, zorder=2)
-        
+
         # Plot vehicle data with gradient lines
         handle_veh_avg = plot_gradient_line(ax_veh_avg, veh_demands, veh_mean,
                                           std=veh_std, cmap_name=cmap,
                                           label=method_name, lw=2, zorder=2)
-        
+
         handle_veh_total = plot_gradient_line(ax_veh_total, veh_demands, veh_total,
                                             std=veh_total_std, cmap_name=cmap,
                                             label=method_name, lw=2, zorder=2)
-        
+
         # Add to legend handles and labels (remove the if idx == 0 condition)
         legend_handles.append(handle_ped_avg)
         legend_labels.append(method_name)
-    
+
     # Set grid style with short dashes
     for ax in [ax_ped_avg, ax_ped_total, ax_veh_avg, ax_veh_total]:
         ax.grid(True, linestyle=(0, (3, 3)), linewidth=0.85)
-    
+
     fs = 18  # Base font size
-    
+
     # Set titles
     ax_ped_avg.set_title('Pedestrian', fontweight='bold', fontsize=fs)
     ax_veh_avg.set_title('Vehicle', fontweight='bold', fontsize=fs)
-    
+
     # Set y-axis labels with consistent alignment
-    fig.text(0.039, 0.74, 'Average Wait Time (s)', va='center', rotation='vertical', fontsize=fs-2)
-    fig.text(0.039, 0.32, 'Total Wait Time (×10³ s)', va='center', rotation='vertical', fontsize=fs-2)
-    
+    fig.text(0.044, 0.74, 'Average Wait Time (s)', va='center', rotation='vertical', fontsize=fs-2)
+    fig.text(0.044, 0.32, 'Total Wait Time (×10³ s)', va='center', rotation='vertical', fontsize=fs-2)
+
     # Right side (Vehicle)
-    fig.text(0.50, 0.74, 'Average Wait Time (s)', va='center', rotation='vertical', fontsize=fs-2)
-    fig.text(0.50, 0.32, 'Total Wait Time (×10³ s)', va='center', rotation='vertical', fontsize=fs-2)
-    
+    fig.text(0.505, 0.74, 'Average Wait Time (s)', va='center', rotation='vertical', fontsize=fs-2)
+    fig.text(0.505, 0.32, 'Total Wait Time (×10³ s)', va='center', rotation='vertical', fontsize=fs-2)
+
     # Set x-labels
     ax_ped_avg.set_xlabel('')  # Remove label from top plots
     ax_veh_avg.set_xlabel('')
@@ -844,16 +861,16 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
     else:
         ax_ped_total.set_xlabel('Demand (ped/hr)', fontsize=fs-2)
         ax_veh_total.set_xlabel('Demand (veh/hr)', fontsize=fs-2)
-    
+
     # Set tick sizes for all axes
     for ax in [ax_ped_avg, ax_ped_total, ax_veh_avg, ax_veh_total]:
         ax.tick_params(axis='both', which='major', labelsize=fs-2)
-    
+
     # Set consistent x-ticks for all subplots
     all_scales = np.unique(scales)  # Get unique scales
     veh_ticks = [scale * original_vehicle_demand for scale in all_scales]
     ped_ticks = [scale * original_pedestrian_demand for scale in all_scales]
-    
+
     # Use every other tick but include the last one
     veh_ticks = veh_ticks[::2]
     ped_ticks = ped_ticks[::2]
@@ -861,60 +878,85 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
         veh_ticks = np.append(veh_ticks, all_scales[-1] * original_vehicle_demand)
     if ped_ticks[-1] != all_scales[-1] * original_pedestrian_demand:
         ped_ticks = np.append(ped_ticks, all_scales[-1] * original_pedestrian_demand)
-    
+
     # Get corresponding scales for labels
     scales_for_labels = list(all_scales[::2])
     if scales_for_labels[-1] != all_scales[-1]:
         scales_for_labels.append(all_scales[-1])
-    
-    # Set ticks for all subplots
-    ax_ped_avg.set_xticks(ped_ticks)
+
+    # Set ticks for bottom plots only
     ax_ped_total.set_xticks(ped_ticks)
-    ax_veh_avg.set_xticks(veh_ticks)
     ax_veh_total.set_xticks(veh_ticks)
-    
+
+    # Completely hide x-ticks for top plots
+    ax_ped_avg.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    ax_veh_avg.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+
     # Create main tick labels (demand values)
     veh_xtick_labels = [f"{int(round(val))}" for val in veh_ticks]
     ped_xtick_labels = [f"{int(round(val))}" for val in ped_ticks]
-    
+
     # Format y-axis values
     def format_avg_ticks(x, _):
         return f"{x:.1f}"
-    
+
     def format_total_ticks(x, _):
         return f"{(x/1000):.1f}"
-    
+
     # Apply formatters
     ax_ped_avg.yaxis.set_major_formatter(FuncFormatter(format_avg_ticks))
     ax_veh_avg.yaxis.set_major_formatter(FuncFormatter(format_avg_ticks))
     ax_ped_total.yaxis.set_major_formatter(FuncFormatter(format_total_ticks))
     ax_veh_total.yaxis.set_major_formatter(FuncFormatter(format_total_ticks))
-    
-    # Ensure same number of ticks for all plots
-    n_ticks = 7  # Set desired number of ticks
-    
-    # Get current limits for each plot
-    ped_avg_ymin, ped_avg_ymax = ax_ped_avg.get_ylim()
-    veh_avg_ymin, veh_avg_ymax = ax_veh_avg.get_ylim()
-    ped_total_ymin, ped_total_ymax = ax_ped_total.get_ylim()
-    veh_total_ymin, veh_total_ymax = ax_veh_total.get_ylim()
-    
-    # Set ticks for each plot
-    ax_ped_avg.yaxis.set_major_locator(plt.LinearLocator(n_ticks))
-    ax_veh_avg.yaxis.set_major_locator(plt.LinearLocator(n_ticks))
-    ax_ped_total.yaxis.set_major_locator(plt.LinearLocator(n_ticks))
-    ax_veh_total.yaxis.set_major_locator(plt.LinearLocator(n_ticks))
-    
-    # Reset the limits to avoid auto-adjustment
-    ax_ped_avg.set_ylim(ped_avg_ymin, ped_avg_ymax)
-    ax_veh_avg.set_ylim(veh_avg_ymin, veh_avg_ymax)
-    ax_ped_total.set_ylim(ped_total_ymin, ped_total_ymax)
-    ax_veh_total.set_ylim(veh_total_ymin, veh_total_ymax)
-    
-    # Remove x-ticks and labels from top plots
-    ax_ped_avg.set_xticklabels([])
-    ax_veh_avg.set_xticklabels([])
-    
+
+    # Get data ranges for each plot
+    ped_avg_data_min = min([min(ped_mean - ped_std) for _, _, ped_mean, _, ped_std in
+                          [get_averages(path, total=False) for path in json_paths]])
+    ped_avg_data_max = max([max(ped_mean + ped_std) for _, _, ped_mean, _, ped_std in
+                          [get_averages(path, total=False) for path in json_paths]])
+
+    veh_avg_data_min = min([min(veh_mean - veh_std) for _, veh_mean, _, veh_std, _ in
+                          [get_averages(path, total=False) for path in json_paths]])
+    veh_avg_data_max = max([max(veh_mean + veh_std) for _, veh_mean, _, veh_std, _ in
+                          [get_averages(path, total=False) for path in json_paths]])
+
+    ped_total_data_min = min([min(ped_total - ped_total_std) for _, _, ped_total, _, ped_total_std in
+                            [get_averages(path, total=True) for path in json_paths]])
+    ped_total_data_max = max([max(ped_total + ped_total_std) for _, _, ped_total, _, ped_total_std in
+                            [get_averages(path, total=True) for path in json_paths]])
+
+    veh_total_data_min = min([min(veh_total - veh_total_std) for _, veh_total, _, veh_total_std, _ in
+                            [get_averages(path, total=True) for path in json_paths]])
+    veh_total_data_max = max([max(veh_total + veh_total_std) for _, veh_total, _, veh_total_std, _ in
+                            [get_averages(path, total=True) for path in json_paths]])
+
+    # Ensure minimum values are not negative
+    ped_avg_data_min = max(0.5, ped_avg_data_min)  # Start at 0.5 for top plots
+    veh_avg_data_min = max(5.0, veh_avg_data_min)  # Start at 5.0 for top plots
+    ped_total_data_min = max(0.0, ped_total_data_min)
+    veh_total_data_min = max(0.0, veh_total_data_min)
+
+    # Set custom y-ticks with more space between plots
+    # For top plots, set higher minimum values
+    ped_avg_yticks = np.linspace(ped_avg_data_min, ped_avg_data_max * 1.1, 5)
+    veh_avg_yticks = np.linspace(veh_avg_data_min, veh_avg_data_max * 1.1, 5)
+
+    # For bottom plots, set lower maximum values
+    ped_total_yticks = np.linspace(ped_total_data_min, ped_total_data_max * 0.95, 5)
+    veh_total_yticks = np.linspace(veh_total_data_min, veh_total_data_max * 0.95, 5)
+
+    # Set the custom ticks
+    ax_ped_avg.set_yticks(ped_avg_yticks)
+    ax_veh_avg.set_yticks(veh_avg_yticks)
+    ax_ped_total.set_yticks(ped_total_yticks)
+    ax_veh_total.set_yticks(veh_total_yticks)
+
+    # Set the y-limits to match the ticks with some padding
+    ax_ped_avg.set_ylim(ped_avg_yticks[0], ped_avg_yticks[-1] * 1.05)
+    ax_veh_avg.set_ylim(veh_avg_yticks[0], veh_avg_yticks[-1] * 1.05)
+    ax_ped_total.set_ylim(ped_total_yticks[0], ped_total_yticks[-1] * 1.05)
+    ax_veh_total.set_ylim(veh_total_yticks[0], veh_total_yticks[-1] * 1.05)
+
     # Set ticks for bottom plots only
     if show_scales:
         scale_labels = [f"{scale:g}x" for scale in scales_for_labels]
@@ -926,11 +968,11 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
         veh_xtick_labels[-1] = ''
         ax_ped_total.set_xticklabels(ped_xtick_labels, fontsize=fs-2)
         ax_veh_total.set_xticklabels(veh_xtick_labels, fontsize=fs-2)
-    
+
     # Legend with consistent font size
-    leg = fig.legend(legend_handles, legend_labels, 
-                    loc='center', 
-                    bbox_to_anchor=(0.5, 0.04),
+    leg = fig.legend(legend_handles, legend_labels,
+                    loc='center',
+                    bbox_to_anchor=(0.525, 0.04),
                     ncol=len(legend_handles),
                     frameon=True,
                     framealpha=1.0,
@@ -938,20 +980,20 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
                     fancybox=True,
                     shadow=False,
                     bbox_transform=fig.transFigure,
-                    fontsize=fs-2)
-    
+                    fontsize=fs-4)
+
     # Adjust subplot spacing
     plt.tight_layout()
-    plt.subplots_adjust(left=0.1, right=0.95, bottom=0.15, wspace=0.25)
+    plt.subplots_adjust(left=0.1, right=0.95, bottom=0.15, wspace=0.20, hspace=0.14)
     plt.savefig("./results/consolidated_results.pdf", bbox_inches='tight', dpi=300)
     plt.show()
     plt.close()
 
 
-###### CONSOLIDATED PLOT ######
+# ###### CONSOLIDATED PLOT ######
 unsignalized_results_path = "./results/eval_unsignalized.json"
 tl_results_path = "./results/eval_tl.json"
-ppo_results_path = "./results/eval_ppo_akash_best.json"
+ppo_results_path = "./results/eval_ppo.json"
 
 plot_consolidated_results(unsignalized_results_path, 
                          tl_results_path, 
