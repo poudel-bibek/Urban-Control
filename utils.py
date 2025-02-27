@@ -1320,8 +1320,8 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     return fig
 
 ####### CONSOLIDATED 3 SUBPLOTS ######
-sampled_actions_file_path = "./saved_models/sampled_actions.json"
-plot_consolidated_insights(sampled_actions_file_path)
+# sampled_actions_file_path = "./saved_models/sampled_actions.json"
+# plot_consolidated_insights(sampled_actions_file_path)
 
 # ###### CONSOLIDATED PLOT ######
 # unsignalized_results_path = "./results/eval_unsignalized.json"
