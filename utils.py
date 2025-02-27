@@ -5,6 +5,7 @@ import json
 import logging
 import numpy as np
 import seaborn as sns
+from scipy import stats
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import matplotlib.lines as mlines
@@ -13,6 +14,7 @@ from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.ticker import FuncFormatter, LinearLocator
+from matplotlib.ticker import MaxNLocator, MultipleLocator
 import xml.etree.ElementTree as ET
 from matplotlib.gridspec import GridSpec
 
@@ -931,20 +933,20 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
     veh_total_data_max = max([max(veh_total + veh_total_std) for _, veh_total, _, veh_total_std, _ in
                             [get_averages(path, total=True) for path in json_paths]])
 
-    # Ensure minimum values are not negative
+    # Ensure minimum values allow for lower data points (fixing crop issue at 0.5x)
     ped_avg_data_min = max(0.5, ped_avg_data_min)  # Start at 0.5 for top plots
     veh_avg_data_min = max(5.0, veh_avg_data_min)  # Start at 5.0 for top plots
-    ped_total_data_min = max(0.0, ped_total_data_min)
-    veh_total_data_min = max(0.0, veh_total_data_min)
+    ped_total_data_min = min(0.0, ped_total_data_min)  # Allow negative values for padding
+    veh_total_data_min = min(0.0, veh_total_data_min)  # Allow negative values for padding
 
     # Set custom y-ticks with more space between plots
-    # For top plots, set higher minimum values
-    ped_avg_yticks = np.linspace(ped_avg_data_min, ped_avg_data_max * 1.1, 5)
-    veh_avg_yticks = np.linspace(veh_avg_data_min, veh_avg_data_max * 1.1, 5)
+    # For top plots, provide more headroom (fixing the orange line crop issue)
+    ped_avg_yticks = np.linspace(ped_avg_data_min, ped_avg_data_max * 1.05, 5)
+    veh_avg_yticks = np.linspace(veh_avg_data_min, veh_avg_data_max * 1.05, 5)
 
-    # For bottom plots, set lower maximum values
-    ped_total_yticks = np.linspace(ped_total_data_min, ped_total_data_max * 0.95, 5)
-    veh_total_yticks = np.linspace(veh_total_data_min, veh_total_data_max * 0.95, 5)
+    # For bottom plots, ensure full visibility
+    ped_total_yticks = np.linspace(ped_total_data_min, ped_total_data_max * 1.05, 5)
+    veh_total_yticks = np.linspace(veh_total_data_min, veh_total_data_max * 1.05, 5)
 
     # Set the custom ticks
     ax_ped_avg.set_yticks(ped_avg_yticks)
@@ -952,21 +954,18 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
     ax_ped_total.set_yticks(ped_total_yticks)
     ax_veh_total.set_yticks(veh_total_yticks)
 
-    # Set the y-limits to match the ticks with some padding
-    ax_ped_avg.set_ylim(ped_avg_yticks[0], ped_avg_yticks[-1] * 1.05)
-    ax_veh_avg.set_ylim(veh_avg_yticks[0], veh_avg_yticks[-1] * 1.05)
-    ax_ped_total.set_ylim(ped_total_yticks[0], ped_total_yticks[-1] * 1.05)
-    ax_veh_total.set_ylim(veh_total_yticks[0], veh_total_yticks[-1] * 1.05)
+    # Set the y-limits with additional padding
+    ax_ped_avg.set_ylim(ped_avg_yticks[0], ped_avg_yticks[-1] )
+    ax_veh_avg.set_ylim(veh_avg_yticks[0], veh_avg_yticks[-1] )
+    ax_ped_total.set_ylim(ped_total_yticks[0], ped_total_yticks[-1] * 1.1)
+    ax_veh_total.set_ylim(veh_total_yticks[0], veh_total_yticks[-1] * 1.1)
 
     # Set ticks for bottom plots only
     if show_scales:
         scale_labels = [f"{scale:g}x" for scale in scales_for_labels]
-        scale_labels[-1] = ''
         ax_ped_total.set_xticklabels(scale_labels, fontsize=fs-2)
         ax_veh_total.set_xticklabels(scale_labels, fontsize=fs-2)
     else:
-        ped_xtick_labels[-1] = ''
-        veh_xtick_labels[-1] = ''
         ax_ped_total.set_xticklabels(ped_xtick_labels, fontsize=fs-2)
         ax_veh_total.set_xticklabels(veh_xtick_labels, fontsize=fs-2)
 
@@ -997,18 +996,16 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     2. Middle: Plot of average consecutive ones over training iterations
     3. Right: TL as horizontal line and RL as histogram for switching frequency
     """
-    # Import additional modules
-    from matplotlib.ticker import MaxNLocator
-    from scipy import stats
+
 
     # Set base font size
     fs = 24
 
     # Set consistent number of y-ticks for all subplots
-    n_ticks = 7  # Define the number of y-ticks to use across all subplots
+    n_ticks = 5  # Define the number of y-ticks to use across all subplots
 
     # Set up the figure with a 1x3 grid
-    fig = plt.figure(figsize=(24, 6.5))
+    fig = plt.figure(figsize=(24, 6.2))
     gs = GridSpec(1, 3, figure=fig, width_ratios=[1, 1.2, 1])
 
     # Create subplots
@@ -1031,7 +1028,7 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     SEA_GREEN = '#85B79D'  # Subtle sea green for RL
 
     # ========== LEFT SUBPLOT: Near-accident events ==========
-    if near_accident_data is None:
+    if near_accident_data is None: # Manually insert the values
         # Create placeholder data - UPDATED LABEL TO MB-Unsignalized
         near_accident_data = {
             'MB-Unsignalized': 15,
@@ -1069,7 +1066,7 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     # Styling - UPDATED Y-AXIS LABEL
     ax_near_accidents.set_ylabel('# of Unsafe Events', fontsize=fs)
     ax_near_accidents.tick_params(axis='both', labelsize=fs-2)
-    ax_near_accidents.set_ylim(0, max(values)*1.2)  # Add space for labels
+    ax_near_accidents.set_ylim(0, max(values)*1.1)  # Add space for labels
 
     # Set proper x limits to center the bars
     ax_near_accidents.set_xlim(0, 1.2)
@@ -1111,8 +1108,8 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     ax_consecutive_ones.set_facecolor('white')
 
     # Calculate y-axis limits with padding
-    y_min = min(avg_consecutive_ones_per_iteration) * 0.98
-    y_max = max(avg_consecutive_ones_per_iteration) * 1.03
+    y_min = 3.3  # Set explicitly to 3.2 to match the lowest data point
+    y_max = 4.1  # Set explicitly to 4.1 to provide headroom for highest points
 
     # Calculate x-axis limits with margins
     x_min = min(iterations) - (max(iterations) - min(iterations)) * 0.05
@@ -1181,7 +1178,7 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
                                                          zorder=2, label='95% Confidence Interval')
 
     # Set labels
-    ax_consecutive_ones.set_xlabel('Training Iteration', fontsize=fs)
+    ax_consecutive_ones.set_xlabel('Training Episode', fontsize=fs)
     ax_consecutive_ones.set_ylabel('# of Synchronized Green Signals', fontsize=fs)
 
     # Create legend with both trend line and confidence interval
@@ -1197,17 +1194,17 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     # Tick parameters
     ax_consecutive_ones.tick_params(axis='both', labelsize=fs-2)
 
-    # Set consistent y-ticks
-    ax_consecutive_ones.yaxis.set_major_locator(MaxNLocator(n_ticks))
+    # Set consistent y-ticks with fixed 0.1 interval to ensure we have 3.6 tick
+    ax_consecutive_ones.yaxis.set_major_locator(MultipleLocator(0.2))
 
     # ========== RIGHT SUBPLOT: Switching frequency with TL as horizontal line ==========
-    if switching_freq_data is None:
+    if switching_freq_data is None: # Manually insert the values
         # Create placeholder data with TL having same value across demand scales
-        demands = [1.0, 1.5, 2.0, 2.5]
+        demands = [0.5, 1.0, 1.5, 2.0, 2.5]
         tl_value = 15  # Same value for all demand scales
         switching_freq_data = {
             'TS': [tl_value, tl_value, tl_value, tl_value],  # Same value across all demands
-            'RL (Ours)': [8, 10, 14, 17]  # Different values for RL
+            'RL (Ours)': [6, 8, 10, 14, 17]  # Different values for RL
         }
     else:
         demands = list(range(len(next(iter(switching_freq_data.values())))))
@@ -1216,10 +1213,11 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
 
     # Get x positions for grouped bars
     x = np.arange(len(demands))
-    width = 0.4  # Width of bars - keep the same
+    width = 0.5  # Width of bars - keep the same
 
     # Create subtle gradient for RL bars
     rl_colors = [
+        '#CFEAD6',  # Lower level lighter green
         '#A8D5BA',  # Lightest sea green
         '#8CCB9B',  # Light sea green
         '#73C17E',  # Medium sea green
@@ -1303,7 +1301,7 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     x3 = bbox3.x0 + bbox3.width/2
 
     # Define y position - a tiny bit lower than before
-    label_y = -0.06  # Moved down slightly from -0.01 to -0.03
+    label_y = -0.08  # Moved down slightly from -0.01 to -0.03
 
     # Add the labels at the exact centers
     fig.text(x1, label_y, '(a)', ha='center', va='center', fontsize=fs+4, fontweight='bold')
@@ -1320,21 +1318,21 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     return fig
 
 ####### CONSOLIDATED 3 SUBPLOTS ######
-# sampled_actions_file_path = "./saved_models/sampled_actions.json"
-# plot_consolidated_insights(sampled_actions_file_path)
+# sampled_actions_file_path = "./saved_models/Feb24_19-06-53/sampled_actions.json"
+# plot_consolidated_insights(sampled_actions_file_path) # Other values are manually input inside the function.
 
 # ###### CONSOLIDATED PLOT ######
-# unsignalized_results_path = "./results/eval_unsignalized.json"
-# tl_results_path = "./results/eval_tl.json"
-# ppo_results_path = "./results/eval_ppo.json"
+unsignalized_results_path = "./results/eval_unsignalized.json"
+tl_results_path = "./results/eval_tl.json"
+ppo_results_path = "./results/eval_ppo.json"
 
-# plot_consolidated_results(unsignalized_results_path, 
-#                          tl_results_path, 
-#                          ppo_results_path,
-#                          in_range_demand_scales=[1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
+plot_consolidated_results(unsignalized_results_path, 
+                         tl_results_path, 
+                         ppo_results_path,
+                         in_range_demand_scales=[1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
 
 ######  Plot samples 1's ###### 
-# sampled_actions_file_path = "./saved_models/sampled_actions.json"
+# sampled_actions_file_path = "./saved_models/Feb24_13-54-26/sampled_actions.json"
 # # plot_avg_consecutive_ones(sampled_actions_file_path)
 # plot_avg_consecutive_ones_retro(sampled_actions_file_path)
 
