@@ -999,6 +999,7 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     """
     # Import additional modules
     from matplotlib.ticker import MaxNLocator
+    from scipy import stats
 
     # Set base font size
     fs = 24
@@ -1021,9 +1022,9 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     plt.rcParams['axes.edgecolor'] = '#333333'
     plt.rcParams['axes.linewidth'] = 1.0
 
-    # Define colors - keep original middle plot colors
-    VIBRANT_BLUE = '#2E5EAA'  # For middle plot - original color
-    VERY_DARK_BLUE = '#0A2472'  # For middle plot - original color
+    # Define colors - updated middle plot colors
+    BRIGHT_BLUE = '#0078D7'  # New bright blue for middle plot trend line
+    VIBRANT_BLUE = '#2E5EAA'  # Keep for scatter points
 
     # For the left and right plots - use subtle gradients
     SALMON = '#E29587'  # Subtle salmon for TL/Unsignalized
@@ -1143,17 +1144,53 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     x_trend = np.linspace(min(iterations), max(iterations), 100)
     y_trend = p(x_trend)
 
-    # Plot the trend line - KEEPING ORIGINAL COLOR
-    trend_line = ax_consecutive_ones.plot(x_trend, y_trend, color=VERY_DARK_BLUE, linewidth=4.0, zorder=4)
+    # Calculate 95% confidence interval
+    n = len(iterations)
+    x_mean = np.mean(iterations)
+    y_mean = np.mean(avg_consecutive_ones_per_iteration)
+
+    # Sum of squares
+    ss_xx = np.sum((iterations - x_mean)**2)
+    ss_xy = np.sum((iterations - x_mean) * (avg_consecutive_ones_per_iteration - y_mean))
+    ss_yy = np.sum((avg_consecutive_ones_per_iteration - y_mean)**2)
+
+    # Regression slope and intercept
+    slope = ss_xy / ss_xx
+    intercept = y_mean - slope * x_mean
+
+    # Standard error of estimate
+    y_hat = slope * iterations + intercept
+    se = np.sqrt(np.sum((avg_consecutive_ones_per_iteration - y_hat)**2) / (n - 2))
+
+    # Confidence interval
+    alpha = 0.05  # 95% confidence interval
+    t_val = stats.t.ppf(1 - alpha/2, n - 2)
+
+    # Calculate confidence bands
+    x_eval = x_trend
+    ci = t_val * se * np.sqrt(1/n + (x_eval - x_mean)**2 / ss_xx)
+    y_upper = y_trend + ci
+    y_lower = y_trend - ci
+
+    # Plot the trend line with new bright blue color
+    trend_line = ax_consecutive_ones.plot(x_trend, y_trend, color=BRIGHT_BLUE, linewidth=4.0, zorder=4, label='Trend Line')
+
+    # Add confidence interval with shading
+    confidence_interval = ax_consecutive_ones.fill_between(x_trend, y_lower, y_upper,
+                                                         color=BRIGHT_BLUE, alpha=0.2,
+                                                         zorder=2, label='95% Confidence Interval')
 
     # Set labels
     ax_consecutive_ones.set_xlabel('Training Iteration', fontsize=fs)
     ax_consecutive_ones.set_ylabel('# of Synchronized Green Signals', fontsize=fs)
 
-    # Trend line legend
-    trend_line_handle = mlines.Line2D([], [], color=VERY_DARK_BLUE, linewidth=4.0,
+    # Create legend with both trend line and confidence interval
+    trend_line_handle = mlines.Line2D([], [], color=BRIGHT_BLUE, linewidth=4.0,
                                     label='Trend Line')
-    ax_consecutive_ones.legend(handles=[trend_line_handle],
+    ci_handle = mpatches.Patch(facecolor=BRIGHT_BLUE, alpha=0.2,
+                              label='95% Confidence Interval')
+
+    ax_consecutive_ones.legend(handles=[trend_line_handle, ci_handle],
                             loc='upper right', frameon=True, framealpha=0.9,
                             edgecolor='#CCCCCC', fontsize=fs-4)
 
