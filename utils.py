@@ -871,6 +871,10 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
 
     # Set consistent x-ticks for all subplots
     all_scales = np.unique(scales)  # Get unique scales
+
+    # MODIFICATION: Remove the last scale (2.75x) from the scales list
+    all_scales = all_scales[:-1]
+
     veh_ticks = [scale * original_vehicle_demand for scale in all_scales]
     ped_ticks = [scale * original_pedestrian_demand for scale in all_scales]
 
