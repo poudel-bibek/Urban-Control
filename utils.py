@@ -758,7 +758,7 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
         # Reorder json_paths to have TL first
         json_paths = list(json_paths)
         json_paths = [json_paths[tl_idx], json_paths[us_idx], json_paths[rl_idx]]
-        labels = ['TS', 'MB-unsignalized', 'RL (Ours)']
+        labels = ['Signalized', 'Unsignalized', 'RL (Ours)']
     else:
         # Get the indices of each method
         tl_idx = [i for i, path in enumerate(json_paths) if 'tl' in path.lower()][0]
@@ -1035,8 +1035,8 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     if near_accident_data is None: # Manually insert the values
         # Create placeholder data - UPDATED LABEL TO MB-Unsignalized
         near_accident_data = {
-            'MB-Unsignalized': 15,
-            'RL (Ours)': 6
+            'Unsignalized': 15,
+            'Signalized': 6
         }
 
     # Create bar chart with subtle gradient fill
@@ -1207,7 +1207,7 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
         demands = [0.5, 1.0, 1.5, 2.0, 2.5]
         tl_value = 15  # Same value for all demand scales
         switching_freq_data = {
-            'TS': [tl_value, tl_value, tl_value, tl_value],  # Same value across all demands
+            'Signalized': [tl_value, tl_value, tl_value, tl_value],  # Same value across all demands
             'RL (Ours)': [6, 8, 10, 14, 17]  # Different values for RL
         }
     else:
