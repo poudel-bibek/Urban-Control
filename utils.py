@@ -767,7 +767,7 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
         # Reorder json_paths to have TL first
         json_paths = list(json_paths)
         json_paths = [json_paths[tl_idx], json_paths[rl_idx]]
-        labels = ['TS', 'RL (Ours)']
+        labels = ['Signalized', 'RL (Ours)']
 
     # First get the data range to set proper limits
     all_ped_demands = []
@@ -1234,7 +1234,7 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     rl_colors = rl_colors[:len(demands)]
 
     # Get TL value (should be constant)
-    tl_values = switching_freq_data['TS']
+    tl_values = switching_freq_data['Signalized']
     tl_value = tl_values[0]  # All values should be the same
 
     # Plot RL bars with gradient
@@ -1248,7 +1248,7 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     tl_line = ax_switching_freq.axhline(y=tl_value, color=SALMON, linewidth=3, linestyle='-', zorder=5)
 
     # Create legend handles manually
-    tl_handle = mlines.Line2D([], [], color=SALMON, linewidth=3, linestyle='-', label='TS')
+    tl_handle = mlines.Line2D([], [], color=SALMON, linewidth=3, linestyle='-', label='Signalized')
     rl_handle = mpatches.Patch(facecolor=rl_colors[1], edgecolor='#333333', linewidth=1.0, label='RL (Ours)')
 
     # Styling
@@ -1322,18 +1322,18 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     return fig
 
 ####### CONSOLIDATED 3 SUBPLOTS ######
-# sampled_actions_file_path = "./saved_models/Feb24_19-06-53/sampled_actions.json"
-# plot_consolidated_insights(sampled_actions_file_path) # Other values are manually input inside the function.
+sampled_actions_file_path = "./saved_models/Feb24_19-06-53/sampled_actions.json"
+plot_consolidated_insights(sampled_actions_file_path) # Other values are manually input inside the function.
 
 # ###### CONSOLIDATED PLOT ######
-unsignalized_results_path = "./results/eval_unsignalized.json"
-tl_results_path = "./results/eval_tl.json"
-ppo_results_path = "./results/eval_ppo.json"
+# unsignalized_results_path = "./results/eval_unsignalized.json"
+# tl_results_path = "./results/eval_tl.json"
+# ppo_results_path = "./results/eval_ppo.json"
 
-plot_consolidated_results(unsignalized_results_path, 
-                         tl_results_path, 
-                         ppo_results_path,
-                         in_range_demand_scales=[1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
+# plot_consolidated_results(unsignalized_results_path, 
+#                          tl_results_path, 
+#                          ppo_results_path,
+#                          in_range_demand_scales=[1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
 
 ######  Plot samples 1's ###### 
 # sampled_actions_file_path = "./saved_models/Feb24_13-54-26/sampled_actions.json"
