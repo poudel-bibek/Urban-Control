@@ -5,7 +5,7 @@
 
 
 <p align="center">
-  <a href="https://youtu.be/H5kRwGb_xz4"><img src="https://github.com/user-attachments/assets/67d9c0a7-9c1e-44ed-b6bc-2851aa8f2649" alt="craver-walk" style="width:1000px"/></a>
+  <a href="https://youtu.be/H5kRwGb_xz4"><img src="https://github.com/poudel-bibek/Urban-Control/blob/main/Images/Craver.gif" alt="craver-walk" style="width:1000px"/></a>
 </p>
 
   
