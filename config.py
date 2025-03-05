@@ -5,11 +5,11 @@ def get_config():
     config = {
         # Simulation
         "sweep": False,  # Use wandb sweeps for hyperparameter tuning
-        "gui": False,  # Use SUMO GUI (default: False)
+        "gui": True,  # Use SUMO GUI (default: False)
         "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
         "action_duration": 10,  # Duration of each action (default: 10.0)
         "warmup_steps": [100, 250],  # Number of steps to run before collecting data
-        "auto_start": True,  # Automatically start the simulation
+        "auto_start": False,  # Automatically start the simulation
         "vehicle_input_trips": "./SUMO_files/original_vehtrips.xml",  # Original Input trips file
         "vehicle_output_trips": "./SUMO_files/scaled_trips/scaled_vehtrips.xml",  # Output trips file
         "pedestrian_input_trips": "./SUMO_files/original_pedtrips.xml",  # Original Input pedestrian trips file
@@ -66,7 +66,7 @@ def get_config():
         "eval_model_path": "./saved_models/Feb24_19-06-53/best_eval_policy.pth",  # Path to the saved PPO model for evaluation
         "eval_save_dir": None,
         "eval_n_timesteps": 600,  # Number of timesteps to each episode. Warmup not counted.
-        "eval_n_workers": 10,  # Parallelizes how many demands can be evaluated at the same time.
+        "eval_n_workers": 1,  # Parallelizes how many demands can be evaluated at the same time.
         "eval_worker_device": "gpu",  # Policy during eval can be run in GPU 
     }
     return config
@@ -138,12 +138,12 @@ def classify_and_return_args(train_config, device):
     
     if train_config['evaluate']:
         # during evaluation
-        eval_n_iterations = 10
-        in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25] 
-        out_of_range_demand_scales = [0.5, 0.75, 2.5, 2.75]
+        eval_n_iterations = 1
+        in_range_demand_scales = [2.5] #[1.0, 1.25, 1.5, 1.75, 2.0, 2.25] 
+        out_of_range_demand_scales = [] #[0.5, 0.75, 2.5, 2.75]
     else: 
         # during training
-        eval_n_iterations = 3
+        eval_n_iterations = 1
         in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25] # The demand scales that are used for training.
         out_of_range_demand_scales = [0.5, 0.75, 2.5, 2.75] # The demand scales that are used ONLY for evaluation.
     

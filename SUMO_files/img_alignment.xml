@@ -1,3 +1,3 @@
 <decals>
-    <decal file="/home/bibek/Desktop/Urban-Control/SUMO_files/Images/Google_earth_craver.jpg" screenRelative="0" centerX="2490.00" centerY="2614.50" centerZ="0.00" width="1020.00" height="450.00" altitude="0.00" rotation="0.00" tilt="0.00" roll="0.00" layer="0.00"/>
+    <decal file="/home/bibek/Desktop/Urban-Control/SUMO_files/Images/Google_earth_craver.jpg" screenRelative="0" centerX="2490.00" centerY="2614.50" centerZ="0.00" width="1020.00" height="450.00" altitude="100.00" rotation="0.00" tilt="0.00" roll="0.00" layer="0.00"/>
 </decals>

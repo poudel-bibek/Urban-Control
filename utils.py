@@ -993,17 +993,40 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
     plt.show()
     plt.close()
 
-def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=None, switching_freq_data=None):
+
+def plot_consolidated_insights(sampled_actions_file_path, conflict_json_file_path, switching_freq_data_path):
     """
     Creates a consolidated figure with three subplots:
-    1. Left: Histogram of near-accident events (MB-Unsignalized vs RL)
+    1. Left: Bar chart of mean conflicts across demand scales with error bars
     2. Middle: Plot of average consecutive ones over training iterations
-    3. Right: TL as horizontal line and RL as histogram for switching frequency
-    """
+    3. Right: TL as horizontal line and RL as histogram for switching frequency (TL switching frequency is obtained analytically as 54 for 600 timestep horizon)
 
+    Parameters:
+    - sampled_actions_file_path: Path to JSON file containing action data
+    - conflict_json_file_path: Path to JSON file containing conflict data
+    - switching_freq_data: Dictionary containing switching frequency data (optional)
+    """
+    # Function to process data from json
+    def process_json_data(json_data, key):
+        # Extract data by demand scale
+        data = {}
+        for demand_scale, runs in json_data.items():
+            values = [run_data[key] for run_index, run_data in runs.items()]
+            data[float(demand_scale)] = {
+                "mean": np.mean(values),
+                "std": np.std(values)
+            }
+        return data
+
+    # Load conflict data
+    with open(conflict_json_file_path, 'r') as f:
+        conflict_json_data = json.load(f)
+
+    # Process conflict data
+    processed_conflict_data = process_json_data(conflict_json_data, "total_conflicts")
 
     # Set base font size
-    fs = 24
+    fs = 23
 
     # Set consistent number of y-ticks for all subplots
     n_ticks = 5  # Define the number of y-ticks to use across all subplots
@@ -1026,54 +1049,60 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     # Define colors - updated middle plot colors
     BRIGHT_BLUE = '#0078D7'  # New bright blue for middle plot trend line
     VIBRANT_BLUE = '#2E5EAA'  # Keep for scatter points
-
-    # For the left and right plots - use subtle gradients
     SALMON = '#E29587'  # Subtle salmon for TL/Unsignalized
     SEA_GREEN = '#85B79D'  # Subtle sea green for RL
 
-    # ========== LEFT SUBPLOT: Near-accident events ==========
-    if near_accident_data is None: # Manually insert the values
-        # Create placeholder data - UPDATED LABEL TO MB-Unsignalized
-        near_accident_data = {
-            'Unsignalized': 15,
-            'Signalized': 6
-        }
+    # ========== LEFT SUBPLOT: Conflict events across demand scales ==========
+    # Filter demand scales to only include the specified levels
+    selected_demand_scales = [0.5, 1.0, 1.5, 2.0, 2.5]
+    filtered_scales = [scale for scale in selected_demand_scales if scale in processed_conflict_data]
 
-    # Create bar chart with subtle gradient fill
-    methods = list(near_accident_data.keys())
-    values = list(near_accident_data.values())
+    conflict_means = [processed_conflict_data[scale]["mean"] for scale in filtered_scales]
+    conflict_stds = [processed_conflict_data[scale]["std"] for scale in filtered_scales]
 
-    # Create custom subtle gradient colors
+    # Even more subtle gradient - using shades of orange/coral with less intensity
     colors = [
-        '#E29587',  # Lighter salmon for MB-Unsignalized
-        '#73C17E'   # Lighter sea green for RL
+        '#FDE5D2',  # Very pale orange for 0.5x
+        '#FDCBAD',  # Lighter orange for 1.0x
+        '#FCB08A',  # Light salmon for 1.5x
+        '#FC9774',  # Salmon for 2.0x
+        '#FB7D5B'   # Darker salmon for 2.5x
     ]
 
-    # ADJUSTED: Further reduced width and controlled bar positions
-    # Use exact positions to control the gap
-    x_positions = [0.3, 0.9]  # Positioned closer together
-    width = 0.15  # Thinner bars to match right subplot
+    # Make sure we have enough colors
+    if len(colors) < len(filtered_scales):
+        colors = colors * (len(filtered_scales) // len(colors) + 1)
+    colors = colors[:len(filtered_scales)]
 
-    bars = ax_near_accidents.bar(x_positions, values, color=colors, width=width,
-                               edgecolor='#333333', linewidth=1.0)
+    # Create bar positions
+    x_positions = np.arange(len(filtered_scales))
+    width = 0.5
 
-    # Add data labels on top of bars
-    for bar in bars:
-        height = bar.get_height()
-        ax_near_accidents.text(bar.get_x() + bar.get_width()/2., height + 0.5,
-                              f'{height}', ha='center', va='bottom', fontsize=fs-2)
+    # Create bar chart with MORE PROMINENT error bars
+    bars = ax_near_accidents.bar(x_positions, conflict_means, width, color=colors,
+                               edgecolor='#333333', linewidth=1.0,
+                               yerr=conflict_stds, capsize=8, error_kw={'elinewidth': 2.5, 'ecolor': '#333333', 'capthick': 2.5})
 
+    # Add data labels to the left of the top of each bar
+    # for i, bar in enumerate(bars):
+    #     height = bar.get_height() + 9
+    #     # Position text to the left of the bar top
+    #     ax_near_accidents.text(bar.get_x() + 0.25*width, height,
+    #                          f'{int(conflict_means[i])}', ha='right', va='center',
+    #                          fontsize=fs-4)
+
+    labelsize = fs-4
     # Set x-ticks at the bar positions with the appropriate labels
     ax_near_accidents.set_xticks(x_positions)
-    ax_near_accidents.set_xticklabels(methods)
+    ax_near_accidents.set_xticklabels([f'{scale}x' for scale in filtered_scales], fontsize=labelsize)
 
-    # Styling - UPDATED Y-AXIS LABEL
-    ax_near_accidents.set_ylabel('# of Unsafe Events', fontsize=fs)
-    ax_near_accidents.tick_params(axis='both', labelsize=fs-2)
-    ax_near_accidents.set_ylim(0, max(values)*1.1)  # Add space for labels
+    # Styling
+    ax_near_accidents.set_ylabel('# of Conflicts in Unsignalized', fontsize=fs)  # Updated label
+    ax_near_accidents.set_xlabel('Demand Scale', fontsize=fs)
+    ax_near_accidents.tick_params(axis='both', labelsize=labelsize)
 
-    # Set proper x limits to center the bars
-    ax_near_accidents.set_xlim(0, 1.2)
+    # Set y-limit with headroom for labels and error bars
+    ax_near_accidents.set_ylim(0, max(conflict_means + np.array(conflict_stds)) * 1.1)  # More headroom for labels
 
     # Make grid match middle plot (light lines behind data)
     ax_near_accidents.grid(True, linestyle='-', alpha=0.15, color='#333333')
@@ -1183,7 +1212,7 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
 
     # Set labels
     ax_consecutive_ones.set_xlabel('Training Episode', fontsize=fs)
-    ax_consecutive_ones.set_ylabel('# of Synchronized Green Signals', fontsize=fs)
+    ax_consecutive_ones.set_ylabel('Synchronized Green Signals', fontsize=fs)
 
     # Create legend with both trend line and confidence interval
     trend_line_handle = mlines.Line2D([], [], color=BRIGHT_BLUE, linewidth=4.0,
@@ -1196,27 +1225,31 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
                             edgecolor='#CCCCCC', fontsize=fs-4)
 
     # Tick parameters
-    ax_consecutive_ones.tick_params(axis='both', labelsize=fs-2)
+    ax_consecutive_ones.tick_params(axis='both', labelsize=labelsize)
 
     # Set consistent y-ticks with fixed 0.1 interval to ensure we have 3.6 tick
     ax_consecutive_ones.yaxis.set_major_locator(MultipleLocator(0.2))
 
     # ========== RIGHT SUBPLOT: Switching frequency with TL as horizontal line ==========
-    if switching_freq_data is None: # Manually insert the values
-        # Create placeholder data with TL having same value across demand scales
-        demands = [0.5, 1.0, 1.5, 2.0, 2.5]
-        tl_value = 15  # Same value for all demand scales
-        switching_freq_data = {
-            'Signalized': [tl_value, tl_value, tl_value, tl_value],  # Same value across all demands
-            'RL (Ours)': [6, 8, 10, 14, 17]  # Different values for RL
-        }
-    else:
-        demands = list(range(len(next(iter(switching_freq_data.values())))))
-        if len(demands) == 0:
-            demands = [1.0, 1.5, 2.0, 2.5]
+
+    # Load frequency data
+    with open(switching_freq_data_path, 'r') as f:
+        frequency_json_data = json.load(f)
+
+    # Process frequency data
+    processed_frequency_data = process_json_data(frequency_json_data, "total_switches")
+
+    frequency_demands = [0.5, 1.0, 1.5, 2.0, 2.5]
+    filtered_demands = [demand for demand in frequency_demands if demand in processed_frequency_data]
+
+    frequency_means = [processed_frequency_data[demand]["mean"] for demand in filtered_demands]
+    frequency_stds = [processed_frequency_data[demand]["std"] for demand in filtered_demands]
+
+    # Create placeholder data with TL having same value across demand scales
+    tl_value = 54  # Same value for all demand scales
 
     # Get x positions for grouped bars
-    x = np.arange(len(demands))
+    x = np.arange(len(filtered_demands))
     width = 0.5  # Width of bars - keep the same
 
     # Create subtle gradient for RL bars
@@ -1229,25 +1262,89 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     ]
 
     # Ensure we have enough colors
-    if len(rl_colors) < len(demands):
-        rl_colors = rl_colors * (len(demands) // len(rl_colors) + 1)
-    rl_colors = rl_colors[:len(demands)]
+    if len(rl_colors) < len(filtered_demands):
+        rl_colors = rl_colors * (len(filtered_demands) // len(rl_colors) + 1)
+    rl_colors = rl_colors[:len(filtered_demands)]
 
-    # Get TL value (should be constant)
-    tl_values = switching_freq_data['Signalized']
-    tl_value = tl_values[0]  # All values should be the same
+    # Set up the plot with a discontinuous y-axis
+    ax_switching_freq.set_facecolor('white')
 
-    # Plot RL bars with gradient
-    rl_values = switching_freq_data['RL (Ours)']
+    # Function to transform values to the broken y-axis scale
+    def transform_y(y):
+        # Map values to a discontinuous scale:
+        # 0-54 maps to 0-0.2 (bottom 20% of plot)
+        # 260-320 maps to 0.3-1.0 (top 70% of plot)
+        if y <= 54:
+            return y / 54 * 0.2
+        else:
+            return 0.3 + (y - 260) / (320 - 260) * 0.7
 
-    for i, (value, color) in enumerate(zip(rl_values, rl_colors)):
-        ax_switching_freq.bar(x[i], value, width, color=color,
-                           edgecolor='#333333', linewidth=1.0)
+    # Plot the bars with standard deviations
+    for i, (mean, std) in enumerate(zip(frequency_means, frequency_stds)):
+        # Calculate bar height in the transformed space
+        bar_height = transform_y(mean) - transform_y(0)
 
-    # Add horizontal line for TL (constant value)
-    tl_line = ax_switching_freq.axhline(y=tl_value, color=SALMON, linewidth=3, linestyle='-', zorder=5)
+        # Draw the bar
+        bar = ax_switching_freq.bar(x[i], bar_height, width=width,
+                                   bottom=transform_y(0),
+                                   color=rl_colors[i],
+                                   edgecolor='#333333',
+                                   linewidth=1.0)
 
-    # Create legend handles manually
+        # Add error bars
+        # Calculate the std dev in the transformed space
+        yerr = transform_y(mean + std) - transform_y(mean)
+
+        # Draw error bar
+        ax_switching_freq.errorbar(x[i], transform_y(mean), yerr=yerr,
+                                  fmt='none', ecolor='#333333', capsize=8,
+                                  elinewidth=2.5, capthick=2.5)
+
+    # Add the TL horizontal line
+    tl_line = ax_switching_freq.axhline(y=transform_y(tl_value), color=SALMON, linewidth=3, linestyle='-', zorder=5)
+
+    # Get the y-axis line width to match the break marks to it
+    axis_line_width = ax_switching_freq.spines['left'].get_linewidth()
+
+    # Create break marks for the y-axis
+    # Position of the break in the transformed scale
+    break_pos = 0.31  # middle of the gap between 0.2 and 0.3
+
+    # Draw break marks on the left y-axis only
+    # Increased spacing between diagonal lines
+    gap = 0.020  # Increased gap between the diagonal lines
+    d = 0.03    # Size of the diagonal lines
+
+    # First create a white rectangle to "erase" part of the axis
+    # This ensures the break appears as a true gap in the axis
+    rect_height = gap * 1.5  # Height of white rectangle
+    rect_width = d * 2.0     # Width of white rectangle
+
+    # Draw white background rectangle to create a clean break
+    white_patch = plt.Rectangle((-rect_width/2, break_pos-rect_height/2), rect_width, rect_height,
+                              facecolor='white', edgecolor='none', transform=ax_switching_freq.transAxes,
+                              clip_on=False, zorder=10)
+    ax_switching_freq.add_patch(white_patch)
+
+    # Then draw the diagonal lines centered on the axis
+    # Make sure line width matches the axis line width
+    kwargs = dict(transform=ax_switching_freq.transAxes, color='black',
+                 clip_on=False, linewidth=axis_line_width, zorder=11)
+
+    # Upper diagonal line
+    ax_switching_freq.plot([-d/2, d/2], [break_pos+gap/2, break_pos+gap/2 + d], **kwargs)
+
+    # Lower diagonal line
+    ax_switching_freq.plot([-d/2, d/2], [break_pos-gap/2, break_pos-gap/2 + d], **kwargs)
+
+    # Set the y-ticks at the actual data values
+    yticks = [0, tl_value, 275, 300]
+    yticklabels = [str(int(y)) for y in yticks]
+
+    ax_switching_freq.set_yticks([transform_y(y) for y in yticks])
+    ax_switching_freq.set_yticklabels(yticklabels, fontsize=labelsize)
+
+    # Create legend handles
     tl_handle = mlines.Line2D([], [], color=SALMON, linewidth=3, linestyle='-', label='Signalized')
     rl_handle = mpatches.Patch(facecolor=rl_colors[1], edgecolor='#333333', linewidth=1.0, label='RL (Ours)')
 
@@ -1257,10 +1354,10 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     ax_switching_freq.set_xticks(x)
 
     # Format x-ticks to show demand scale
-    demand_labels = [f"{d}x" for d in demands]
-    ax_switching_freq.set_xticklabels(demand_labels)
+    demand_labels = [f"{d}x" for d in filtered_demands]
+    ax_switching_freq.set_xticklabels(demand_labels, fontsize=labelsize)
 
-    ax_switching_freq.tick_params(axis='both', labelsize=fs-2)
+    ax_switching_freq.tick_params(axis='both', labelsize=labelsize)
 
     # Make grid match middle plot (light lines behind data)
     ax_switching_freq.grid(True, linestyle='-', alpha=0.15, color='#333333')
@@ -1271,27 +1368,17 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     ax_switching_freq.spines['right'].set_visible(False)
 
     # Set uniform margins in right subplot
-    # Calculate the total width needed based on number of bars and spacing
-    n_bars = len(demands)
     # Calculate the margin to add on each side (half the width of a bar)
     margin = 0.7
     # Set the x-limits to create uniform margins
-    ax_switching_freq.set_xlim(-margin, n_bars - 1 + margin)
+    ax_switching_freq.set_xlim(-margin, len(filtered_demands) - 1 + margin)
 
-    # Make sure horizontal line is above grid
-    tl_line.set_zorder(5)
+    # Set y-limits for the plot
+    ax_switching_freq.set_ylim(0, 1.05)  # Provide headroom for the legend
 
-    # Set y-limits to provide some headroom
-    max_value = max(max(rl_values), tl_value)
-    ax_switching_freq.set_ylim(0, max_value * 1.15)
-
-    # Set consistent y-ticks
-    ax_switching_freq.yaxis.set_major_locator(MaxNLocator(n_ticks))
-
-    ax_switching_freq.legend(handles=[tl_handle, rl_handle], fontsize=fs-4)
-
-    # Apply tight layout to position all elements
-    plt.tight_layout()
+    # Add legend in the top right corner
+    ax_switching_freq.legend(handles=[tl_handle, rl_handle], fontsize=fs-4, loc='upper right',
+                           bbox_to_anchor=(1.0, 1.01))
 
     # ========== Add (a), (b), (c) labels centered below each subplot ==========
     # Get the exact position of each subplot after tight_layout
@@ -1308,9 +1395,9 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     label_y = -0.08  # Moved down slightly from -0.01 to -0.03
 
     # Add the labels at the exact centers
-    fig.text(x1, label_y, '(a)', ha='center', va='center', fontsize=fs+4, fontweight='bold')
-    fig.text(x2, label_y, '(b)', ha='center', va='center', fontsize=fs+4, fontweight='bold')
-    fig.text(x3, label_y, '(c)', ha='center', va='center', fontsize=fs+4, fontweight='bold')
+    fig.text(x1, label_y, '(a)', ha='center', va='center', fontsize=fs, fontweight='bold')
+    fig.text(x2, label_y, '(b)', ha='center', va='center', fontsize=fs, fontweight='bold')
+    fig.text(x3, label_y, '(c)', ha='center', va='center', fontsize=fs, fontweight='bold')
 
     # ========== Figure-level adjustments ==========
     plt.subplots_adjust(wspace=0.23, bottom=0.1)  # Adjusted bottom margin to make room for labels
@@ -1322,8 +1409,11 @@ def plot_consolidated_insights(sampled_actions_file_path, near_accident_data=Non
     return fig
 
 ####### CONSOLIDATED 3 SUBPLOTS ######
-sampled_actions_file_path = "./saved_models/Feb24_19-06-53/sampled_actions.json"
-plot_consolidated_insights(sampled_actions_file_path) # Other values are manually input inside the function.
+# sampled_actions_file_path = "./results/sampled_actions.json"
+# unsignalized_conflicts_file_path = "./results/eval_unsignalized_conflicts.json"
+# switching_freq_data_path = "./results/switching_freq_data.json"
+# plot_consolidated_insights(sampled_actions_file_path, unsignalized_conflicts_file_path, switching_freq_data_path) # Other values are manually input inside the function.
+
 
 # ###### CONSOLIDATED PLOT ######
 # unsignalized_results_path = "./results/eval_unsignalized.json"

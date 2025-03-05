@@ -93,6 +93,11 @@ class ControlEnv(gym.Env):
         self.l4 = control_args['l4']  # midblock pedestrian pressure weight
         self.l5 = control_args['l5']  # switch penalty weight
 
+        # For safety conflict tracking (only in unsignalized)
+        self.recorded_conflicts = set()  # Set of unique conflict identifiers to prevent double-counting
+        self.total_conflicts = 0         # Running total of unique vehicle-pedestrian conflicts
+        self.total_switches = 0 # Only applicable for RL. 
+
     def _get_vehicle_direction(self, signal_state):
         # Define signal bits for left and right blinkers
         VEH_SIGNAL_BLINKER_RIGHT = 0b1  # Bit 0
@@ -489,7 +494,7 @@ class ControlEnv(gym.Env):
         observation_buffer = []
         action = np.array(action)
         # switch detection does not need to be done every timestep. 
-        switch_state = self._detect_switch(action, self.previous_action)
+        switch_state, _ = self._detect_switch(action, self.previous_action)
  
         for i in range(self.steps_per_action): # Run simulation steps for the duration of the action
             # Apply action is called every timestep (return information useful for reward calculation)
@@ -530,10 +535,11 @@ class ControlEnv(gym.Env):
         action = np.array(action)
         
         # switch detection does not need to be done every timestep. 
-        switch_state = self._detect_switch(action, self.previous_action)
+        switch_state, full_switch_state = self._detect_switch(action, self.previous_action)
         
         #TODO: Placing an if-else here (at almost the innermost loop) is very inefficient.
         if tl: 
+
             if unsignalized: # Set all Midblock as green.
                 for i in range(self.steps_per_action): # Run simulation steps for the duration of the action
                     current_phase = [1]*len(self.tl_ids) # random phase
@@ -547,6 +553,9 @@ class ControlEnv(gym.Env):
                     obs = self._get_observation(current_phase)
                     observation_buffer.append(obs)
 
+                    # Count near-conflicts after each step (after each simulation step has been applied)
+                    self.total_conflicts += self._count_near_conflicts(self.corrected_occupancy_map)
+
             else: # Apply action for TL (For evaluation)
                 for i in range(self.steps_per_action): # Run simulation steps for the duration of the action
                     current_phase = [1]*len(self.tl_ids) # random phase
@@ -554,8 +563,8 @@ class ControlEnv(gym.Env):
                     self.step_count += 1
                     obs = self._get_observation(current_phase)
                     observation_buffer.append(obs)
-        else: 
-            
+        else:
+            self.total_switches += sum(full_switch_state)
             # Only apply the action from policy if not TL.   
             for i in range(self.steps_per_action): # Run simulation steps for the duration of the action
                 # Apply action is called every timestep (return information useful for reward calculation)
@@ -578,6 +587,8 @@ class ControlEnv(gym.Env):
         observation = np.asarray(observation_buffer, dtype=np.float32) 
         #print(f"\nObservation shape: {observation.shape}, type: {type(observation)}, value: {observation}")
         #visualize_observation(observation)
+        # print(f"\nRecorded conflicts: {self.recorded_conflicts}\n")
+        print(f"Total switches: {self.total_switches}")
         return observation, reward, done, False, {} # info is empty
 
     def _detect_switch(self, current_action, previous_action):
@@ -599,16 +610,25 @@ class ControlEnv(gym.Env):
         current_mid_block_action = current_action[1:]  
         previous_intersection_action = previous_action[0:1]
         previous_mid_block_action = previous_action[1:]
-        # print(f"Current actions: Intersection: {current_intersection_action}, Midblock: {current_mid_block_action}")
+        
         # print(f"Previous actions: Intersection: {previous_intersection_action}, Midblock: {previous_mid_block_action}")
-
+        # print(f"Current actions: Intersection: {current_intersection_action}, Midblock: {current_mid_block_action}")
+        
         switch_state = []
         intersection_switch = [int(c1 == '0' and c2 == '1') or int(c1 == '1' and c2 == '0') or int(c1 == '2' and c2 == '0') for c1, c2 in zip(previous_intersection_action, current_intersection_action)]
         switch_state.extend(intersection_switch)
         midblock_switch = [int(c1 == '1' and c2 == '0') for c1, c2 in zip(previous_mid_block_action, current_mid_block_action)] # only detect 1->0 transitions
         switch_state.extend(midblock_switch)
         # print(f"Switch state: {switch_state}")
-        return switch_state
+
+        # For the plot, also detect all the switches.
+        full_switch_state = []
+        for i in range(len(current_action)):
+            full_switch_state.append(int(current_action[i] != previous_action[i]))
+        
+        # print(f"Full switch state: {full_switch_state}\n")
+
+        return switch_state, full_switch_state
 
     def _get_observation(self, current_phase, print_map=False):
         """
@@ -1366,6 +1386,66 @@ class ControlEnv(gym.Env):
         
         return reward
 
+    def _count_near_conflicts(self, corrected_occupancy_map, threshold_speed=1.0, distance_threshold=5.0):
+        """
+        Count potential vehicle-pedestrian conflicts at signalized/ unsignalized crosswalks.
+        Only meaningful at high volumes. 
+
+        A "near-conflict" represents a safety-critical event where a vehicle must yield
+        to a pedestrian at a crosswalk. Each unique vehicle-pedestrian interaction is
+        counted only once, even if it spans multiple timesteps.
+
+        Features:
+        - Tracks unique conflicts using vehicle+pedestrian+location identifiers
+        - Only counts each unique interaction once during the simulation
+        - Records yielding behavior as a proxy for potential safety incidents
+        - Focuses specifically on mid-block crosswalks where conflicts are most likely
+
+        Parameters:
+        - threshold_speed: Speed below which a vehicle is considered to be yielding (m/s)
+        - distance_threshold: Maximum distance between vehicle and pedestrian to qualify as conflict (m)
+
+        Returns:
+        - Number of new unique conflicts detected in the current timestep
+        """
+        new_conflicts = 0
+
+        # For each midblock location
+        for tl_id in self.tl_ids[1:]:  # Skip intersection, focus on midblocks
+            # Get pedestrians at this crosswalk (incoming or outgoing. Most likely outgoing)
+            pedestrians = corrected_occupancy_map[tl_id]["pedestrian"]["incoming"]["north"]["main"] + corrected_occupancy_map[tl_id]["pedestrian"]["outgoing"]["north"]["main"]
+
+            if not pedestrians:  # Skip if no pedestrians present
+                continue
+
+            # Check vehicles approaching this location
+            for direction in self.direction_turn_midblock:
+                vehicles = corrected_occupancy_map[tl_id]["vehicle"]["incoming"][direction]
+
+                for veh_id in vehicles:
+                    # Current vehicle speed
+                    current_speed = traci.vehicle.getSpeed(veh_id)
+
+                    # If vehicle speed is still high
+                    if current_speed > threshold_speed:
+                        veh_pos = traci.vehicle.getPosition(veh_id)
+
+                        # Check proximity to pedestrians
+                        for ped_id in pedestrians:
+                            ped_pos = traci.person.getPosition(ped_id)
+                            distance = math.sqrt((veh_pos[0]-ped_pos[0])**2 +
+                                            (veh_pos[1]-ped_pos[1])**2)
+
+                            if distance < distance_threshold:
+                                # Create a unique conflict identifier
+                                conflict_id = f"{veh_id}_{ped_id}_{tl_id}"
+
+                                # If this is a new conflict we haven't seen before
+                                if conflict_id not in self.recorded_conflicts:
+                                    self.recorded_conflicts.add(conflict_id)
+                                    new_conflicts += 1
+
+        return new_conflicts
 
     def _check_done(self):
         """
@@ -1444,7 +1524,7 @@ class ControlEnv(gym.Env):
             #print(f"\nWarmup action {i}: {action}\n")
             if i==0:
                 prev_action = action
-            switch_state = self._detect_switch(action, prev_action)
+            switch_state, _ = self._detect_switch(action, prev_action)
 
             # TODO: Inefficient do it this way.
             if tl:
@@ -1474,6 +1554,10 @@ class ControlEnv(gym.Env):
         # reset the waiting times
         self.prev_vehicle_waiting_time = {}
         self.prev_ped_waiting_time = {}
+
+        self.total_conflicts = 0 # Running total of unique vehicle-pedestrian conflicts
+        self.total_switches = 0 # Only applicable for RL.
+        
         return observation, {} # info is empty
 
     def close(self):

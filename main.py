@@ -437,6 +437,8 @@ def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl=False, unsigna
         worker_result[i]['total_ped_waiting_time'] = ped_waiting_time_this_episode
         worker_result[i]['veh_avg_waiting_time'] = veh_waiting_time_this_episode / veh_unique_ids_this_episode
         worker_result[i]['ped_avg_waiting_time'] = ped_waiting_time_this_episode / ped_unique_ids_this_episode
+        worker_result[i]['total_conflicts'] = env.total_conflicts
+        worker_result[i]['total_switches'] = env.total_switches
 
     # After all iterations are complete. 
     env.close()
