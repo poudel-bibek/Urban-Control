@@ -4,7 +4,9 @@
 ## Joint Pedestrian and Vehicle Traffic Optimization in Urban Environments using Reinforcement Learning: <a  href='https://arxiv.org/'><img  src='https://img.shields.io/badge/arXiv--red'></a>
 
 
-
+<p align="center">
+  <a href="https://youtu.be/H5kRwGb_xz4"><img src="https://github.com/user-attachments/assets/bede1c34-8248-42da-8e0f-df102508bc87" alt="craver-walk" style="width:1000px"/></a>
+</p>
 
   
 
