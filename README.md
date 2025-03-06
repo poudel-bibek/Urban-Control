@@ -6,7 +6,7 @@
 <a  href='https://arxiv.org/'><img  src='https://img.shields.io/badge/arXiv--green'></a> <a  href='https://youtu.be/Tec3H72cDT4'><img  src='https://img.shields.io/badge/YouTube--red'></a>
 
 <p align="center">
-  <a href="https://youtu.be/Tec3H72cDT4"><img src="https://github.com/poudel-bibek/Urban-Control/blob/main/Images/Craver.gif" alt="craver-walk" style="width:800px"/></a>
+  <a href="https://youtu.be/Tec3H72cDT4"><img src="https://github.com/poudel-bibek/Urban-Control/blob/main/Images/craver_3d.gif" alt="craver-walk" style="width:800px"/></a>
 </p>
 
   
