@@ -97,8 +97,7 @@ to increase the limit on the number of file descriptors that can be opened by a 
 	python main.py
 	```
 
-- It will run benchmarks in the order: RL, Traffic Signal and Unsignalized as defined in the main.py file.
-- If you want to run a specific benchmark, comment out the other two.
+- It will run benchmarks in the order: RL, Traffic Signal and Unsignalized as defined in the main.py file. If you want to run a specific benchmark, comment out the other two.
 
 	```python
 	ppo_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= False)
