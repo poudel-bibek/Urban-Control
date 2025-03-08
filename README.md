@@ -18,6 +18,8 @@
 ### Data
 - Training [logs in wandb](https://api.wandb.ai/links/Fluidic-city/kt1tlg8f) 
 - Trained Policy and config files
+  - Original Pedestrian Trips
+  - Original Vehicle Trips
 - Main results reported in the paper
 - Rollout videos:
 	| Method |Demand (1x)  | Demand (2.5x)| 
