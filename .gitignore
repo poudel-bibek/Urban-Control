@@ -8,8 +8,6 @@ __pycache__/
 # TensorBoard runs
 runs/
 
-# Saved models
-saved_models/
 ./Best_models
 Best_models/
 ./results/
