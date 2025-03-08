@@ -1,39 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on 2025-02-13 17:53:30 by Eclipse SUMO netedit Version UNKNOWN
-<neteditConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/neteditConfiguration.xsd">
-
-    <input>
-        <sumo-net-file value="/home/bibek/Desktop/Urban-Control/SUMO_files/Craver_traffic_lights_wide.net.xml"/>
-    </input>
-
-    <output>
-        <output-file value="/home/bibek/Desktop/Urban-Control/SUMO_files/Craver_traffic_lights_wide.net.xml"/>
-        <output.street-names value="true"/>
-    </output>
-
-    <processing>
-        <geometry.min-radius.fix.railways value="false"/>
-        <geometry.max-grade.fix value="false"/>
-        <offset.disable-normalization value="true"/>
-        <lefthand value="0"/>
-    </processing>
-
-    <junctions>
-        <no-internal-links value="false"/>
-        <no-turnarounds value="true"/>
-        <junctions.corner-detail value="5"/>
-        <junctions.limit-turn-speed value="5.50"/>
-        <rectangular-lane-cut value="0"/>
-    </junctions>
-
-    <pedestrian>
-        <walkingareas value="1"/>
-    </pedestrian>
-
-</neteditConfiguration>
--->
-
 <net version="1.20" junctionCornerDetail="5" walkingareas="true" limitTurnSpeed="5.50" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/net_file.xsd">
 
     <location netOffset="8989687.78,-4203182.81" convBoundary="2030.74,2510.12,2948.01,2729.96" origBoundary="-80.755739,35.288692,-80.708073,35.331715" projParameter="+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs"/>

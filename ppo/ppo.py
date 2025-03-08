@@ -2,8 +2,7 @@ import torch
 import torch.optim as optim
 import torch.multiprocessing as mp
 from torch.utils.data import TensorDataset, DataLoader
-from models import CNNActorCritic, MLPActorCritic
-from copy import deepcopy
+from .models import CNNActorCritic, MLPActorCritic
 
 class Memory:
     """

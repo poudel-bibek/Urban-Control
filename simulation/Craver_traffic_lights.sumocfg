@@ -1,7 +1,7 @@
 <configuration>
     <input>
         <net-file value="Craver_traffic_lights_wide.net.xml"/>
-        <gui-settings-file value="Final_view.xml"/>
+        <gui-settings-file value="view.xml"/>
     </input>
     <output>
         <log value="sumo_logfile.txt"/>

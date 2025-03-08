@@ -5,14 +5,12 @@ import wandb
 import torch
 import random
 import numpy as np
-from copy import deepcopy
 from datetime import datetime
-from ppo import PPO, Memory, WelfordNormalizer
-from config import get_config
+from ppo.ppo import PPO, Memory, WelfordNormalizer
+from config import get_config, classify_and_return_args
 import torch.multiprocessing as mp
 
-from wandb_sweep import HyperParameterTuner
-from config import classify_and_return_args
+from sweep import HyperParameterTuner
 from torch.utils.tensorboard import SummaryWriter
 
 from utils import *
@@ -68,7 +66,6 @@ def parallel_train_worker(rank, shared_policy_old, control_args, train_queue, wo
 
         if steps_since_update >= memory_transfer_freq or done or truncated:
             # Put local memory in the queue for the main process to collect
-            # memory_copy = deepcopy(local_memory)
             train_queue.put((rank, local_memory))
             local_memory = Memory()  # Reset local memory
             steps_since_update = 0
@@ -272,7 +269,6 @@ def train(train_config, is_sweep=False, sweep_config=None):
                     print(f"\nAverage Reward (across all memories): {avg_reward}\n")
                     #print(f"\nAll memories rewards: {all_memories.rewards}")
 
-                    # loss = control_ppo.update(deepcopy(all_memories))
                     loss = control_ppo.update(all_memories)
 
                     # Reset all memories
@@ -545,19 +541,12 @@ def main(config):
         eval_args['state_dim'] = dummy_env.observation_space.shape
         
         ppo_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= False)
-        # tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized=False) # supply a policy (wont be used for TL)
-        # unsignalized_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized=True)
-
-        # plot_individual_results(unsignalized_results_path, 
-        #                           tl_results_path,
-        #                           ppo_results_path,
-        #                           in_range_demand_scales = eval_args['in_range_demand_scales'])
-        
-        # plot_individual_results(unsignalized_results_path, 
-        #                           tl_results_path,
-        #                           ppo_results_path,
-        #                           in_range_demand_scales = eval_args['in_range_demand_scales'],
-        #                           total=True)
+        tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized=False) # supply a policy (wont be used for TL)
+        unsignalized_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized=True)
+        plot_main_results(unsignalized_results_path, 
+                          tl_results_path,
+                          ppo_results_path,
+                          in_range_demand_scales = eval_args['in_range_demand_scales'])
 
     elif config['sweep']:
         tuner = HyperParameterTuner(config, train)

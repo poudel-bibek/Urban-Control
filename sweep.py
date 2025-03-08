@@ -58,12 +58,6 @@ class HyperParameterTuner:
                 'size': {'values': ['small', 'medium']},
                 'kernel_size': {'values': [3, 5]},
                 'dropout_rate': {'values': [0.1, 0.2, 0.3]},
-                # Reward related lambda
-                'l1': {'values': [-0.20, -0.33, -0.5]}, # intersection vehicle 
-                'l2': {'values': [-0.20, -0.33, -0.5]}, # intersection pedestrian 
-                'l3': {'values': [-0.20, -0.33, -0.5]}, # midblock vehicle 
-                'l4': {'values': [-0.20, -0.33, -0.5]}, # midblock pedestrian
-                'l5': {'values': [-0.10, -0.20, -0.33, -0.5]}, # switch penalty 
                 }
             }
         
@@ -115,35 +109,6 @@ class HyperParameterTuner:
                 'activation': {
                     'values': ["tanh"]
                 },
-                # 'kernel_size': { # ignored if model_type is mlp
-                #     'values': [3, 5, 7]
-                # },
-                # Reward-related lambdas: continuous range 
-                # 'l1': {
-                #     'min': -1.0,
-                #     'max': -0.1,
-                #     'distribution': 'uniform'
-                # },
-                # 'l2': {
-                #     'min': -1.0,
-                #     'max': -0.1,
-                #     'distribution': 'uniform'
-                # },
-                # 'l3': {
-                #     'min': -1.0,
-                #     'max': -0.1,
-                #     'distribution': 'uniform'
-                # },
-                # 'l4': {
-                #     'min': -1.0,
-                #     'max': -0.1,
-                #     'distribution': 'uniform'
-                # },
-                # 'l5': {
-                #     'min': -1.0,
-                #     'max': -0.1,
-                #     'distribution': 'uniform'
-                # }
                 }
             }  
         sweep_id = wandb.sweep(sweep_config, entity="fluidic-city", project=self.project)

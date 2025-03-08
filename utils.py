@@ -7,7 +7,6 @@ import numpy as np
 import seaborn as sns
 from scipy import stats
 import matplotlib.pyplot as plt
-from matplotlib import cm
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
@@ -239,201 +238,6 @@ def plot_gradient_line(ax, x, y, std=None, cmap_name='Blues', label='', lw=2, zo
                     markerfacecolor=color, markeredgecolor='k', label=label)
     return handle
 
-def plot_individual_results(*result_json_paths, in_range_demand_scales, total=False, show_scales=False):
-    """
-    Plot consolidated results with standard deviation shading.
-    Parameters:
-        *result_json_paths: Paths to result JSON files
-        in_range_demand_scales: List of scales considered in-range
-        total: If True, plot total wait times instead of averages
-        show_scales: If True, show scale labels (e.g. 0.5x) below demand values
-    """
-    # Original demand values.
-    original_vehicle_demand = 201.54    # veh/hr
-    original_pedestrian_demand = 2222.80  # ped/hr
-    default_cmaps = ['Blues', 'Oranges', 'Greens', 'Purples', 'Reds', 'Greys']
-
-    num_methods = len(result_json_paths)
-    if num_methods == 3:
-        labels = ['Unsignalized', 'TL', 'RL (Ours)']
-    else:
-        labels = ['TL', 'RL (Ours)']
-
-    results = []
-    for json_path in result_json_paths:
-        scales, veh_mean, ped_mean, veh_std, ped_std = get_averages(json_path, total=total)
-        results.append({
-            'scales': scales, 
-            'veh_mean': veh_mean, 
-            'ped_mean': ped_mean,
-            'veh_std': veh_std,
-            'ped_std': ped_std
-        })
-    
-    # Compute actual demand values
-    for res in results:
-        res['veh_x'] = res['scales'] * original_vehicle_demand
-        res['ped_x'] = res['scales'] * original_pedestrian_demand
-
-    sns.set_theme(style="whitegrid", context="talk")
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 7))
-
-    # Plot each method's data with gradient lines and standard deviation shading
-    handles_vehicle = []
-    handles_ped = []
-    for i, res in enumerate(results):
-        cmap = default_cmaps[i] if i < len(default_cmaps) else None
-        
-        handle_v = plot_gradient_line(ax1, res['veh_x'], res['veh_mean'], 
-                                    std=res['veh_std'], cmap_name=cmap,
-                                    label=labels[i], lw=2, zorder=2)
-        handle_p = plot_gradient_line(ax2, res['ped_x'], res['ped_mean'], 
-                                    std=res['ped_std'], cmap_name=cmap,
-                                    label=labels[i], lw=2, zorder=2)
-        
-        handles_vehicle.append(handle_v)
-        handles_ped.append(handle_p)
-
-    # Set base font size
-    fs = 19
-    
-    # Set subplot titles and axis labels
-    time_type_veh = "Total wait time" if total else "Average wait time per vehicle"
-    time_type_ped = "Total wait time" if total else "Average wait time per pedestrian"
-    ax1.set_title("Vehicle", fontweight="bold", fontsize=fs)
-    ax2.set_title("Pedestrian", fontweight="bold", fontsize=fs)
-    ax1.set_xlabel("Demand (veh/hr)", fontsize=fs)
-    ax2.set_xlabel("Demand (ped/hr)", fontsize=fs)
-    ax1.set_ylabel(f"{time_type_veh} (s)", fontsize=fs)
-    ax2.set_ylabel(f"{time_type_ped} (s)", fontsize=fs)
-
-    # Set tick label sizes
-    ax1.tick_params(axis='both', which='major', labelsize=fs-2)
-    ax2.tick_params(axis='both', which='major', labelsize=fs-2)
-
-    # Format y-axis values
-    def format_avg_ticks(x, _):
-        return f"{x:.1f}"
-    
-    def format_total_ticks(x, _):
-        return f"{(x/1000):.1f}"
-    
-    # Apply formatters
-    ax1.yaxis.set_major_formatter(FuncFormatter(format_total_ticks))
-    ax2.yaxis.set_major_formatter(FuncFormatter(format_total_ticks))
-    
-    # Determine the overall x-axis limits across all methods.
-    veh_x_min = min(res['veh_x'].min() for res in results)
-    veh_x_max = max(res['veh_x'].max() for res in results)
-    ped_x_min = min(res['ped_x'].min() for res in results)
-    ped_x_max = max(res['ped_x'].max() for res in results)
-    veh_margin = 0.05 * (veh_x_max - veh_x_min)
-    ped_margin = 0.05 * (ped_x_max - ped_x_min)
-    veh_xlim = (veh_x_min - veh_margin, veh_x_max + veh_margin)
-    ped_xlim = (ped_x_min - ped_margin, ped_x_max + ped_margin)
-    ax1.set_xlim(veh_xlim)
-    ax2.set_xlim(ped_xlim)
-
-    # Set x-ticks using the actual scale points from the data
-    all_scales = np.unique(np.concatenate([res['scales'] for res in results]))  # Get unique scales from results
-    veh_ticks = [scale * original_vehicle_demand for scale in all_scales]
-    ped_ticks = [scale * original_pedestrian_demand for scale in all_scales]
-    
-    # Use every other tick but include the last one
-    veh_ticks = veh_ticks[::2]
-    ped_ticks = ped_ticks[::2]
-    if veh_ticks[-1] != all_scales[-1] * original_vehicle_demand:
-        veh_ticks = np.append(veh_ticks, all_scales[-1] * original_vehicle_demand)
-    if ped_ticks[-1] != all_scales[-1] * original_pedestrian_demand:
-        ped_ticks = np.append(ped_ticks, all_scales[-1] * original_pedestrian_demand)
-    
-    # Get corresponding scales for labels
-    scales_for_labels = list(all_scales[::2])
-    if scales_for_labels[-1] != all_scales[-1]:
-        scales_for_labels.append(all_scales[-1])
-    
-    ax1.set_xticks(veh_ticks)
-    ax2.set_xticks(ped_ticks)
-    
-    # Create main tick labels (demand values)
-    veh_xtick_labels = [f"{int(round(val))}" for val in veh_ticks]
-    ped_xtick_labels = [f"{int(round(val))}" for val in ped_ticks]
-    
-    if show_scales:
-        # Create scale labels using the actual scales - simplified format
-        veh_scales = [f"{scale:g}x" for scale in scales_for_labels]  # :g removes unnecessary zeros
-        ped_scales = [f"{scale:g}x" for scale in scales_for_labels]  # :g removes unnecessary zeros
-        
-        ax1.set_xticklabels([f"{val}\n{scale}" for val, scale in zip(veh_xtick_labels, veh_scales)])
-        ax2.set_xticklabels([f"{val}\n{scale}" for val, scale in zip(ped_xtick_labels, ped_scales)])
-    else:
-        ax1.set_xticklabels(veh_xtick_labels)
-        ax2.set_xticklabels(ped_xtick_labels)
-    
-    # Make the tick labels slightly smaller
-    for ax in [ax1, ax2]:
-        for tick in ax.get_xticklabels():
-            tick.set_fontsize(fs-4)
-
-    # Set grid lines with short dashes.
-    ax1.grid(True, linestyle=(0, (3, 3)), linewidth=0.85)
-    ax2.grid(True, linestyle=(0, (3, 3)), linewidth=0.85)
-
-    # Determine the valid (non-shaded) demand region.
-    valid_min_scale = min(in_range_demand_scales)
-    valid_max_scale = max(in_range_demand_scales)
-    veh_valid_min = valid_min_scale * original_vehicle_demand
-    veh_valid_max = valid_max_scale * original_vehicle_demand
-    ped_valid_min = valid_min_scale * original_pedestrian_demand
-    ped_valid_max = valid_max_scale * original_pedestrian_demand
-
-    # Shade the areas outside the valid demand limits.
-    ax1.axvspan(veh_xlim[0], veh_valid_min, facecolor='grey', alpha=0.2, zorder=0)
-    ax1.axvspan(veh_valid_max, veh_xlim[1], facecolor='grey', alpha=0.2, zorder=0)
-    ax2.axvspan(ped_xlim[0], ped_valid_min, facecolor='grey', alpha=0.2, zorder=0)
-    ax2.axvspan(ped_valid_max, ped_xlim[1], facecolor='grey', alpha=0.2, zorder=0)
-
-    # Create a single legend at the bottom
-    handles = handles_vehicle  # We can use either handles_vehicle or handles_ped since they're the same
-    leg = fig.legend(handles=handles, 
-                    loc='center', 
-                    bbox_to_anchor=(0.5, 0.02),
-                    ncol=len(handles),  # Place handles horizontally
-                    frameon=True,  # Add the frame
-                    framealpha=1.0,  # Solid background
-                    edgecolor='gray',  # Gray edge color (more subtle)
-                    fancybox=True,  # Rounded corners
-                    shadow=False,  # Add shadow
-                    bbox_transform=fig.transFigure,
-                    fontsize=fs-4)  # Legend text slightly smaller than titles
-
-    # Adjust the layout to make room for the legend
-    plt.tight_layout()
-    plt.subplots_adjust(bottom=0.15)
-
-    # Ensure same number of y-ticks for both subplots
-    ax1_yticks = ax1.get_yticks()
-    ax2_yticks = ax2.get_yticks()
-    n_ticks = max(len(ax1_yticks), len(ax2_yticks))
-    
-    # Get y-limits for both plots
-    ax1_ymin, ax1_ymax = ax1.get_ylim()
-    ax2_ymin, ax2_ymax = ax2.get_ylim()
-    
-    # Set same number of ticks for both plots
-    ax1.yaxis.set_major_locator(LinearLocator(n_ticks))
-    ax2.yaxis.set_major_locator(LinearLocator(n_ticks))
-    
-    # Reset the limits to avoid auto-adjustment
-    ax1.set_ylim(ax1_ymin, ax1_ymax)
-    ax2.set_ylim(ax2_ymin, ax2_ymax)
-
-    # Save with bbox_inches to ensure legend is included in saved file
-    plt.savefig(f"./results/individual_results_{'total' if total else 'avg'}.pdf", 
-                dpi=300, 
-                bbox_inches='tight')
-    plt.show()
-
 def get_averages(result_json_path, total=False):
     """
     Helper function that reads a JSON file with results and returns the scales,
@@ -504,76 +308,7 @@ def count_consecutive_ones_filtered(actions):
 
     return counts
 
-def plot_avg_consecutive_ones(file_path):
-    """
-    Plots the average sum of consecutive occurrences of '1's per training iteration
-    as a scatter plot with a fit line. The first action in each list is ignored.
-
-    Parameters:
-        file_path (str): Path to the JSON file containing the data.
-    """
-    with open(file_path, "r") as file:
-        data = json.load(file)
-
-    # Compute the average sum of consecutive 1's per iteration
-    avg_consecutive_ones_per_iteration = []
-    iterations = []
-
-    for iteration, actions_list in data.items():
-        iteration = int(iteration)  # Convert iteration key to integer
-        consecutive_ones = [count_consecutive_ones_filtered(action_list) for action_list in actions_list]
-
-        # Calculate the sum of consecutive 1's for each sample, then average across samples
-        sums_of_consecutive_ones = [sum(seq) for seq in consecutive_ones if seq]
-        avg_consecutive_ones = np.mean(sums_of_consecutive_ones) if sums_of_consecutive_ones else 0
-
-        iterations.append(iteration)
-        avg_consecutive_ones_per_iteration.append(avg_consecutive_ones)
-
-    # Sort by iteration
-    iterations, avg_consecutive_ones_per_iteration = zip(*sorted(zip(iterations, avg_consecutive_ones_per_iteration)))
-    iterations = np.array(iterations)
-    avg_consecutive_ones_per_iteration = np.array(avg_consecutive_ones_per_iteration)
-
-    # Set style and create figure
-    sns.set_theme(style="whitegrid", context="talk")
-    fig, ax = plt.subplots(figsize=(12, 8))
-
-    # Create scatter plot with green color and hollow markers with reduced opacity
-    scatter = ax.scatter(iterations, avg_consecutive_ones_per_iteration,
-                        color='green', s=100, edgecolors='green',
-                        facecolors='none', linewidth=1.5, alpha=0.5, zorder=2)
-
-    # Add fit line (polynomial fit of degree 1 - linear regression)
-    z = np.polyfit(iterations, avg_consecutive_ones_per_iteration, 1)
-    p = np.poly1d(z)
-    x_line = np.linspace(min(iterations), max(iterations), 100)
-    y_line = p(x_line)
-
-    # Plot the fit line with higher opacity
-    ax.plot(x_line, y_line, color='darkgreen', linewidth=3, alpha=0.9, zorder=3)
-
-    # Set font size
-    fs = 28  # Increased base font size
-
-    # Set labels with increased font size
-    ax.set_xlabel("Training Iteration", fontsize=fs)
-    ax.set_ylabel("Avg. Sum of Consecutive 1's", fontsize=fs)
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x:.1f}"))
-    ax.grid(True, linestyle=(0, (3, 3)), linewidth=0.85)
-
-    # Increase tick label size
-    ax.tick_params(axis='both', which='major', labelsize=fs-4)
-
-    # Remove top and right spines
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-
-    plt.tight_layout()
-    plt.savefig("./results/sampled_actions.pdf", dpi=300)
-    plt.show()
-
-def plot_avg_consecutive_ones_retro(file_path, output_path="./results/sampled_actions_retro.pdf"):
+def plot_avg_consecutive_ones(file_path, output_path="./results/sampled_actions_retro.pdf"):
     """
     Creates a clean, professional plot of the average sum of consecutive occurrences of '1's
     per training iteration with a vibrant appearance.
@@ -582,12 +317,6 @@ def plot_avg_consecutive_ones_retro(file_path, output_path="./results/sampled_ac
         file_path (str): Path to the JSON file containing the data.
         output_path (str): Path to save the output PDF file.
     """
-    import json
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import matplotlib.ticker as ticker
-    from matplotlib.ticker import FuncFormatter
-    import matplotlib.lines as mlines
 
     # Load data
     with open(file_path, "r") as file:
@@ -712,7 +441,7 @@ def plot_avg_consecutive_ones_retro(file_path, output_path="./results/sampled_ac
 
     print(f"Plot saved to {output_path}")
 
-def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=True):
+def plot_main_results(*json_paths, in_range_demand_scales, show_scales=True):
     """
     Plot consolidated results from multiple JSON files into a single figure with 4 subplots.
     """
@@ -777,7 +506,7 @@ def plot_consolidated_results(*json_paths, in_range_demand_scales, show_scales=T
         all_ped_demands.extend(scales * original_pedestrian_demand)
         all_veh_demands.extend(scales * original_vehicle_demand)
 
-    # Calculate the limits with symmetrical margins (like in plot_individual_results)
+    # Calculate the limits with symmetrical margins 
     ped_min, ped_max = min(all_ped_demands), max(all_ped_demands)
     veh_min, veh_max = min(all_veh_demands), max(all_veh_demands)
     ped_margin = 0.05 * (ped_max - ped_min)  # 5% margin on both sides
@@ -1409,37 +1138,22 @@ def plot_consolidated_insights(sampled_actions_file_path, conflict_json_file_pat
     return fig
 
 ####### CONSOLIDATED 3 SUBPLOTS ######
-sampled_actions_file_path = "./results/sampled_actions.json"
-unsignalized_conflicts_file_path = "./results/eval_unsignalized_conflicts.json"
-switching_freq_data_path = "./results/switching_freq_data.json"
-plot_consolidated_insights(sampled_actions_file_path, unsignalized_conflicts_file_path, switching_freq_data_path) # Other values are manually input inside the function.
+# sampled_actions_file_path = "./results/sampled_actions.json"
+# unsignalized_conflicts_file_path = "./results/eval_unsignalized_conflicts.json"
+# switching_freq_data_path = "./results/switching_freq_data.json"
+# plot_consolidated_insights(sampled_actions_file_path, unsignalized_conflicts_file_path, switching_freq_data_path) # Other values are manually input inside the function.
 
 
-# ###### CONSOLIDATED PLOT ######
+# ###### MAIN RESULTS PLOT ######
 # unsignalized_results_path = "./results/eval_unsignalized.json"
 # tl_results_path = "./results/eval_tl.json"
 # ppo_results_path = "./results/eval_ppo.json"
 
-# plot_consolidated_results(unsignalized_results_path, 
+# plot_main_results(unsignalized_results_path, 
 #                          tl_results_path, 
 #                          ppo_results_path,
 #                          in_range_demand_scales=[1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
 
-######  Plot samples 1's ###### 
+######  Just plot sampled 1's ###### 
 # sampled_actions_file_path = "./saved_models/Feb24_13-54-26/sampled_actions.json"
-# # plot_avg_consecutive_ones(sampled_actions_file_path)
-# plot_avg_consecutive_ones_retro(sampled_actions_file_path)
-
-###### SEPARATE PLOTS FOR AVERAGE AND TOTAL ######
-# unsignalized_results_path = "./results/eval_Feb17_08-17-07/eval_Feb16_13-09-44_unsignalized.json"
-# tl_results_path = "./results/eval_Feb18_16-13-39/eval_Feb17_17-36-27_tl.json"
-# ppo_results_path = "./results/eval_Feb18_16-13-39/eval_Feb17_17-36-27_ppo.json"
-
-# plot_individual_results(tl_results_path,
-#                             ppo_results_path,
-#                             in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
-
-# plot_individual_results(tl_results_path,
-#                             ppo_results_path,
-#                             in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25],
-#                             total=True)
+# plot_avg_consecutive_ones(sampled_actions_file_path)

@@ -5,8 +5,8 @@ import torch
 import random
 import gymnasium as gym
 import numpy as np
-from config.utils import convert_demand_to_scale_factor, scale_demand, visualize_observation
-from simulation.sim_config import get_direction_lookup, get_related_lanes_edges, get_intersection_phase_groups
+from utils import scale_demand
+from simulation.sim_setup import get_direction_lookup, get_related_lanes_edges, get_intersection_phase_groups
 
 class ControlEnv(gym.Env):
     """
@@ -85,7 +85,7 @@ class ControlEnv(gym.Env):
         self.max_pressure_vehicle = 15
         self.max_pressure_pedestrian = 25 # arbitrary
         self.max_switches = len(self.tl_ids)
-
+        
         # For safety conflict tracking (only in unsignalized)
         self.recorded_conflicts = set()  # Set of unique conflict identifiers to prevent double-counting
         self.total_conflicts = 0         # Running total of unique vehicle-pedestrian conflicts
@@ -458,20 +458,12 @@ class ControlEnv(gym.Env):
         action_space = [4] + [2] * 7  # First value is 0-3 for intersection, remaining 7 are binary
         return gym.spaces.MultiDiscrete(action_space)
 
-        # Advanced action
-        # action_space = [2, 2] + [2] * 7 + [2] * 7
-        # return gym.spaces.MultiDiscrete(action_space)
-
     @property
     def observation_space(self):
         """
         * Observation space is defined per action step (i.e. accumulated over action duration)
         """
-        # Simple observation
         return gym.spaces.Box(low=0, high=1, shape=(self.steps_per_action, self.per_timestep_state_dim), dtype=np.float32)
-    
-        # Advanced observation
-        # TODO: Implement
 
     def train_step(self, action):
         """
@@ -625,13 +617,6 @@ class ControlEnv(gym.Env):
 
     def _get_observation(self, current_phase, print_map=False):
         """
-        wrapper
-        """
-        return self._get_simple_observation(current_phase, print_map)
-        # return self._get_advanced_observation(current_phase, print_map)
-
-    def _get_simple_observation(self, current_phase, print_map):
-        """
         * Per step observation size = 96
         * Composed of: 
             - Current phase information (8 elements that transitions throughout the action duration)
@@ -727,21 +712,7 @@ class ControlEnv(gym.Env):
         #print(f"\nObservation: shape: {observation.shape}") 
         return observation
 
-    def _get_advanced_observation(self, current_phase, print_map=False):
-        """
-        Advanced Traffic State (ATS).
-        * Composed of: 
-        """
-        pass
-
     def _apply_action(self, action, current_action_step, switch_state):
-        """
-        wrapper
-        """
-        return self._apply_simple_action(action, current_action_step, switch_state)
-        # return self._apply_advanced_action(action, current_action_step, switch_state)
-        
-    def _apply_simple_action(self, action, current_action_step, switch_state):
         """
         apply_action is the enforcement of the chosen action (9-bit string) to the traffic lights and crosswalks at every step.
         Based on the switch_state, a 4-second mandatory yellow phase is enforced to the direction/ light that is turning red, before starting the new phase in the other light.
@@ -812,28 +783,11 @@ class ControlEnv(gym.Env):
 
         return current_phase
     
-    def _apply_advanced_action(self, action, current_action_step, prev_action=None):
-        """
-        """
-        pass
-
     def _get_reward(self, corrected_occupancy_map, switch_state, pressure_dict):
         """ 
+        wrapper
         """
         return self._get_mwaq_reward_exponential(corrected_occupancy_map, switch_state, print_reward=False)
-
-
-    def _get_vehicle_wait_time_reward(self, corrected_occupancy_map):
-        """
-        For testing: Simple reward based only on vehicle waiting time at the intersection.
-        """
-        wait_time = 0
-        for direction_turn in self.direction_turn_intersection_incoming:
-            int_vehicles = corrected_occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"][direction_turn]
-            for veh_id in int_vehicles:
-                wait_time += traci.vehicle.getWaitingTime(veh_id)
-        reward = -wait_time/200.0 # There are 12 direction_turns. And since we are accumulating over 10 timesteps, wait values get repeated.
-        return reward
 
     def _get_mwaq_reward(self, corrected_occupancy_map, switch_state, print_reward=False):
         """
@@ -1119,208 +1073,6 @@ class ControlEnv(gym.Env):
             print(f"Clipped Reward: {clipped_reward}\n\n")
 
         return clipped_reward
-    
-    def _get_mwaq_reward_logistic(self, corrected_occupancy_map, switch_state, print_reward=False):
-        """
-        - Logistic Increasing Normalized Maximum wait aggregated queue (LI-MWAQ)
-
-        * MWAQ = For each TL, for both vehicles and pedestrians:
-            [queue length (only counted when below a threshold speed) x maximum waiting time among all]
-        * The normalized value is remapped via a logistic function so that the ideal state (zero congestion)
-        maps to 1 and any congestion increases the value nonlinearly.
-        * We weight the intersection and midblock components, and subtract their weighted sum from an offset
-        chosen so that the ideal state yields a reward of 0.
-        
-        Vehicles:
-        - getWaitingTime: The waiting time (in seconds) of a vehicle when its speed is below 0.1 m/s.
-        - getAccumulatedWaitingTime: The accumulated waiting time (in seconds) over a given interval.
-        Pedestrians:
-        - getWaitingTime: The waiting time (in seconds) of a pedestrian when its speed is below 0.1 m/s.
-        
-        Normalizers:
-        - Each raw MWAQ is divided by a fixed normalizer (10) multiplied by the number of incoming directions.
-        
-        Mapping:
-        For each component we compute:
-            norm = (queue_length * max_wait_time) / (normalizer * N)
-            final_component = 1 + A * (sigma(B * norm) - 0.5)
-        where sigma(x) = 1 / (1 + exp(-x)), with A = 15 and B = 4.
-        
-        We then weight:
-            weighted_sum = w_int * (final_int_veh + final_int_ped) + w_mb * (final_mb_veh + final_mb_ped)
-        and use an offset equal to the ideal weighted sum (i.e. 2*(1+1) + 2*(1+1) = 8).
-        The final reward is computed as:
-            reward = offset - weighted_sum
-            
-        Finally, the reward is clipped to the range [-100, 100].
-        """
-
-        # Parameters for normalization and logistic mapping
-        MWAQ_VEH_NORMALIZER = 10.0
-        MWAQ_PED_NORMALIZER = 10.0
-        VEH_THRESHOLD_SPEED = 0.2  # m/s
-        PED_THRESHOLD_SPEED = 0.5  # m/s
-
-        # Logistic mapping parameters (increased intensity: A = 15, B = 4)
-        A = 15.0   # amplitude factor
-        B = 4.0    # steepness factor
-
-        # Weights and offset (ideal state: each component is 1)
-        w_int = 2.0  # weight for intersection components
-        w_mb = 2.0   # weight for midblock components
-        ideal_sum = w_int * (1 + 1) + w_mb * (1 + 1)  # = 8
-        offset = ideal_sum
-
-        # Define sigmoid helper function
-        sigmoid = lambda x: 1.0 / (1.0 + np.exp(-x))
-
-        # === Intersection Calculation ===
-        # Vehicles
-        int_veh_mwaq = 0.0
-        max_wait_time_veh_int = 0.5
-        veh_queue_length = 0
-        for direction_turn in self.direction_turn_intersection_incoming:
-            int_vehicles = corrected_occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["vehicle"]["incoming"][direction_turn]
-            for veh_id in int_vehicles:
-                if traci.vehicle.getSpeed(veh_id) < VEH_THRESHOLD_SPEED:
-                    veh_queue_length += 1
-                wait_time = traci.vehicle.getWaitingTime(veh_id)
-                if wait_time > max_wait_time_veh_int:
-                    max_wait_time_veh_int = wait_time
-        int_veh_mwaq = veh_queue_length * max_wait_time_veh_int
-        # Normalize using the number of physical incoming directions (assume len(self.directions) == 4)
-        norm_int_veh = int_veh_mwaq / (MWAQ_VEH_NORMALIZER * len(self.directions))
-        final_int_veh = 1.0 + A * (sigmoid(B * norm_int_veh) - 0.5)
-
-        # Pedestrians
-        int_ped_mwaq = 0.0
-        max_wait_time_ped_int = 0.5
-        ped_queue_length = 0
-        for direction in self.directions:
-            int_pedestrians = corrected_occupancy_map["cluster_172228464_482708521_9687148201_9687148202_#5more"]["pedestrian"]["incoming"][direction]["main"]
-            for ped_id in int_pedestrians:
-                if traci.person.getSpeed(ped_id) < PED_THRESHOLD_SPEED:
-                    ped_queue_length += 1
-                wait_time = traci.person.getWaitingTime(ped_id)
-                if wait_time > max_wait_time_ped_int:
-                    max_wait_time_ped_int = wait_time
-        int_ped_mwaq = ped_queue_length * max_wait_time_ped_int
-        norm_int_ped = int_ped_mwaq / (MWAQ_PED_NORMALIZER * len(self.directions))
-        final_int_ped = 1.0 + A * (sigmoid(B * norm_int_ped) - 0.5)
-
-        # === Midblock Calculation ===
-        # Vehicles
-        norm_mb_veh_list = []
-        for tl_id in self.tl_ids[1:]:
-            tl_veh_mwaq = 0.0
-            max_wait_time_veh_mb = 0.5
-            veh_queue_length_mb = 0
-            for direction in self.direction_turn_midblock:
-                mb_vehicles = corrected_occupancy_map[tl_id]["vehicle"]["incoming"][direction]
-                for veh_id in mb_vehicles:
-                    if traci.vehicle.getSpeed(veh_id) < VEH_THRESHOLD_SPEED:
-                        veh_queue_length_mb += 1
-                    wait_time = traci.vehicle.getWaitingTime(veh_id)
-                    if wait_time > max_wait_time_veh_mb:
-                        max_wait_time_veh_mb = wait_time
-            tl_veh_mwaq = veh_queue_length_mb * max_wait_time_veh_mb
-            # Normalize over the number of midblock directions (assume len(self.direction_turn_midblock))
-            norm_tl_veh = tl_veh_mwaq / (MWAQ_VEH_NORMALIZER * len(self.direction_turn_midblock))
-            norm_mb_veh_list.append(norm_tl_veh)
-        if norm_mb_veh_list:
-            avg_norm_mb_veh = np.mean(norm_mb_veh_list)
-        else:
-            avg_norm_mb_veh = 0.0
-        final_mb_veh = 1.0 + A * (sigmoid(B * avg_norm_mb_veh) - 0.5)
-
-        # Pedestrians
-        norm_mb_ped_list = []
-        for tl_id in self.tl_ids[1:]:
-            tl_ped_mwaq = 0.0
-            max_wait_time_ped_mb = 0.5
-            ped_queue_length_mb = 0
-            mb_pedestrians = corrected_occupancy_map[tl_id]["pedestrian"]["incoming"]["north"]["main"]  # only one direction
-            for ped_id in mb_pedestrians:
-                if traci.person.getSpeed(ped_id) < PED_THRESHOLD_SPEED:
-                    ped_queue_length_mb += 1
-                wait_time = traci.person.getWaitingTime(ped_id)
-                if wait_time > max_wait_time_ped_mb:
-                    max_wait_time_ped_mb = wait_time
-            tl_ped_mwaq = ped_queue_length_mb * max_wait_time_ped_mb
-            norm_tl_ped = tl_ped_mwaq / MWAQ_PED_NORMALIZER
-            norm_mb_ped_list.append(norm_tl_ped)
-        if norm_mb_ped_list:
-            avg_norm_mb_ped = np.mean(norm_mb_ped_list)
-        else:
-            avg_norm_mb_ped = 0.0
-        final_mb_ped = 1.0 + A * (sigmoid(B * avg_norm_mb_ped) - 0.5)
-
-        # === Weighted Sum and Final Reward ===
-        weighted_int = w_int * (final_int_veh + final_int_ped)
-        weighted_mb = w_mb * (final_mb_veh + final_mb_ped)
-        weighted_sum = weighted_int + weighted_mb
-
-        # Final reward: offset minus the weighted sum (ideal state yields offset; any congestion increases the sum, making reward negative)
-        reward = offset - weighted_sum
-
-        # Clip the reward to the range [-100, 100]
-        clipped_reward = np.clip(reward, -100, 100)
-
-        if print_reward:
-            print(f"Intersection Components:")
-            print(f"\tVehicle norm: {norm_int_veh:.3f}, final: {final_int_veh:.3f}")
-            print(f"\tPedestrian norm: {norm_int_ped:.3f}, final: {final_int_ped:.3f}")
-            print("Midblock Components (averaged):")
-            print(f"\tVehicle avg norm: {avg_norm_mb_veh:.3f}, final: {final_mb_veh:.3f}")
-            print(f"\tPedestrian avg norm: {avg_norm_mb_ped:.3f}, final: {final_mb_ped:.3f}")
-            print(f"Weighted Intersection: {weighted_int:.3f}")
-            print(f"Weighted Midblock: {weighted_mb:.3f}")
-            print(f"Total Weighted Sum: {weighted_sum:.3f}")
-            print(f"Offset: {offset}")
-            print(f"Final Reward: {reward:.3f}")
-            print(f"Clipped Reward: {clipped_reward:.3f}\n")
-
-        return clipped_reward
-
-    def _get_normalized_high_level_reward(self, corrected_occupancy_map, switch_state, print_reward=False):
-        """
-        High-level reward based on average waiting times:
-        - Penalize average vehicle waiting time
-        - Penalize average pedestrian waiting time
-
-        This reward is defined as the negative sum of the average waiting times per vehicle and per pedestrian.
-        Mathematically, if:
-            Total Vehicle Wait = ∑_{v ∈ V} W(v)  and  N_v = |Vehicles waiting|,
-            Total Ped Wait = ∑_{p ∈ P} W(p)   and  N_p = |Pedestrians waiting|,
-        then we define:
-            R = - [ (Total Vehicle Wait / N_v) + (Total Ped Wait / N_p) ]
-        This normalization makes the reward less sensitive to variations in demand (which is not controlled by the agent).
-        """
-        THRESHOLD_WAIT_VELOCITY = 0.1 # default used by sim
-
-        veh_ids = traci.vehicle.getIDList()
-        ped_ids = traci.person.getIDList()
-        
-        # Get waiting time is already accumulative in nature.
-        total_veh_wait_time = sum(traci.vehicle.getWaitingTime(veh_id) for veh_id in veh_ids)
-        total_ped_wait_time = sum(traci.person.getWaitingTime(ped_id) for ped_id in ped_ids)
-        total_veh_waiting_count = sum(1 for veh_id in veh_ids if traci.vehicle.getSpeed(veh_id) < THRESHOLD_WAIT_VELOCITY)
-        total_ped_waiting_count = sum(1 for ped_id in ped_ids if traci.person.getSpeed(ped_id) < THRESHOLD_WAIT_VELOCITY)
-
-        # Normalize by the number of vehicles and pedestrians that are waiting (NOT by ALL)
-        avg_veh_wait = total_veh_wait_time / max(total_veh_waiting_count, 1) # Handle division by zero cases
-        avg_ped_wait = total_ped_wait_time / max(total_ped_waiting_count, 1)
-        
-        reward = - (avg_veh_wait + avg_ped_wait)
-        # clip the reward
-        reward = np.clip(reward, -200, 0)
-
-        if print_reward:
-            print(f"Avg Vehicle Wait: {avg_veh_wait:.3f} sec")
-            print(f"Avg Pedestrian Wait: {avg_ped_wait:.3f} sec")
-            print(f"Reward: {reward:.3f}")
-        
-        return reward
 
     def _count_near_conflicts(self, corrected_occupancy_map, threshold_speed=1.0, distance_threshold=5.0):
         """
@@ -1546,4 +1298,3 @@ class ControlEnv(gym.Env):
         So far in the simulation, how many total unique ids were seen. 
         """
         return len(self.total_unique_ids_veh),  len(self.total_unique_ids_ped)
-
