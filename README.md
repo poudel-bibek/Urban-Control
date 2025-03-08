@@ -3,9 +3,9 @@
 <a  href='https://arxiv.org/'><img  src='https://img.shields.io/badge/arXiv--green'></a> <a  href='https://youtu.be/Tec3H72cDT4'><img  src='https://img.shields.io/badge/YouTube--red'></a>
 
 <p align="center">
-  <a href="https://youtu.be/Tec3H72cDT4"><img src="https://github.com/poudel-bibek/Urban-Control/blob/main/images/craver_3d.gif" alt="craver" style="width:600px"/></a>
+  <a href="https://youtu.be/Tec3H72cDT4"><img src="https://github.com/poudel-bibek/Urban-Control/blob/main/images/craver_3d.gif" alt="craver" style="width:800px"/></a>
   <br>
-  <em>The Craver road corridor in the city of Charlotte, North Carolina.</em>
+  <em>The Craver road corridor.</em>
 </p>
 
 ### Overview
@@ -14,11 +14,19 @@ This project uses Reinforcement Learning to jointly optimize traffic signal cont
 
 
 <p align="center">
-  <img src="https://github.com/poudel-bibek/Urban-Control/blob/main/images/system_overview.png" alt="System Overview" style="width:600px"/>
+  <img src="https://github.com/poudel-bibek/Urban-Control/blob/main/images/system_overview.png" alt="System Overview" style="width:800px"/>
   <br>
-  <em>System overview and agent actions in the intersection and midblock crosswalks.</em>
+  <em>System overview and agent actions in the intersection and midblock crossings.</em>
 </p>
 
+ #### Project Structure
+
+-  `simulation/`: Contains SUMO configuration and trip files
+-  `models.py`: Neural network architecture definitions
+-  `ppo_alg.py`: PPO algorithm implementation
+-  `ppo_run.py`: Main script for running experiments
+-  `sim_run.py`: SUMO environment wrapper
+-  `sweep.py`: Hyperparameter tuning using wandb sweep
 
 ---
 
@@ -47,44 +55,35 @@ This project uses Reinforcement Learning to jointly optimize traffic signal cont
 	pip  install  requirements.txt
 	```
 
- #### Project Structure
-
-	-  `simulation/`: Contains SUMO configuration and trip files
-	-  `models.py`: Neural network architecture definitions
-	-  `ppo_alg.py`: PPO algorithm implementation
-	-  `ppo_run.py`: Main script for running experiments
-	-  `sim_run.py`: SUMO environment wrapper
-	-  `sweep.py`: Hyperparameter tuning using wandb sweep
-  
  #### To Train
 
-	Step 1: Complete the setup
+Step 1: Complete the setup
 
-	Step 2: Open terminal In linux or wsl and run:
-		```bash
-		ulimit -n 20000
-		```
-	to increase the limit on the number of file descriptors that can be opened by a process.
+Step 2: Open terminal In linux or wsl and run:
+	```bash
+	ulimit -n 20000
+	```
+to increase the limit on the number of file descriptors that can be opened by a process.
 
-	Step 3: In the config.py file, set the `sweep`,`evaluate`, and `gui` to `False`.
+Step 3: In the config.py file, set the `sweep`,`evaluate`, and `gui` to `False`.
 
-	Step 4: Run the following command:
-		```bash
-		python main.py
-		```
+Step 4: Run the following command:
+	```bash
+	python main.py
+	```
 
-	#### Some important parameters that you can add to the command:
-	-  `--gui` to run the simulation with GUI.
-	-  `--sweep` to run the hyperparameter tuning.
-	-  `--evaluate` to evaluate the trained policy.
-	-  `--eval_model_path` to specify the path to the trained policy.
-	-  `--eval_worker_device` to specify the device to run the evaluation on.
-	-  `--step_length`: Simulation step length (default: 1.0)
-	-  `--action_duration`: Duration of each action (default: 10.0)
-	-  `--total_timesteps`: Total training timesteps (default: 100000)
-	-  `--max_timesteps`: Maximum steps per episode (default: 1000)
-	-  `--num_processes`: Number of parallel processes (default: 8)
-	For a complete list of parameters, refer to the argument parser in `ppo_run.py`.
+#### Some important parameters that you can add to the command:
+-  `--gui` to run the simulation with GUI.
+-  `--sweep` to run the hyperparameter tuning.
+-  `--evaluate` to evaluate the trained policy.
+-  `--eval_model_path` to specify the path to the trained policy.
+-  `--eval_worker_device` to specify the device to run the evaluation on.
+-  `--step_length`: Simulation step length (default: 1.0)
+-  `--action_duration`: Duration of each action (default: 10.0)
+-  `--total_timesteps`: Total training timesteps (default: 100000)
+-  `--max_timesteps`: Maximum steps per episode (default: 1000)
+-  `--num_processes`: Number of parallel processes (default: 8)
+For a complete list of parameters, refer to the argument parser in `ppo_run.py`.
 
  #### To Run a sweep
  
