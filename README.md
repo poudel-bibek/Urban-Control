@@ -49,26 +49,29 @@ This project uses Reinforcement Learning to jointly optimize traffic signal cont
 - SUMO version: [1.21](https://github.com/eclipse-sumo/sumo/releases/tag/v1_21_0)
 - Python version: 3.12 ([Anaconda 2024.06](https://repo.anaconda.com/archive/) recommended)
 - Install required packages
-	```bash
-	pip  install  requirements.txt
+python
+	```python
+	pip install -r requirements.txt
 	```
 
+ ---
  #### Training:
 
 - Step 1: Complete the setup
 
 - Step 2: Open terminal, in linux or wsl run:
 
-	```bash
+	```python	
 	ulimit -n 20000
 	```
+	python
 to increase the limit on the number of file descriptors that can be opened by a process.
 
 - Step 3: In the [config.py](https://github.com/poudel-bibek/Urban-Control/blob/main/config.py) file, set the `sweep`,`evaluate`, and `gui` to `False`.
 
 - Step 4: Run the following command:
 
-	```bash
+	```python
 	python main.py
 	```
 
@@ -83,37 +86,40 @@ to increase the limit on the number of file descriptors that can be opened by a 
 -  `"max_timesteps"`: Maximum simulation steps per episode (default: 600)
 -  `"num_processes"`: Number of parallel processes (default: 8). Increase/ reduce this according to your CPU.
 
+ ---
  #### Evaluation and Benchmarks 
 
 - Set `eval_model_path` path in the [config.py](https://github.com/poudel-bibek/Urban-Control/blob/main/config.py) file. Modify other evaluation parameters as needed.
 - Set `evaluate: True` in the [config.py](https://github.com/poudel-bibek/Urban-Control/blob/main/config.py) file.
 - Run the following command:
-	```bash
+
+	```python
 	python main.py
 	```
+
 - It will run benchmarks in the order: RL, Traffic Signal and Unsignalized as defined in the main.py file.
 - If you want to run a specific benchmark, comment out the other two.
 ```python
-		ppo_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= False)
-        tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=None, tl= True, unsignalized=False) 
-        unsignalized_results_path = eval(control_args, ppo_args, eval_args, policy_path=None, tl= True, unsignalized=True)
+	ppo_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= False)
+	tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=None, tl= True, unsignalized=False) 
+	unsignalized_results_path = eval(control_args, ppo_args, eval_args, policy_path=None, tl= True, unsignalized=True)
 ```
 - Benchmark results json files are saved in the `results` folder.
 
-
- #### To Run a hyperparameter sweep
+ ---
+ ####. Hyperparameter sweep
 - Set `"sweep": True` in the [config.py](https://github.com/poudel-bibek/Urban-Control/blob/main/config.py) file.
-- Modify the `create_sweep_config` method to set the parameters you want to sweep and the method to use.
+- Modify the `create_sweep_config` method in [sweep.py](https://github.com/poudel-bibek/Urban-Control/blob/main/sweep.py) to set the parameters/ method to use.
 - Run the following command:
 
-	```bash
+	```python
 	python main.py
 	```
 
 ---
 ### Notes: 
 - The initial `100-250` timesteps (randomly chosen) are warmup period. Defined in the `reset` method in [env.py](https://github.com/poudel-bibek/Urban-Control/blob/main/simulation/env.py).
-- Although the episode horizon is same, rollouts for higher demands take longer because of increased CPU load.
+- Although when episode horizon is same, rollouts for higher demands take longer because of higher CPU load.
 - This code was developed and tested on Ubuntu 24.04 and Windows 11 + WSL2.
 
 ---
