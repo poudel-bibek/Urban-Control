@@ -8,8 +8,8 @@ def get_config():
         "gui": False,  # Use SUMO GUI (default: False)
         "evaluate": False,  
         
-        "step_length": 1.0,  # Simulation step length (default: 1.0). Since we have pedestrians, who walk slow. A value too small is not required.
-        "action_duration": 10,  # Duration of each action (default: 10.0)
+        "step_length": 1.0,  # Real-world time in seconds per simulation timestep (default: 1.0). 
+        "action_duration": 10,  # Number of simulation timesteps for each action (default: 10)
         "warmup_steps": [100, 250],  # Number of steps to run before collecting data
         "auto_start": False,  # Automatically start the simulation
         "vehicle_input_trips": "./simulation/original_vehtrips.xml",  # Original Input trips file
@@ -48,7 +48,7 @@ def get_config():
         "ent_coef": 0.01,  # Entropy coefficient
         "vf_coef": 0.5,  # Value function coefficient
         "batch_size": 64,  # Batch size
-        "num_processes": 24,  # Number of parallel processes to use (agent has multiple workers)
+        "num_processes":8,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.25,  # Dropout rate for CNN
@@ -57,7 +57,7 @@ def get_config():
         "activation": "tanh",  # Policy activation function
 
         # Evaluation
-        "eval_model_path": "./saved_models/Feb24_19-06-53/best_eval_policy.pth",  # Path to the saved PPO model for evaluation
+        "eval_model_path": "./saved_models/best_eval_policy.pth",  # Path to the saved PPO model for evaluation
         "eval_save_dir": None,
         "eval_n_timesteps": 600,  # Number of timesteps to each episode. Warmup not counted.
         "eval_n_workers": 1,  # Parallelizes how many demands can be evaluated at the same time.

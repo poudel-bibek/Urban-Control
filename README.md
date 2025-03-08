@@ -4,9 +4,7 @@
 
 <p align="center">
   <a href="https://youtu.be/Tec3H72cDT4"><img src="https://github.com/poudel-bibek/Urban-Control/blob/main/images/craver_3d.gif" alt="craver" style="width:800px"/></a>
-  <br>
-  <em>The Craver road corridor.</em>
-</p>
+
 
 ### Overview
 
@@ -16,25 +14,26 @@ This project uses Reinforcement Learning to jointly optimize traffic signal cont
 <p align="center">
   <img src="https://github.com/poudel-bibek/Urban-Control/blob/main/images/system_overview.png" alt="System Overview" style="width:800px"/>
   <br>
-  <em>System overview and agent actions in the intersection and midblock crossings.</em>
+  <em>(a) System overview and (b) agent actions in the Intersection and (c) Mid-Block crossings.</em>
 </p>
 
  #### Project Structure
 
--  `simulation/`: Contains SUMO configuration and trip files
--  `models.py`: Neural network architecture definitions
--  `ppo_alg.py`: PPO algorithm implementation
--  `ppo_run.py`: Main script for running experiments
--  `sim_run.py`: SUMO environment wrapper
+-  `simulation/`: Contains SUMO network, configuration and trip files
+-  `simulation/env.py`: Python-SUMO interface
+-  `ppo/ppo_alg.py`: PPO algorithm implementation (with parallelized sumo environments)
+-  `ppo/models.py`: Policy network architectures
+-  `main.py`: Main script for running experiments
+-  `config.py`: Setup for training, evaluation
 -  `sweep.py`: Hyperparameter tuning using wandb sweep
 
 ---
 
 ### Data
 - [Training logs in wandb](https://api.wandb.ai/links/Fluidic-city/kt1tlg8f) 
-- [Trained policy and config file]()
-- Original trips: [pedestrian](), [vehicle]()
-- [Results reported in the paper]()
+- [Trained policy](https://github.com/poudel-bibek/Urban-Control/blob/main/saved_models) and [config file](https://github.com/user-attachments/files/19145941/config_Feb24_19-06-53.json)
+- Original trips: [pedestrian](https://github.com/poudel-bibek/Urban-Control/blob/main/simulation/original_pedtrips.xml), [vehicle](https://github.com/poudel-bibek/Urban-Control/blob/main/simulation/original_vehtrips.xml)
+- Results reported in the paper (json files): [Traffic Signal](https://github.com/user-attachments/files/19145910/eval_tl.json), [Unsignalized](https://github.com/user-attachments/files/19145909/eval_unsignalized.json), [RL](https://github.com/user-attachments/files/19145911/eval_ppo.json).
 - Rollout videos:
 	| Method |Demand (1x)  | Demand (2.5x)| 
 	|--|--|--|
@@ -48,51 +47,74 @@ This project uses Reinforcement Learning to jointly optimize traffic signal cont
 
  ####  Requirements:
 - SUMO version: [1.21](https://github.com/eclipse-sumo/sumo/releases/tag/v1_21_0)
-- Python version: 3.12:
-	- If using Anaconda:
+- Python version: 3.12 ([Anaconda 2024.06](https://repo.anaconda.com/archive/) recommended)
 - Install required packages
 	```bash
 	pip  install  requirements.txt
 	```
 
- #### To Train
+ #### Training:
 
-Step 1: Complete the setup
+- Step 1: Complete the setup
 
-Step 2: Open terminal In linux or wsl and run:
+- Step 2: Open terminal, in linux or wsl run:
+
 	```bash
 	ulimit -n 20000
 	```
 to increase the limit on the number of file descriptors that can be opened by a process.
 
-Step 3: In the config.py file, set the `sweep`,`evaluate`, and `gui` to `False`.
+- Step 3: In the [config.py](https://github.com/poudel-bibek/Urban-Control/blob/main/config.py) file, set the `sweep`,`evaluate`, and `gui` to `False`.
 
-Step 4: Run the following command:
+- Step 4: Run the following command:
+
 	```bash
 	python main.py
 	```
 
-#### Some important parameters that you can add to the command:
--  `--gui` to run the simulation with GUI.
--  `--sweep` to run the hyperparameter tuning.
--  `--evaluate` to evaluate the trained policy.
--  `--eval_model_path` to specify the path to the trained policy.
--  `--eval_worker_device` to specify the device to run the evaluation on.
--  `--step_length`: Simulation step length (default: 1.0)
--  `--action_duration`: Duration of each action (default: 10.0)
--  `--total_timesteps`: Total training timesteps (default: 100000)
--  `--max_timesteps`: Maximum steps per episode (default: 1000)
--  `--num_processes`: Number of parallel processes (default: 8)
-For a complete list of parameters, refer to the argument parser in `ppo_run.py`.
+#### Some important parameters that you can change in the [config.py](https://github.com/poudel-bibek/Urban-Control/blob/main/config.py) file during training:
+-  `"gui: True"` to run the simulation with GUI.
+-  `"gpu: True"` to run the simulation on GPU.
+-  `"sweep: True"` to run the hyperparameter tuning.
+-  `"evaluate: True"` to evaluate a trained policy. T
+-  `"step_length"`: Real-world time in seconds per simulation timestep (default: 1.0)
+-  `"action_duration"`: Number of simulation timesteps for each action (default: 10)
+-  `"total_timesteps"`: Total training timesteps (default: 100000)
+-  `"max_timesteps"`: Maximum simulation steps per episode (default: 600)
+-  `"num_processes"`: Number of parallel processes (default: 8). Increase/ reduce this according to your CPU.
 
- #### To Run a sweep
- 
+ #### Evaluation and Benchmarks 
+
+- Set `eval_model_path` path in the [config.py](https://github.com/poudel-bibek/Urban-Control/blob/main/config.py) file. Modify other evaluation parameters as needed.
+- Set `evaluate: True` in the [config.py](https://github.com/poudel-bibek/Urban-Control/blob/main/config.py) file.
+- Run the following command:
+	```bash
+	python main.py
+	```
+- It will run benchmarks in the order: RL, Traffic Signal and Unsignalized as defined in the main.py file.
+- If you want to run a specific benchmark, comment out the other two.
+```python
+		ppo_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= False)
+        tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=None, tl= True, unsignalized=False) 
+        unsignalized_results_path = eval(control_args, ppo_args, eval_args, policy_path=None, tl= True, unsignalized=True)
+```
+- Benchmark results json files are saved in the `results` folder.
+
+
+ #### To Run a hyperparameter sweep
+- Set `"sweep": True` in the [config.py](https://github.com/poudel-bibek/Urban-Control/blob/main/config.py) file.
+- Modify the `create_sweep_config` method to set the parameters you want to sweep and the method to use.
+- Run the following command:
+
+	```bash
+	python main.py
+	```
 
 ---
 ### Notes: 
-- The initial 100-250 timesteps (10 - 25 seconds) are warmup period.
-- Although the horizon timesteps is same between methods, rollouts for higher demands are longer because of increased CPU load.
-- Developed and tested on Ubuntu 24.04, Windows 11 + WSL2
+- The initial `100-250` timesteps (randomly chosen) are warmup period. Defined in the `reset` method in [env.py](https://github.com/poudel-bibek/Urban-Control/blob/main/simulation/env.py).
+- Although the episode horizon is same, rollouts for higher demands take longer because of increased CPU load.
+- This code was developed and tested on Ubuntu 24.04 and Windows 11 + WSL2.
 
 ---
 ### Citation

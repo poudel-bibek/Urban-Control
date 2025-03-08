@@ -442,7 +442,7 @@ def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl=False, unsigna
     del env
     eval_queue.put((worker_demand_scale, worker_result))
 
-def eval(control_args, ppo_args, eval_args, policy_path, tl=False, unsignalized=False):
+def eval(control_args, ppo_args, eval_args, policy_path=None, tl=False, unsignalized=False):
     """
     Works to evaluate a policy during training as well as stand-alone policy vs real-world TL (tl = True) evaluation.
     - Each demand is run on a different worker
@@ -457,7 +457,9 @@ def eval(control_args, ppo_args, eval_args, policy_path, tl=False, unsignalized=
     eval_ppo = PPO(**ppo_args)
     shared_eval_normalizer = WelfordNormalizer(eval_args['state_dim'])
     shared_eval_normalizer.eval()
-    load_policy(eval_ppo.policy, shared_eval_normalizer, policy_path)
+    if policy_path:
+        load_policy(eval_ppo.policy, shared_eval_normalizer, policy_path)
+
     shared_policy = eval_ppo.policy.to(eval_device)
     shared_policy.share_memory()
     shared_policy.eval()
@@ -541,8 +543,9 @@ def main(config):
         eval_args['state_dim'] = dummy_env.observation_space.shape
         
         ppo_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= False)
-        tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized=False) # supply a policy (wont be used for TL)
-        unsignalized_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= True, unsignalized=True)
+        tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=None, tl= True, unsignalized=False) 
+        unsignalized_results_path = eval(control_args, ppo_args, eval_args, policy_path=None, tl= True, unsignalized=True)
+
         plot_main_results(unsignalized_results_path, 
                           tl_results_path,
                           ppo_results_path,
