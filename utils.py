@@ -1137,6 +1137,7 @@ def plot_consolidated_insights(sampled_actions_file_path, conflict_json_file_pat
     plt.show()
     return fig
 
+# Usage
 ####### CONSOLIDATED 3 SUBPLOTS ######
 # sampled_actions_file_path = "./results/sampled_actions.json"
 # unsignalized_conflicts_file_path = "./results/eval_unsignalized_conflicts.json"
