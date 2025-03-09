@@ -8,7 +8,7 @@
 
 ### 📌 Overview
 
-This project uses Reinforcement Learning to jointly optimize traffic signal control for pedestrians and vehicles along the Craver Road corridor, featuring one intersection (with four signalized crosswalks) and seven midblock crossings. Our approach reduces waiting times by up to 52% for vehicles and 67% for pedestrians compared to traditional fixed-time signal control. 
+This project uses Proximal Policy Optimization (PPO) to jointly optimize traffic signal control for pedestrians and vehicles along the Craver Road corridor, featuring one intersection (with four signalized crosswalks) and seven midblock crossings. Our approach reduces waiting times by up to 52% for vehicles and 67% for pedestrians compared to traditional fixed-time signal control. 
 
 
 <p align="center">
@@ -82,10 +82,10 @@ This project uses Reinforcement Learning to jointly optimize traffic signal cont
 	```
 
 #### Some important parameters that you can change in the [config.py](https://github.com/poudel-bibek/Urban-Control/blob/main/config.py) file during training:
--  `"gui": True` to run the simulation with GUI.
--  `"gpu": True` to run the simulation on GPU.
--  `"sweep": True` to run the hyperparameter tuning.
--  `"evaluate": True` to evaluate a trained policy. T
+-  `gui: True` to run the simulation with GUI.
+-  `gpu: True` to run the simulation on GPU.
+-  `sweep: True` to run the hyperparameter tuning.
+-  `evaluate: True` to evaluate a trained policy. T
 -  `"step_length"`: Real-world time in seconds per simulation timestep (default: 1.0)
 -  `"action_duration"`: Number of simulation timesteps for each action (default: 10)
 -  `"total_timesteps"`: Total training timesteps (default: 8000000)
@@ -115,7 +115,7 @@ This project uses Reinforcement Learning to jointly optimize traffic signal cont
 
  ---
  #### 🔍 Hyperparameter sweep
-- Set `"sweep": True` in the [config.py](https://github.com/poudel-bibek/Urban-Control/blob/main/config.py) file.
+- Set `sweep: True` in the [config.py](https://github.com/poudel-bibek/Urban-Control/blob/main/config.py) file.
 - Modify the `create_sweep_config` method in [sweep.py](https://github.com/poudel-bibek/Urban-Control/blob/main/sweep.py) to set the parameters/ method to use.
 - Run the following command:
 
