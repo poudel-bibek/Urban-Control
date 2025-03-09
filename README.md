@@ -65,7 +65,7 @@ This project uses Reinforcement Learning to jointly optimize traffic signal cont
 	ulimit -n 20000
 	```
 
-to increase the limit on the number of file descriptors that can be opened by a process.
+ to increase the limit on the number of file descriptors that can be opened by a process.
 
 - Step 3: In the [config.py](https://github.com/poudel-bibek/Urban-Control/blob/main/config.py) file, set the `sweep`,`evaluate`, and `gui` to `False`.
 
@@ -74,17 +74,18 @@ to increase the limit on the number of file descriptors that can be opened by a 
 	```bash
 	python main.py
 	```
-Step 5: To view tensorboard logs, run the following command:
+
+- Step 5: To view tensorboard logs, run the following command:
 
 	```bash
 	tensorboard --logdir=./runs
 	```
 
 #### Some important parameters that you can change in the [config.py](https://github.com/poudel-bibek/Urban-Control/blob/main/config.py) file during training:
--  `"gui: True"` to run the simulation with GUI.
--  `"gpu: True"` to run the simulation on GPU.
--  `"sweep: True"` to run the hyperparameter tuning.
--  `"evaluate: True"` to evaluate a trained policy. T
+-  `"gui": True` to run the simulation with GUI.
+-  `"gpu": True` to run the simulation on GPU.
+-  `"sweep": True` to run the hyperparameter tuning.
+-  `"evaluate": True` to evaluate a trained policy. T
 -  `"step_length"`: Real-world time in seconds per simulation timestep (default: 1.0)
 -  `"action_duration"`: Number of simulation timesteps for each action (default: 10)
 -  `"total_timesteps"`: Total training timesteps (default: 8000000)
