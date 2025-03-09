@@ -85,7 +85,7 @@ This project uses Proximal Policy Optimization (PPO) to jointly optimize traffic
 -  `gui: True` to run the simulation with GUI.
 -  `gpu: True` to run the simulation on GPU.
 -  `sweep: True` to run the hyperparameter tuning.
--  `evaluate: True` to evaluate a trained policy. T
+-  `evaluate: True` to evaluate a trained policy.
 -  `"step_length"`: Real-world time in seconds per simulation timestep (default: 1.0)
 -  `"action_duration"`: Number of simulation timesteps for each action (default: 10)
 -  `"total_timesteps"`: Total training timesteps (default: 8000000)
