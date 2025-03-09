@@ -1,4 +1,4 @@
-## Joint Pedestrian and Vehicle Traffic Optimization in Urban Environments using Reinforcement Learning 🚶🚗
+## Joint Pedestrian and Vehicle Traffic Optimization in Urban Environments using Reinforcement Learning
 
 <a  href='https://poudel-bibek.github.io/pdfs/projects/joint_control/'><img  src='https://img.shields.io/badge/arXiv--green'></a> <a  href='https://youtu.be/Tec3H72cDT4'><img  src='https://img.shields.io/badge/YouTube--red'></a>
 
@@ -45,7 +45,7 @@ This project uses Reinforcement Learning to jointly optimize traffic signal cont
 
 ### 🛠️ Setup & Training:
 
- ####  Requirements:
+ #### 📋 Requirements:
 - SUMO version: [1.21](https://github.com/eclipse-sumo/sumo/releases/tag/v1_21_0)
 - Python version: 3.12 ([Anaconda 2024.06](https://repo.anaconda.com/archive/) recommended)
 - Install required packages
@@ -55,7 +55,7 @@ This project uses Reinforcement Learning to jointly optimize traffic signal cont
 	```
 
  ---
- #### Training:
+ #### 🏋️ Training:
 
 - Step 1: Complete the setup
 
