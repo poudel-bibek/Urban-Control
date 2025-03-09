@@ -73,31 +73,31 @@ class HyperParameterTuner:
                     'values': [1e-4]
                 },
                 'gae_lambda': {
-                    'values': [0.95]
+                    'values': [0.95, 0.99]
                 },
                 'update_freq': {
-                    'values': [1024]
+                    'values': [512, 1024]
                 },
                 'gamma': {
-                    'values': [0.99]
+                    'values': [0.98, 0.99]
                 },
                 'K_epochs': {
-                    'values': [4]
+                    'values': [4, 8]
                 },
                 'eps_clip': {
-                    'values': [0.2]
+                    'values': [0.2, 0.25]
                 },
                 'ent_coef': {
-                    'values': [0.01]
+                    'values': [0.01, 0.02]
                 },
                 'vf_coef': {
-                    'values': [0.5]
+                    'values': [0.5, 0.75]
                 },
                 'vf_clip_param': {
-                    'values': [0.5]
+                    'values': [0.5, 0.75]
                 },
                 'batch_size': {
-                    'values': [64]
+                    'values': [64, 128]
                 },
                 # policy:
                 'model_type': {

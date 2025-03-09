@@ -211,12 +211,12 @@ class PPO:
         rewards = torch.tensor(memories.rewards, dtype=torch.float32)
         is_terminals = torch.tensor(memories.is_terminals, dtype=torch.bool)
 
-        print(f"\nStates shape: {states.shape}")
-        print(f"\nActions shape: {actions.shape}")
-        print(f"\nOld Values shape: {old_values.shape}")
-        print(f"\nOld logprobs shape: {old_logprobs.shape}")
-        print(f"\nRewards shape: {rewards.shape}")
-        print(f"\nIs terminals shape: {is_terminals.shape}")
+        # print(f"\nStates shape: {states.shape}")
+        # print(f"\nActions shape: {actions.shape}")
+        # print(f"\nOld Values shape: {old_values.shape}")
+        # print(f"\nOld logprobs shape: {old_logprobs.shape}")
+        # print(f"\nRewards shape: {rewards.shape}")
+        # print(f"\nIs terminals shape: {is_terminals.shape}")
 
         # Compute GAE
         advantages = self.compute_gae(rewards, old_values, is_terminals, self.gamma, self.gae_lambda)
@@ -225,12 +225,12 @@ class PPO:
         # GAE = difference between the empirical return and the value function estimate.
         # advantages + val = Reconstruction of empirical returns. Because we want the critic to predict the empirical returns.
         returns = advantages + old_values
-        print(f"\nAdvantages: {advantages}, shape: {advantages.shape}")
-        print(f"\nReturns: {returns}, shape: {returns.shape}")
+        # print(f"\nAdvantages: {advantages}, shape: {advantages.shape}")
+        # print(f"\nReturns: {returns}, shape: {returns.shape}")
 
         # Normalize the advantages (only for use in policy loss calculation) after they have been added to get returns.
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8) # Small constant to prevent division by zero
-        print(f"\nAdvantages after normalization: {advantages}, shape: {advantages.shape}")
+        # print(f"\nAdvantages after normalization: {advantages}, shape: {advantages.shape}")
 
         # Create a dataloader for mini-batching 
         dataset = TensorDataset(states, actions, old_logprobs, advantages, returns, old_values)
@@ -250,10 +250,10 @@ class PPO:
                 returns_batch = returns_batch.to(self.device)
                 old_values_batch = old_values_batch.to(self.device)
 
-                print(f"\nOld logprobs batch shape: {old_logprobs_batch.shape}")
-                print(f"\nAdvantages batch shape: {advantages_batch.shape}")
-                print(f"\nReturns batch shape: {returns_batch.shape}")
-                print(f"\nOld values batch shape: {old_values_batch.shape}")
+                # print(f"\nOld logprobs batch shape: {old_logprobs_batch.shape}")
+                # print(f"\nAdvantages batch shape: {advantages_batch.shape}")
+                # print(f"\nReturns batch shape: {returns_batch.shape}")
+                # print(f"\nOld values batch shape: {old_values_batch.shape}")
 
                 # Evaluating old actions and values using current policy network
                 logprobs, state_values, dist_entropy = self.policy.evaluate(states_batch.to(self.device), actions_batch.to(self.device))
@@ -262,22 +262,22 @@ class PPO:
                 # Finding the ratio (pi_theta / pi_theta_old) for importance sampling (we want to use the samples obtained from old policy to get the new policy)
                 logratios = logprobs - old_logprobs_batch.squeeze(-1) # New log probs, state_values, dist_entropy need to remain attached to the graph.
                 ratios = logratios.exp()
-                print(f"\nLogprobs: {logprobs.shape}")
-                print(f"\nOld logprobs: {old_logprobs_batch.squeeze(-1).shape}")
-                print(f"\nRatios: {ratios.shape}: {ratios}")
-                print(f"\nOld values batch: {old_values_batch.shape}: {old_values_batch}")
-                print(f"\nState values: {state_values.shape}: {state_values}")
-                print(f"\nReturns batch: {returns_batch.shape}: {returns_batch}")
+                # print(f"\nLogprobs: {logprobs.shape}")
+                # print(f"\nOld logprobs: {old_logprobs_batch.squeeze(-1).shape}")
+                # print(f"\nRatios: {ratios.shape}: {ratios}")
+                # print(f"\nOld values batch: {old_values_batch.shape}: {old_values_batch}")
+                # print(f"\nState values: {state_values.shape}: {state_values}")
+                # print(f"\nReturns batch: {returns_batch.shape}: {returns_batch}")
 
                 # Finding Surrogate Loss
                 surr1 = ratios * advantages_batch
                 surr2 = torch.clamp(ratios, 1-self.eps_clip, 1+self.eps_clip) * advantages_batch
-                print(f"\nSurrogate 1: {surr1.shape}: {surr1.mean()}")
-                print(f"\nSurrogate 2: {surr2.shape}: {surr2.mean()}")
+                # print(f"\nSurrogate 1: {surr1.shape}: {surr1.mean()}")
+                # print(f"\nSurrogate 2: {surr2.shape}: {surr2.mean()}")
 
                 # Calculate policy and value losses
                 policy_loss = torch.min(surr1, surr2).mean() # Equation 7 in the paper
-                print(f"\nPolicy loss: {policy_loss.item()}")
+                # print(f"\nPolicy loss: {policy_loss.item()}")
 
                 # Value function clipping
                 clipped_state_values = old_values_batch + torch.clamp(state_values - old_values_batch, -self.vf_clip_param, self.vf_clip_param)
@@ -285,16 +285,16 @@ class PPO:
                 # compute both the clipped and unclipped value losses (MSE)
                 clipped_value_loss = (clipped_state_values - returns_batch) ** 2 # square first
                 unclipped_value_loss = (state_values - returns_batch) ** 2
-                print(f"\nClipped value loss: {clipped_value_loss.mean()}")
-                print(f"\nUnclipped value loss: {unclipped_value_loss.mean()}")
+                # print(f"\nClipped value loss: {clipped_value_loss.mean()}")
+                # print(f"\nUnclipped value loss: {unclipped_value_loss.mean()}")
 
                 # Value loss is scaled by 0.5 
                 value_loss = 0.5 * (torch.max(clipped_value_loss, unclipped_value_loss).mean()) # then mean
-                print(f"\nValue loss: {value_loss.item()}")
+                # print(f"\nValue loss: {value_loss.item()}")
 
-                print(f"\nDist entropy: {dist_entropy.shape}")
+                # print(f"\nDist entropy: {dist_entropy.shape}")
                 entropy_loss = dist_entropy.mean()
-                print(f"\nEntropy loss: {entropy_loss.item()}")
+                # print(f"\nEntropy loss: {entropy_loss.item()}")
 
                 # Minimize policy loss and value loss, maximize entropy loss.
                 # The signs are negated (wrt to the equation in the paper). This ensures that the optimizer maximizes the PPO objective by minimizing the loss function. It is correct and necessary.

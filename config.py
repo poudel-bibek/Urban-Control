@@ -5,13 +5,13 @@ def get_config():
     config = {
         # Simulation
         "sweep": False,  # Use wandb sweeps for hyperparameter tuning
-        "gui": False,  # Use SUMO GUI (default: False)
+        "gui": True,  # Use SUMO GUI (default: False)
         "evaluate": False,  
         
         "step_length": 1.0,  # Real-world time in seconds per simulation timestep (default: 1.0). 
         "action_duration": 10,  # Number of simulation timesteps for each action (default: 10)
         "warmup_steps": [100, 250],  # Number of steps to run before collecting data
-        "auto_start": False,  # Automatically start the simulation
+        "auto_start": True,  # Automatically start the simulation
         "vehicle_input_trips": "./simulation/original_vehtrips.xml",  # Original Input trips file
         "vehicle_output_trips": "./simulation/scaled_trips/scaled_vehtrips.xml",  # Output trips file
         "pedestrian_input_trips": "./simulation/original_pedtrips.xml",  # Original Input pedestrian trips file
@@ -48,7 +48,7 @@ def get_config():
         "ent_coef": 0.01,  # Entropy coefficient
         "vf_coef": 0.5,  # Value function coefficient
         "batch_size": 64,  # Batch size
-        "num_processes":8,  # Number of parallel processes to use (agent has multiple workers)
+        "num_processes": 8,  # Number of parallel processes to use (agent has multiple workers)
         "kernel_size": 3,  # Kernel size for CNN
         "model_size": "medium",  # Model size for CNN: 'small' or 'medium'
         "dropout_rate": 0.25,  # Dropout rate for CNN
@@ -60,7 +60,7 @@ def get_config():
         "eval_model_path": "./saved_models/best_eval_policy.pth",  # Path to the saved PPO model for evaluation
         "eval_save_dir": None,
         "eval_n_timesteps": 600,  # Number of timesteps to each episode. Warmup not counted.
-        "eval_n_workers": 1,  # Parallelizes how many demands can be evaluated at the same time.
+        "eval_n_workers": 8,  # Parallelizes how many demands can be evaluated at the same time.
         "eval_worker_device": "gpu",  # Policy during eval can be run in GPU 
     }
     return config
@@ -126,12 +126,12 @@ def classify_and_return_args(train_config, device):
     
     if train_config['evaluate']:
         # during evaluation
-        eval_n_iterations = 1
+        eval_n_iterations = 2
         in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25] 
         out_of_range_demand_scales = [0.5, 0.75, 2.5, 2.75]
     else: 
         # during training
-        eval_n_iterations = 1
+        eval_n_iterations = 10
         in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25] # The demand scales that are used for training.
         out_of_range_demand_scales = [] # The demand scales that are used ONLY for evaluation.
     

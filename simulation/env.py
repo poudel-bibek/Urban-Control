@@ -570,10 +570,11 @@ class ControlEnv(gym.Env):
             done = True
 
         observation = np.asarray(observation_buffer, dtype=np.float32) 
+        
         #print(f"\nObservation shape: {observation.shape}, type: {type(observation)}, value: {observation}")
         #visualize_observation(observation)
         # print(f"\nRecorded conflicts: {self.recorded_conflicts}\n")
-        print(f"Total switches: {self.total_switches}")
+        #print(f"Total switches: {self.total_switches}")
         return observation, reward, done, False, {} # info is empty
 
     def _detect_switch(self, current_action, previous_action):

@@ -594,7 +594,7 @@ class MLPActorCritic(nn.Module):
         """
         Evaluate a batch of states and pre-sampled actions. Same logic as the CNN version.
         """
-        print("Evaluating...")
+        # print("Evaluating...")
         action_logits = self.actor(states)
         intersection_logits = action_logits[:, :4]
         midblock_logits = action_logits[:, 4:]
@@ -610,16 +610,16 @@ class MLPActorCritic(nn.Module):
         midblock_actions = actions[:, 1:].float()
 
         intersection_log_probs = intersection_dist.log_prob(intersection_action)
-        print(f"\nIntersection log probs: {intersection_log_probs}, shape: {intersection_log_probs.shape}")
+        # print(f"\nIntersection log probs: {intersection_log_probs}, shape: {intersection_log_probs.shape}")
         midblock_log_probs = midblock_dist.log_prob(midblock_actions)
-        print(f"\nMidblock log probs: {midblock_log_probs}, shape: {midblock_log_probs.shape}")
+        # print(f"\nMidblock log probs: {midblock_log_probs}, shape: {midblock_log_probs.shape}")
         action_log_probs = intersection_log_probs + midblock_log_probs.sum(dim=1)
-        print(f"\nAction log probs: {action_log_probs}, shape: {action_log_probs.shape}")
+        # print(f"\nAction log probs: {action_log_probs}, shape: {action_log_probs.shape}")
 
         # Entropies
-        print(f"Entropies: intersection: {intersection_dist.entropy()}, midblock: {midblock_dist.entropy().sum(dim=1)}")
+        # print(f"Entropies: intersection: {intersection_dist.entropy()}, midblock: {midblock_dist.entropy().sum(dim=1)}")
         total_entropy = intersection_dist.entropy() + midblock_dist.entropy().sum(dim=1)
-        print(f"Total entropy: {total_entropy}, shape: {total_entropy.shape}")
+        # print(f"Total entropy: {total_entropy}, shape: {total_entropy.shape}")
 
         # Critic value
         state_values = self.critic(states)

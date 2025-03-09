@@ -14,7 +14,7 @@ from sweep import HyperParameterTuner
 from torch.utils.tensorboard import SummaryWriter
 
 from utils import *
-from env import ControlEnv
+from simulation.env import ControlEnv
 
 def parallel_train_worker(rank, shared_policy_old, control_args, train_queue, worker_seed, shared_state_normalizer, shared_reward_normalizer, worker_device):
     """
@@ -517,7 +517,7 @@ def eval(control_args, ppo_args, eval_args, policy_path=None, tl=False, unsignal
     else:
         tl_state = "ppo"
     
-    result_json_path = os.path.join(eval_args['eval_save_dir'], f'eval_{policy_path.split("/")[2].split(".")[0]}_{tl_state}.json')
+    result_json_path = os.path.join(eval_args['eval_save_dir'], f'{policy_path.split("/")[-1].split(".")[0]}_{tl_state}.json') # f'eval_{policy_path.split("/")[2].split(".")[0]}_{tl_state}.json
     with open(result_json_path, 'w') as f:
         json.dump(all_results, f, indent=4)
     f.close()
