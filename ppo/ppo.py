@@ -90,15 +90,7 @@ class WelfordNormalizer:
     
 class PPO:
     """
-    This implementation is parallelized using Multiprocessing i.e. multiple CPU cores each running a separate process.
-    Multiprocessing vs Multithreading:
-    - In the CPython implementation, the Global Interpreter Lock (GIL) is a mechanism used to prevent multiple threads from executing Python bytecodes at once. 
-    - This lock is necessary because CPython is not thread-safe, i.e., if multiple threads were allowed to execute Python code simultaneously, they could potentially interfere with each other, leading to data corruption or crashes. 
-    - The GIL prevents this by ensuring that only one thread can execute Python code at any given time.
-    - Since only one thread can execute Python code at a time, programs that rely heavily on threading for parallel execution may not see the expected performance gains.
-    - In contrast, multiprocessing allows multiple processes to execute Python code in parallel, bypassing the GIL and taking full advantage of multiple CPU cores.
-    - However, multiprocessing has higher overhead than multithreading due to the need to create separate processes and manage inter-process communication.
-    - In Multiprocessing, we create separate processes, each with its own Python interpreter and memory space
+    Centralized policy update.
     """
     def __init__(self, 
                  model_dim, # could be state_dim for mlp, in_channels for cnn, in_channels for gatv2
