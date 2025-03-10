@@ -32,7 +32,7 @@ This project uses Proximal Policy Optimization (PPO) to jointly optimize traffic
 ### 📊 Data
 - [Training logs in wandb](https://api.wandb.ai/links/Fluidic-city/kt1tlg8f) 
 - [Trained policy](https://github.com/poudel-bibek/Urban-Control/blob/main/saved_models) and [config file](https://github.com/user-attachments/files/19145941/config_Feb24_19-06-53.json)
-- Original trips: [pedestrian](https://github.com/poudel-bibek/Urban-Control/blob/main/simulation/original_pedtrips.xml), [vehicle](https://github.com/poudel-bibek/Urban-Control/blob/main/simulation/original_vehtrips.xml)
+- Unscaled trips: [pedestrian](https://github.com/poudel-bibek/Urban-Control/blob/main/simulation/original_pedtrips.xml), [vehicle](https://github.com/poudel-bibek/Urban-Control/blob/main/simulation/original_vehtrips.xml)
 - Results reported in the paper (json files): [Traffic Signal](https://github.com/user-attachments/files/19145910/eval_tl.json), [Unsignalized](https://github.com/user-attachments/files/19145909/eval_unsignalized.json), [RL](https://github.com/user-attachments/files/19145911/eval_ppo.json).
 - Rollout videos:
 	| Method |Demand (1x)  | Demand (2.5x)| 
