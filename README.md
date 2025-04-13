@@ -1,6 +1,6 @@
 ## Joint Pedestrian and Vehicle Traffic Optimization in Urban Environments using Reinforcement Learning
 
-<a  href='https://poudel-bibek.github.io/pdfs/projects/joint_control/'><img  src='https://img.shields.io/badge/arXiv--green'></a> <a  href='https://youtu.be/Tec3H72cDT4'><img  src='https://img.shields.io/badge/YouTube--red'></a>
+<a  href='https://arxiv.org/abs/2504.05018'><img  src='https://img.shields.io/badge/arXiv--green'></a> <a  href='https://youtu.be/Tec3H72cDT4'><img  src='https://img.shields.io/badge/YouTube--red'></a>
 
 <p align="center">
   <a href="https://youtu.be/Tec3H72cDT4"><img src="https://github.com/poudel-bibek/Urban-Control/blob/main/images/craver_3d.gif" alt="craver" style="width:800px"/></a>
