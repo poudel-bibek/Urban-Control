@@ -142,7 +142,7 @@ If you find this work useful in your own research:
   booktitle={arXiv preprint},
   volume={arXiv:},  
   year={2025},
-  url={https://poudel-bibek.github.io/pdfs/projects/joint_control/},
+  url={https://arxiv.org/abs/2504.05018},
 }
 ```
 
