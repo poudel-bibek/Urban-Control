@@ -139,11 +139,11 @@ If you find this work useful in your own research:
 @inproceedings{poudel2025control,
   title={Joint Pedestrian and Vehicle Traffic Optimization in Urban Environments using Reinforcement Learning},
   author={Poudel, Bibek and Wang, Xuan and Li, Weizi and Zhu, Lei and Heaslip, Kevin},
-  booktitle={arXiv preprint},
-  volume={arXiv:},  
+  journal={2025 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
   year={2025},
   url={https://arxiv.org/abs/2504.05018},
 }
+
 ```
 
 
