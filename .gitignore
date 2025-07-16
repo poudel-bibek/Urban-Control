@@ -36,3 +36,6 @@ simulation/scaled_trips/
 
 /simulation/netconvert_log.txt
 ./simulation/netconvert_log.txt
+
+./saved_models/
+./saved_models/*

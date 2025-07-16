@@ -5,7 +5,7 @@ def get_config():
     config = {
         # Simulation
         "sweep": False,  # Use wandb sweeps for hyperparameter tuning
-        "gui": True,  # Use SUMO GUI (default: False)
+        "gui": False,  # Use SUMO GUI (default: False)
         "evaluate": False,  
         
         "step_length": 1.0,  # Real-world time in seconds per simulation timestep (default: 1.0). 
