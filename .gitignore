@@ -6,12 +6,13 @@ __pycache__/
 .ipynb_checkpoints/
 
 # TensorBoard runs
-runs/
+runs/*
+./runs/
 
 ./Best_models
 Best_models/
 ./results/
-results/
+results/*
 ./wandb
 wandb/
 
