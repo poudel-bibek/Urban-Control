@@ -453,7 +453,7 @@ def plot_main_results(*json_paths, in_range_demand_scales, show_scales=True):
     custom_cmaps = ['Oranges', 'Blues', 'Greens']
 
     # Set style
-    sns.set_theme(style="whitegrid", context="talk")
+    # sns.set_theme(style="whitegrid", context="talk")
 
     # Set up the figure with a 2x2 grid
     fig = plt.figure(figsize=(16, 7))
@@ -529,46 +529,136 @@ def plot_main_results(*json_paths, in_range_demand_scales, show_scales=True):
         ax.axvspan(xlim[0], veh_valid_min, facecolor='grey', alpha=0.25, zorder=-1)
         ax.axvspan(veh_valid_max, xlim[1], facecolor='grey', alpha=0.25, zorder=-1)
 
+    # Marker size and alpha settings
+    circle_marker_size = 64  # 67 * 0.95 (reduced by 5%)
+    star_marker_size = 141   # 128 * 1.1 (increased by 10%)
+    legend_circle_marker_size = 9.2  # 8.4 * 1.1
+    legend_star_marker_size = 16.5   # 15 * 1.1
+    marker_alpha = 0.7
+
+    # Switch colors: RL gets green, Signalized gets red, Unsignalized gets purple
+    method_colors = ['#c33e2f', '#9066bf', '#419d21']  # Signalized, Unsignalized, RL
+    method_markers = ['o', 'o', '*']  # Signalized, Unsignalized, RL
     for idx, json_path in enumerate(json_paths):
-        # Get data using the helper function
         scales, veh_mean, ped_mean, veh_std, ped_std = get_averages(json_path, total=False)
         _, veh_total, ped_total, veh_total_std, ped_total_std = get_averages(json_path, total=True)
-
-        # Use labels instead of raw method name
         method_name = labels[idx]
-
-        # Convert scales to actual demands
         veh_demands = scales * original_vehicle_demand
         ped_demands = scales * original_pedestrian_demand
-
-        # Get color map for this method - use custom color assignment
-        cmap = custom_cmaps[idx] if idx < len(custom_cmaps) else None
-
-        # Plot pedestrian data with gradient lines
-        handle_ped_avg = plot_gradient_line(ax_ped_avg, ped_demands, ped_mean,
-                                          std=ped_std, cmap_name=cmap,
-                                          label=method_name, lw=2, zorder=2)
-
-        handle_ped_total = plot_gradient_line(ax_ped_total, ped_demands, ped_total,
-                                            std=ped_total_std, cmap_name=cmap,
-                                            label=method_name, lw=2, zorder=2)
-
-        # Plot vehicle data with gradient lines
-        handle_veh_avg = plot_gradient_line(ax_veh_avg, veh_demands, veh_mean,
-                                          std=veh_std, cmap_name=cmap,
-                                          label=method_name, lw=2, zorder=2)
-
-        handle_veh_total = plot_gradient_line(ax_veh_total, veh_demands, veh_total,
-                                            std=veh_total_std, cmap_name=cmap,
-                                            label=method_name, lw=2, zorder=2)
-
-        # Add to legend handles and labels (remove the if idx == 0 condition)
-        legend_handles.append(handle_ped_avg)
+        color = method_colors[idx] if idx < len(method_colors) else '#333333'
+        marker = method_markers[idx] if idx < len(method_markers) else 'o'
+        # Pedestrian average
+        ax_ped_avg.fill_between(ped_demands, ped_mean - ped_std, ped_mean + ped_std, color=color, alpha=0.18, zorder=1)
+        line_ped_avg, = ax_ped_avg.plot(ped_demands, ped_mean, color=color, lw=2, zorder=2)
+        scatter_ped_avg = ax_ped_avg.scatter(
+            ped_demands, ped_mean, c=color, edgecolor='white',
+            s=star_marker_size if marker=='*' else circle_marker_size,
+            alpha=marker_alpha, zorder=3, linewidth=1, marker=marker)
+        # Pedestrian total
+        ax_ped_total.fill_between(ped_demands, ped_total - ped_total_std, ped_total + ped_total_std, color=color, alpha=0.18, zorder=1)
+        line_ped_total, = ax_ped_total.plot(ped_demands, ped_total, color=color, lw=2, zorder=2)
+        scatter_ped_total = ax_ped_total.scatter(
+            ped_demands, ped_total, c=color, edgecolor='white',
+            s=star_marker_size if marker=='*' else circle_marker_size,
+            alpha=marker_alpha, zorder=3, linewidth=1, marker=marker)
+        # Vehicle average
+        ax_veh_avg.fill_between(veh_demands, veh_mean - veh_std, veh_mean + veh_std, color=color, alpha=0.18, zorder=1)
+        line_veh_avg, = ax_veh_avg.plot(veh_demands, veh_mean, color=color, lw=2, zorder=2)
+        scatter_veh_avg = ax_veh_avg.scatter(
+            veh_demands, veh_mean, c=color, edgecolor='white',
+            s=star_marker_size if marker=='*' else circle_marker_size,
+            alpha=marker_alpha, zorder=3, linewidth=1, marker=marker)
+        # Vehicle total
+        ax_veh_total.fill_between(veh_demands, veh_total - veh_total_std, veh_total + veh_total_std, color=color, alpha=0.18, zorder=1)
+        line_veh_total, = ax_veh_total.plot(veh_demands, veh_total, color=color, lw=2, zorder=2)
+        scatter_veh_total = ax_veh_total.scatter(
+            veh_demands, veh_total, c=color, edgecolor='white',
+            s=star_marker_size if marker=='*' else circle_marker_size,
+            alpha=marker_alpha, zorder=3, linewidth=1, marker=marker)
+        # For legend, use the line and marker style
+        handle = Line2D(
+            [0], [0], color=color, lw=2, marker=marker,
+            markersize=legend_star_marker_size if marker=='*' else legend_circle_marker_size,
+            markerfacecolor=color, markeredgecolor='white', alpha=marker_alpha, markeredgewidth=1, label=method_name)
+        legend_handles.append(handle)
         legend_labels.append(method_name)
 
-    # Set grid style with short dashes
+    # Function to add custom grid lines
+    def add_custom_grid_lines(ax, is_pedestrian=True):
+        # Get axis limits
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+        
+        # Grid line styling variables
+        grid_linewidth = 0.4  # Made thinner (was 0.65)
+        shaded_alpha = 1.0
+        unshaded_alpha = 0.25  # Match the shaded region alpha
+        dash_pattern = (8, 6)  # Longer dashes: (dash_length, gap_length)
+        
+        # Calculate boundaries
+        if is_pedestrian:
+            boundary_1x = 1.0 * original_pedestrian_demand
+            boundary_2_25x = 2.25 * original_pedestrian_demand
+        else:
+            boundary_1x = 1.0 * original_vehicle_demand
+            boundary_2_25x = 2.25 * original_vehicle_demand
+        
+        # Get actual tick positions
+        x_positions = ax.get_xticks()
+        y_positions = ax.get_yticks()
+        
+        # Filter tick positions to only include those within axis limits
+        x_positions = x_positions[(x_positions >= xlim[0]) & (x_positions <= xlim[1])]
+        y_positions = y_positions[(y_positions >= ylim[0]) & (y_positions <= ylim[1])]
+        
+        # Draw vertical grid lines
+        for x_pos in x_positions:
+            if x_pos < boundary_1x or x_pos > boundary_2_25x:
+                # In shaded region - white lines
+                ax.axvline(x=x_pos, color='white', linewidth=grid_linewidth, alpha=shaded_alpha, zorder=0, dashes=dash_pattern)
+            else:
+                # In unshaded region - gray lines (same as shaded region color)
+                ax.axvline(x=x_pos, color='grey', linewidth=grid_linewidth, alpha=unshaded_alpha, zorder=0, dashes=dash_pattern)
+        
+        # Draw horizontal grid lines
+        for y_pos in y_positions:
+            # For horizontal lines, we need to segment them based on x regions
+            # Left shaded region
+            if xlim[0] < boundary_1x:
+                ax.plot([xlim[0], min(boundary_1x, xlim[1])], [y_pos, y_pos], 
+                       color='white', linewidth=grid_linewidth, alpha=shaded_alpha, zorder=0, dashes=dash_pattern)
+            
+            # Middle unshaded region
+            if xlim[0] < boundary_2_25x and xlim[1] > boundary_1x:
+                x_start = max(boundary_1x, xlim[0])
+                x_end = min(boundary_2_25x, xlim[1])
+                if x_start < x_end:
+                    ax.plot([x_start, x_end], [y_pos, y_pos], 
+                           color='grey', linewidth=grid_linewidth, alpha=unshaded_alpha, zorder=0, dashes=dash_pattern)
+            
+            # Right shaded region
+            if xlim[1] > boundary_2_25x:
+                ax.plot([max(boundary_2_25x, xlim[0]), xlim[1]], [y_pos, y_pos], 
+                       color='white', linewidth=grid_linewidth, alpha=shaded_alpha, zorder=0, dashes=dash_pattern)
+
+    # Add custom grid lines to all subplots (MOVED TO AFTER Y-TICKS ARE SET)
+    # add_custom_grid_lines(ax_ped_avg, is_pedestrian=True)
+    # add_custom_grid_lines(ax_ped_total, is_pedestrian=True)
+    # add_custom_grid_lines(ax_veh_avg, is_pedestrian=False)
+    # add_custom_grid_lines(ax_veh_total, is_pedestrian=False)
+
     for ax in [ax_ped_avg, ax_ped_total, ax_veh_avg, ax_veh_total]:
-        ax.grid(True, linestyle=(0, (3, 3)), linewidth=0.85)
+        # Remove default grid and styling
+        ax.grid(False)  # Disable default grid since we're using custom ones
+        # Remove top and right spines, set left and bottom to linewidth 1.0 and slightly darker color
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_linewidth(1.0)
+        ax.spines['left'].set_color('#cacaca')    # 10% darker than #e0e0e0
+        ax.spines['bottom'].set_linewidth(1.0)
+        ax.spines['bottom'].set_color('#cacaca')
+        # Set tick color for both major and minor ticks
+        ax.tick_params(axis='both', which='both', color='#cacaca', labelcolor='#222222')
 
     fs = 18  # Base font size
 
@@ -693,6 +783,12 @@ def plot_main_results(*json_paths, in_range_demand_scales, show_scales=True):
     ax_ped_total.set_ylim(ped_total_yticks[0], ped_total_yticks[-1] * 1.1)
     ax_veh_total.set_ylim(veh_total_yticks[0], veh_total_yticks[-1] * 1.1)
 
+    # Now add custom grid lines after y-ticks are set
+    add_custom_grid_lines(ax_ped_avg, is_pedestrian=True)
+    add_custom_grid_lines(ax_ped_total, is_pedestrian=True)
+    add_custom_grid_lines(ax_veh_avg, is_pedestrian=False)
+    add_custom_grid_lines(ax_veh_total, is_pedestrian=False)
+
     # Set ticks for bottom plots only
     if show_scales:
         scale_labels = [f"{scale:g}x" for scale in scales_for_labels]
@@ -705,9 +801,9 @@ def plot_main_results(*json_paths, in_range_demand_scales, show_scales=True):
     # Legend with consistent font size
     leg = fig.legend(legend_handles, legend_labels,
                     loc='center',
-                    bbox_to_anchor=(0.525, 0.04),
+                    bbox_to_anchor=(0.525, 0.02),
                     ncol=len(legend_handles),
-                    frameon=True,
+                    frameon=False,
                     framealpha=1.0,
                     edgecolor='gray',
                     fancybox=True,
