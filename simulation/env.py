@@ -788,8 +788,9 @@ class ControlEnv(gym.Env):
         """ 
         wrapper
         """
-        # return self._get_mwaq_reward_exponential(corrected_occupancy_map, switch_state, print_reward=False)
-        return self._get_mwaq_reward_linear(corrected_occupancy_map, switch_state, print_reward=False)
+        # return self._get_mwaq_reward(corrected_occupancy_map, switch_state, print_reward=False)
+        # return self._get_mwaq_reward_linear(corrected_occupancy_map, switch_state, print_reward=True)
+        return self._get_mwaq_reward_exponential(corrected_occupancy_map, switch_state, print_reward=True)
 
     def _get_mwaq_reward(self, corrected_occupancy_map, switch_state, print_reward=False):
         """
