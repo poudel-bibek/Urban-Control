@@ -392,6 +392,10 @@ def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl=False, unsigna
     for i in range(eval_worker_config['n_iterations']):
         worker_result[i] = {}
 
+        # For each veh and ped, maxmimum wait times in the episode.
+        # max_wait_times_veh_all = {}
+        # max_wait_times_ped_all = {}
+            
         SEED = random.randint(0, 1000000)
         random.seed(SEED)
         np.random.seed(SEED)
@@ -411,6 +415,13 @@ def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl=False, unsigna
 
         with torch.no_grad():
             for _ in range(eval_worker_config['total_action_timesteps_per_episode']):
+                
+                # for veh_id, veh_wait_time in env.prev_vehicle_waiting_time.items():
+                #     max_wait_times_veh_all[veh_id] = max(max_wait_times_veh_all.get(veh_id, 0.0), veh_wait_time) # default 0 if new addition.
+
+                # for ped_id, ped_wait_time in env.prev_ped_waiting_time.items():
+                #     max_wait_times_ped_all[ped_id] = max(max_wait_times_ped_all.get(ped_id, 0.0), ped_wait_time)
+
                 state = torch.FloatTensor(state)
                 state = shared_eval_normalizer.normalize(state)
                 state = state.to(worker_device)
@@ -427,6 +438,10 @@ def parallel_eval_worker(rank, eval_worker_config, eval_queue, tl=False, unsigna
                 ped_waiting_time_this_episode += ped_waiting_time_this_step
 
                 veh_unique_ids_this_episode, ped_unique_ids_this_episode = env.total_unique_ids()
+
+        # we only need singular max wait time among all veh and ped in the episode.
+        # worker_result[i]['max_wait_times_veh'] = max(max_wait_times_veh_all.values())
+        # worker_result[i]['max_wait_times_ped'] = max(max_wait_times_ped_all.values())
 
         # gather performance metrics
         worker_result[i]['total_veh_waiting_time'] = veh_waiting_time_this_episode
@@ -463,7 +478,7 @@ def eval(control_args, ppo_args, eval_args, policy_path=None, tl=False, unsignal
     shared_policy = eval_ppo.policy.to(eval_device)
     shared_policy.share_memory()
     shared_policy.eval()
-    
+
     # number of times the n_workers have to be repeated to cover all eval demands
     num_times_workers_recycle = len(eval_demand_scales) if len(eval_demand_scales) < n_workers else (len(eval_demand_scales) // n_workers) + 1
     for i in range(num_times_workers_recycle):
@@ -542,14 +557,14 @@ def main(config):
         dummy_env = ControlEnv(control_args, worker_id=None)
         eval_args['state_dim'] = dummy_env.observation_space.shape
         
-        ppo_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= False)
-        tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=None, tl= True, unsignalized=False) 
+        # ppo_results_path = eval(control_args, ppo_args, eval_args, policy_path=config['eval_model_path'], tl= False)
+        # tl_results_path = eval(control_args, ppo_args, eval_args, policy_path=None, tl= True, unsignalized=False) 
         unsignalized_results_path = eval(control_args, ppo_args, eval_args, policy_path=None, tl= True, unsignalized=True)
 
-        plot_main_results(unsignalized_results_path, 
-                          tl_results_path,
-                          ppo_results_path,
-                          in_range_demand_scales = eval_args['in_range_demand_scales'])
+        # plot_main_results(unsignalized_results_path, 
+        #                   tl_results_path,
+        #                   ppo_results_path,
+        #                   in_range_demand_scales = eval_args['in_range_demand_scales'])
 
     elif config['sweep']:
         tuner = HyperParameterTuner(config, train)

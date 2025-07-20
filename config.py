@@ -126,12 +126,12 @@ def classify_and_return_args(train_config, device):
     
     if train_config['evaluate']:
         # during evaluation
-        eval_n_iterations = 2
+        eval_n_iterations = 10
         in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25] 
         out_of_range_demand_scales = [0.5, 0.75, 2.5, 2.75]
     else: 
         # during training
-        eval_n_iterations = 10
+        eval_n_iterations = 2
         in_range_demand_scales = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25] # The demand scales that are used for training.
         out_of_range_demand_scales = [] # The demand scales that are used ONLY for evaluation.
     
